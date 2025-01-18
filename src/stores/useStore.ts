@@ -41,7 +41,7 @@ export interface Character {
   };
 }
 
-const initialCharacter: Character = {
+export const initialCharacter: Character = {
   name: "",
   level: 1,
   species: "",
