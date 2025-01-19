@@ -449,14 +449,14 @@ const CharacterCreationPage = () => {
           </h2>
           <input
             type="text"
-            placeholder="Name"
+            placeholder="Name *"
             className="input input-bordered w-full"
             value={character.name}
             onChange={(e) => handleInputChange("name", e.target.value)}
           />
           <input
             type="number"
-            placeholder="Level"
+            placeholder="Level *"
             className="input input-bordered w-full"
             value={String(character.level ?? 1)}
             min="1"
@@ -471,7 +471,7 @@ const CharacterCreationPage = () => {
           <div className="relative species-dropdown">
             <input
               type="text"
-              placeholder="Species"
+              placeholder="Species *"
               className="input input-bordered w-full"
               value={filters.species}
               onChange={(e) => {
@@ -531,7 +531,13 @@ const CharacterCreationPage = () => {
           <div className="relative subspecies-dropdown">
             <input
               type="text"
-              placeholder="Subspecies"
+              placeholder={
+                characterSubspecies[
+                  character.species as keyof typeof characterSubspecies
+                ]
+                  ? "Subspecies *"
+                  : "Subspecies"
+              }
               className="input input-bordered w-full"
               value={filters.subspecies}
               onChange={(e) => {
@@ -586,7 +592,7 @@ const CharacterCreationPage = () => {
           <div className="relative alignment-dropdown">
             <input
               type="text"
-              placeholder="Alignment"
+              placeholder="Alignment *"
               className="input input-bordered w-full"
               value={filters.alignment}
               onChange={(e) => {
@@ -623,7 +629,7 @@ const CharacterCreationPage = () => {
           <div className="relative background-dropdown">
             <input
               type="text"
-              placeholder="Background"
+              placeholder="Background *"
               className="input input-bordered w-full"
               value={filters.background}
               onChange={(e) => {
@@ -688,7 +694,7 @@ const CharacterCreationPage = () => {
             </div>
             <input
               type="text"
-              placeholder="Add Class (max 3)"
+              placeholder="Add Class (max 3) *"
               className="input input-bordered w-full"
               value={filters.class}
               onChange={(e) => {
@@ -744,6 +750,8 @@ const CharacterCreationPage = () => {
               placeholder={
                 (character.level ?? 1) < 3
                   ? "Reach level 3 to select a subclass"
+                  : (character.level ?? 1) >= 3
+                  ? "Add Subclass *"
                   : "Add Subclass"
               }
               className="input input-bordered w-full"
@@ -1104,6 +1112,9 @@ const CharacterCreationPage = () => {
             </div>
           </div>
 
+          <div className="col-span-full mt-2 text-sm text-gray-400">
+            * Required fields
+          </div>
           <div className="col-span-full">
             <button
               className="btn mt-8"
