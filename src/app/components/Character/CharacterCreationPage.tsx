@@ -43,6 +43,11 @@ const CharacterCreationPage = () => {
   const [subclassFilter, setSubclassFilter] = useState("");
   const [isSubclassDropdownOpen, setIsSubclassDropdownOpen] = useState(false);
   const [subclassFocusedIndex, setSubclassFocusedIndex] = useState<number>(-1);
+  const [weaponInput, setWeaponInput] = useState("");
+  const [armorInput, setArmorInput] = useState("");
+  const [toolInput, setToolInput] = useState("");
+  const [magicItemInput, setMagicItemInput] = useState("");
+  const [itemInput, setItemInput] = useState("");
 
   const filteredSpecies = characterSpecies.filter((species) =>
     species.toLowerCase().includes(speciesFilter.toLowerCase())
@@ -368,6 +373,32 @@ const CharacterCreationPage = () => {
         setSubclassFocusedIndex(-1);
         break;
     }
+  };
+
+  const addEquipment = (
+    category: keyof typeof character.equipment,
+    value: string,
+    setInput: (value: string) => void
+  ) => {
+    if (value.trim()) {
+      handleInputChange("equipment", {
+        ...character.equipment,
+        [category]: [...(character.equipment?.[category] || []), value.trim()],
+      });
+      setInput("");
+    }
+  };
+
+  const removeEquipment = (
+    category: keyof typeof character.equipment,
+    itemToRemove: string
+  ) => {
+    handleInputChange("equipment", {
+      ...character.equipment,
+      [category]: character.equipment[category].filter(
+        (item) => item !== itemToRemove
+      ),
+    });
   };
 
   return (
@@ -732,6 +763,176 @@ const CharacterCreationPage = () => {
                 ))}
               </ul>
             )}
+          </div>
+
+          <h2 className="text-xl text-white font-bold col-span-full mt-6 mb-2">
+            Equipment
+          </h2>
+
+          <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-white mb-2">Weapons</h3>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {(character.equipment?.weapons || []).map((weapon) => (
+                  <span
+                    key={weapon}
+                    className="badge badge-neutral-content gap-2"
+                  >
+                    {weapon}
+                    <button
+                      onClick={() => removeEquipment("weapons", weapon)}
+                      className="btn btn-xs btn-ghost"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <input
+                type="text"
+                placeholder="Add weapon"
+                className="input input-bordered w-full"
+                value={weaponInput}
+                onChange={(e) => setWeaponInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    addEquipment("weapons", weaponInput, setWeaponInput);
+                  }
+                }}
+              />
+            </div>
+
+            <div>
+              <h3 className="text-white mb-2">Armor</h3>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {(character.equipment?.armor || []).map((armor) => (
+                  <span
+                    key={armor}
+                    className="badge badge-neutral-content gap-2"
+                  >
+                    {armor}
+                    <button
+                      onClick={() => removeEquipment("armor", armor)}
+                      className="btn btn-xs btn-ghost"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <input
+                type="text"
+                placeholder="Add armor"
+                className="input input-bordered w-full"
+                value={armorInput}
+                onChange={(e) => setArmorInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    addEquipment("armor", armorInput, setArmorInput);
+                  }
+                }}
+              />
+            </div>
+
+            <div>
+              <h3 className="text-white mb-2">Tools</h3>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {(character.equipment?.tools || []).map((tool) => (
+                  <span
+                    key={tool}
+                    className="badge badge-neutral-content gap-2"
+                  >
+                    {tool}
+                    <button
+                      onClick={() => removeEquipment("tools", tool)}
+                      className="btn btn-xs btn-ghost"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <input
+                type="text"
+                placeholder="Add tool"
+                className="input input-bordered w-full"
+                value={toolInput}
+                onChange={(e) => setToolInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    addEquipment("tools", toolInput, setToolInput);
+                  }
+                }}
+              />
+            </div>
+
+            <div>
+              <h3 className="text-white mb-2">Magic Items</h3>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {(character.equipment?.magicItems || []).map((item) => (
+                  <span
+                    key={item}
+                    className="badge badge-neutral-content gap-2"
+                  >
+                    {item}
+                    <button
+                      onClick={() => removeEquipment("magicItems", item)}
+                      className="btn btn-xs btn-ghost"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <input
+                type="text"
+                placeholder="Add magic item"
+                className="input input-bordered w-full"
+                value={magicItemInput}
+                onChange={(e) => setMagicItemInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    addEquipment(
+                      "magicItems",
+                      magicItemInput,
+                      setMagicItemInput
+                    );
+                  }
+                }}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <h3 className="text-white mb-2">Other Items</h3>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {(character.equipment?.items || []).map((item) => (
+                  <span
+                    key={item}
+                    className="badge badge-neutral-content gap-2"
+                  >
+                    {item}
+                    <button
+                      onClick={() => removeEquipment("items", item)}
+                      className="btn btn-xs btn-ghost"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <input
+                type="text"
+                placeholder="Add item"
+                className="input input-bordered w-full"
+                value={itemInput}
+                onChange={(e) => setItemInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    addEquipment("items", itemInput, setItemInput);
+                  }
+                }}
+              />
+            </div>
           </div>
 
           <h2 className="text-xl text-white font-bold col-span-full mt-6 mb-2">
