@@ -4,7 +4,12 @@ import { Character, useDnDStore } from "@/stores/useStore";
 import { MedievalSharp } from "next/font/google";
 import { generateCharacterDetails } from "@/app/api/openai";
 import { useState, useEffect } from "react";
-import { characterSpecies, characterSubspecies } from "./characterValueOptions";
+import {
+  characterSpecies,
+  characterSubspecies,
+  characterAlignments,
+  characterBackgrounds,
+} from "./characterValueOptions";
 
 const medievalFont = MedievalSharp({
   weight: "400",
@@ -19,6 +24,18 @@ const CharacterCreationPage = () => {
   const [isSpeciesDropdownOpen, setIsSpeciesDropdownOpen] = useState(false);
   const [isSubspeciesDropdownOpen, setIsSubspeciesDropdownOpen] =
     useState(false);
+  const [speciesFocusedIndex, setSpeciesFocusedIndex] = useState<number>(-1);
+  const [subspeciesFocusedIndex, setSubspeciesFocusedIndex] =
+    useState<number>(-1);
+  const [alignmentFilter, setAlignmentFilter] = useState("");
+  const [isAlignmentDropdownOpen, setIsAlignmentDropdownOpen] = useState(false);
+  const [alignmentFocusedIndex, setAlignmentFocusedIndex] =
+    useState<number>(-1);
+  const [backgroundFilter, setBackgroundFilter] = useState("");
+  const [isBackgroundDropdownOpen, setIsBackgroundDropdownOpen] =
+    useState(false);
+  const [backgroundFocusedIndex, setBackgroundFocusedIndex] =
+    useState<number>(-1);
 
   const filteredSpecies = characterSpecies.filter((species) =>
     species.toLowerCase().includes(speciesFilter.toLowerCase())
@@ -33,10 +50,26 @@ const CharacterCreationPage = () => {
     subspecies.toLowerCase().includes(subspeciesFilter.toLowerCase())
   );
 
+  const filteredAlignments = characterAlignments.filter((alignment) =>
+    alignment.toLowerCase().includes(alignmentFilter.toLowerCase())
+  );
+
+  const filteredBackgrounds = characterBackgrounds.filter((background) =>
+    background.toLowerCase().includes(backgroundFilter.toLowerCase())
+  );
+
   // When species changes, reset subspecies
   useEffect(() => {
     handleInputChange("subspecies", "");
     setSubspeciesFilter("");
+  }, [character.species]);
+
+  // Update the existing useEffect to handle species being cleared
+  useEffect(() => {
+    if (!character.species) {
+      handleInputChange("subspecies", "");
+      setSubspeciesFilter("");
+    }
   }, [character.species]);
 
   const handleInputChange = (field: keyof Character, value: any) => {
@@ -58,13 +91,11 @@ const CharacterCreationPage = () => {
     try {
       const suggestions = await generateCharacterDetails(character);
       const parsedSuggestions = JSON.parse(suggestions as string) as Character;
-
-      // Update character with suggestions
       setCharacter(parsedSuggestions);
-
-      // Update the filter states to match the new values
       setSpeciesFilter(parsedSuggestions.species);
       setSubspeciesFilter(parsedSuggestions.subspecies);
+      setAlignmentFilter(parsedSuggestions.alignment);
+      setBackgroundFilter(parsedSuggestions.background);
     } catch (error) {
       console.error("Error getting AI suggestions:", error);
     } finally {
@@ -81,11 +112,154 @@ const CharacterCreationPage = () => {
       if (!target.closest(".subspecies-dropdown")) {
         setIsSubspeciesDropdownOpen(false);
       }
+      if (!target.closest(".alignment-dropdown")) {
+        setIsAlignmentDropdownOpen(false);
+      }
+      if (!target.closest(".background-dropdown")) {
+        setIsBackgroundDropdownOpen(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleSpeciesKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isSpeciesDropdownOpen) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setSpeciesFocusedIndex((prev) =>
+          prev < filteredSpecies.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setSpeciesFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (speciesFocusedIndex >= 0) {
+          const selectedSpecies = filteredSpecies[speciesFocusedIndex];
+          handleInputChange("species", selectedSpecies);
+          setSpeciesFilter(selectedSpecies);
+          setIsSpeciesDropdownOpen(false);
+          setSpeciesFocusedIndex(-1);
+          if (
+            !characterSubspecies[
+              selectedSpecies as keyof typeof characterSubspecies
+            ]
+          ) {
+            handleInputChange("subspecies", "");
+            setSubspeciesFilter("");
+          }
+        }
+        break;
+      case "Escape":
+        setIsSpeciesDropdownOpen(false);
+        setSpeciesFocusedIndex(-1);
+        break;
+    }
+  };
+
+  const handleSubspeciesKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (!isSubspeciesDropdownOpen) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setSubspeciesFocusedIndex((prev) =>
+          prev < filteredSubspecies.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setSubspeciesFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (subspeciesFocusedIndex >= 0) {
+          const selectedSubspecies = filteredSubspecies[subspeciesFocusedIndex];
+          handleInputChange("subspecies", selectedSubspecies);
+          setSubspeciesFilter(selectedSubspecies);
+          setIsSubspeciesDropdownOpen(false);
+          setSubspeciesFocusedIndex(-1);
+        }
+        break;
+      case "Escape":
+        setIsSubspeciesDropdownOpen(false);
+        setSubspeciesFocusedIndex(-1);
+        break;
+    }
+  };
+
+  const handleAlignmentKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isAlignmentDropdownOpen) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setAlignmentFocusedIndex((prev) =>
+          prev < filteredAlignments.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setAlignmentFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (alignmentFocusedIndex >= 0) {
+          const selectedAlignment = filteredAlignments[alignmentFocusedIndex];
+          handleInputChange("alignment", selectedAlignment);
+          setAlignmentFilter(selectedAlignment);
+          setIsAlignmentDropdownOpen(false);
+          setAlignmentFocusedIndex(-1);
+        }
+        break;
+      case "Escape":
+        setIsAlignmentDropdownOpen(false);
+        setAlignmentFocusedIndex(-1);
+        break;
+    }
+  };
+
+  const handleBackgroundKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (!isBackgroundDropdownOpen) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setBackgroundFocusedIndex((prev) =>
+          prev < filteredBackgrounds.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setBackgroundFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (backgroundFocusedIndex >= 0) {
+          const selectedBackground =
+            filteredBackgrounds[backgroundFocusedIndex];
+          handleInputChange("background", selectedBackground);
+          setBackgroundFilter(selectedBackground);
+          setIsBackgroundDropdownOpen(false);
+          setBackgroundFocusedIndex(-1);
+        }
+        break;
+      case "Escape":
+        setIsBackgroundDropdownOpen(false);
+        setBackgroundFocusedIndex(-1);
+        break;
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-800">
@@ -125,21 +299,40 @@ const CharacterCreationPage = () => {
               className="input input-bordered w-full"
               value={speciesFilter}
               onChange={(e) => {
-                setSpeciesFilter(e.target.value);
+                const newValue = e.target.value;
+                setSpeciesFilter(newValue);
+                if (!newValue) {
+                  handleInputChange("species", "");
+                  handleInputChange("subspecies", "");
+                  setSubspeciesFilter("");
+                  setIsSubspeciesDropdownOpen(false);
+                } else {
+                  handleInputChange("species", newValue);
+                }
                 setIsSpeciesDropdownOpen(true);
+                setSpeciesFocusedIndex(-1);
               }}
               onFocus={() => setIsSpeciesDropdownOpen(true)}
+              onKeyDown={handleSpeciesKeyDown}
             />
             {isSpeciesDropdownOpen && filteredSpecies.length > 0 && (
               <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
-                {filteredSpecies.map((species) => (
+                {filteredSpecies.map((species, index) => (
                   <li
                     key={species}
-                    className="px-4 py-2 hover:bg-base-300 cursor-pointer"
+                    className={`px-4 py-2 cursor-pointer ${
+                      index === speciesFocusedIndex
+                        ? "bg-base-300"
+                        : "hover:bg-base-300"
+                    }`}
                     onClick={() => {
                       handleInputChange("species", species);
                       setSpeciesFilter(species);
                       setIsSpeciesDropdownOpen(false);
+                      setSpeciesFocusedIndex(-1);
+                      handleInputChange("subspecies", "");
+                      setSubspeciesFilter("");
+                      setIsSubspeciesDropdownOpen(false);
                     }}
                   >
                     {species}
@@ -157,20 +350,27 @@ const CharacterCreationPage = () => {
               onChange={(e) => {
                 setSubspeciesFilter(e.target.value);
                 setIsSubspeciesDropdownOpen(true);
+                setSubspeciesFocusedIndex(-1);
               }}
               onFocus={() => setIsSubspeciesDropdownOpen(true)}
+              onKeyDown={handleSubspeciesKeyDown}
               disabled={!character.species}
             />
             {isSubspeciesDropdownOpen && filteredSubspecies.length > 0 && (
               <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
-                {filteredSubspecies.map((subspecies) => (
+                {filteredSubspecies.map((subspecies, index) => (
                   <li
                     key={subspecies}
-                    className="px-4 py-2 hover:bg-base-300 cursor-pointer"
+                    className={`px-4 py-2 cursor-pointer ${
+                      index === subspeciesFocusedIndex
+                        ? "bg-base-300"
+                        : "hover:bg-base-300"
+                    }`}
                     onClick={() => {
                       handleInputChange("subspecies", subspecies);
                       setSubspeciesFilter(subspecies);
                       setIsSubspeciesDropdownOpen(false);
+                      setSubspeciesFocusedIndex(-1);
                     }}
                   >
                     {subspecies}
@@ -179,28 +379,86 @@ const CharacterCreationPage = () => {
               </ul>
             )}
           </div>
-          <select
-            className="select select-bordered w-full"
-            value={character.alignment}
-            onChange={(e) => handleInputChange("alignment", e.target.value)}
-          >
-            <option value="">Select Alignment</option>
-            <option value="Lawful Good">Lawful Good</option>
-            <option value="Neutral Good">Neutral Good</option>
-            <option value="Chaotic Good">Chaotic Good</option>
-            <option value="Lawful Neutral">Lawful Neutral</option>
-            <option value="True Neutral">True Neutral</option>
-            <option value="Chaotic Neutral">Chaotic Neutral</option>
-            <option value="Lawful Evil">Lawful Evil</option>
-            <option value="Neutral Evil">Neutral Evil</option>
-            <option value="Chaotic Evil">Chaotic Evil</option>
-          </select>
+          <div className="relative alignment-dropdown">
+            <input
+              type="text"
+              placeholder="Alignment"
+              className="input input-bordered w-full"
+              value={alignmentFilter}
+              onChange={(e) => {
+                setAlignmentFilter(e.target.value);
+                setIsAlignmentDropdownOpen(true);
+                setAlignmentFocusedIndex(-1);
+              }}
+              onFocus={() => setIsAlignmentDropdownOpen(true)}
+              onKeyDown={handleAlignmentKeyDown}
+            />
+            {isAlignmentDropdownOpen && filteredAlignments.length > 0 && (
+              <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
+                {filteredAlignments.map((alignment, index) => (
+                  <li
+                    key={alignment}
+                    className={`px-4 py-2 cursor-pointer ${
+                      index === alignmentFocusedIndex
+                        ? "bg-base-300"
+                        : "hover:bg-base-300"
+                    }`}
+                    onClick={() => {
+                      handleInputChange("alignment", alignment);
+                      setAlignmentFilter(alignment);
+                      setIsAlignmentDropdownOpen(false);
+                      setAlignmentFocusedIndex(-1);
+                    }}
+                  >
+                    {alignment}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="relative background-dropdown">
+            <input
+              type="text"
+              placeholder="Background"
+              className="input input-bordered w-full"
+              value={backgroundFilter}
+              onChange={(e) => {
+                setBackgroundFilter(e.target.value);
+                setIsBackgroundDropdownOpen(true);
+                setBackgroundFocusedIndex(-1);
+              }}
+              onFocus={() => setIsBackgroundDropdownOpen(true)}
+              onKeyDown={handleBackgroundKeyDown}
+            />
+            {isBackgroundDropdownOpen && filteredBackgrounds.length > 0 && (
+              <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
+                {filteredBackgrounds.map((background, index) => (
+                  <li
+                    key={background}
+                    className={`px-4 py-2 cursor-pointer ${
+                      index === backgroundFocusedIndex
+                        ? "bg-base-300"
+                        : "hover:bg-base-300"
+                    }`}
+                    onClick={() => {
+                      handleInputChange("background", background);
+                      setBackgroundFilter(background);
+                      setIsBackgroundDropdownOpen(false);
+                      setBackgroundFocusedIndex(-1);
+                    }}
+                  >
+                    {background}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <div className="col-span-full">
             <textarea
-              placeholder="Background"
+              placeholder="Backstory"
               className="textarea textarea-bordered w-full h-32"
-              value={character.background}
-              onChange={(e) => handleInputChange("background", e.target.value)}
+              value={character.backStory}
+              onChange={(e) => handleInputChange("backStory", e.target.value)}
             />
           </div>
 

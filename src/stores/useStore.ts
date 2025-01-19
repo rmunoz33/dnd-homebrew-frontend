@@ -18,6 +18,7 @@ export interface Character {
   classes: string[];
   subClass: string;
   background: string;
+  backStory: string;
   alignment: string;
   experience: number;
   hitPoints: number;
@@ -49,6 +50,7 @@ export const initialCharacter: Character = {
   classes: [""],
   subClass: "",
   background: "",
+  backStory: "",
   alignment: "",
   experience: 1,
   hitPoints: 1,

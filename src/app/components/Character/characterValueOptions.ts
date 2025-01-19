@@ -26,5 +26,40 @@ export const characterSubspecies = {
   ],
   Elf: ["Elf (Drow)", "Elf (High)", "Elf (Wood)"],
   Gnome: ["Gnome (Forest)", "Gnome (Rock)"],
-  Tiefling: ["Tiefling (Abyssal)", "Tiefling (Cthonic)", "Tiefling (Infernal)"],
+  Tiefling: [
+    "Tiefling (Abyssal)",
+    "Tiefling (Chthonic)",
+    "Tiefling (Infernal)",
+  ],
 };
+
+export const characterBackgrounds = [
+  "Acolyte",
+  "Artisan",
+  "Charlatan",
+  "Criminal",
+  "Entertainer",
+  "Farmer",
+  "Guard",
+  "Guide",
+  "Hermit",
+  "Merchant",
+  "Noble",
+  "Sage",
+  "Sailor",
+  "Scribe",
+  "Soldier",
+  "Wayfarer",
+];
+
+export const characterAlignments = [
+  "Lawful Good",
+  "Neutral Good",
+  "Chaotic Good",
+  "Lawful Neutral",
+  "True Neutral",
+  "Chaotic Neutral",
+  "Lawful Evil",
+  "Neutral Evil",
+  "Chaotic Evil",
+];

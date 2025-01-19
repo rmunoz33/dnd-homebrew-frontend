@@ -3,6 +3,8 @@ import { Character, initialCharacter } from "@/stores/useStore";
 import {
   characterSpecies,
   characterSubspecies,
+  characterBackgrounds,
+  characterAlignments,
 } from "@/app/components/Character/characterValueOptions";
 
 const client = new OpenAI({
@@ -26,14 +28,16 @@ export const generateCharacterDetails = async (character: Character) => {
 
   The options for species are: ${JSON.stringify(characterSpecies)}
   The options for subspecies are: ${JSON.stringify(characterSubspecies)}
-
+  The options for backgrounds are: ${JSON.stringify(characterBackgrounds)}
+  The options for alignments are: ${JSON.stringify(characterAlignments)}
+  
   Here is the default character profile:
   ${JSON.stringify(initialCharacter)}
 
   Here is the known character profile:
   ${JSON.stringify(nonDefaultFields)}
 
-  Suggest appropriate values for any missing character attributes in JSON format, maintaining the given structure. If no background value is provided, provide one in the form of a short paragraph. Focus on creating a cohesive character that makes sense with the provided information.`;
+  Suggest appropriate values for any missing character attributes in JSON format, maintaining the given structure. If no backstory is provided, provide one in the form of a short paragraph. Focus on creating a cohesive character that makes sense with the provided information.`;
 
   try {
     const response = await client.chat.completions.create({
