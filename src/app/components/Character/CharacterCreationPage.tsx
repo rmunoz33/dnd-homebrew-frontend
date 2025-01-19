@@ -1,6 +1,6 @@
 "use client";
 
-import { Character, useDnDStore } from "@/stores/useStore";
+import { Character, useDnDStore, initialCharacter } from "@/stores/useStore";
 import { MedievalSharp } from "next/font/google";
 import { generateCharacterDetails } from "@/app/api/openai";
 import { useState, useEffect } from "react";
@@ -401,6 +401,25 @@ const CharacterCreationPage = () => {
     });
   };
 
+  const isCharacterModified = () => {
+    return JSON.stringify(character) !== JSON.stringify(initialCharacter);
+  };
+
+  const handleReset = () => {
+    setCharacter(initialCharacter);
+    setSpeciesFilter("");
+    setSubspeciesFilter("");
+    setAlignmentFilter("");
+    setBackgroundFilter("");
+    setClassFilter("");
+    setSubclassFilter("");
+    setWeaponInput("");
+    setArmorInput("");
+    setToolInput("");
+    setMagicItemInput("");
+    setItemInput("");
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-800">
       <div className="flex flex-col items-center gap-8 w-full max-w-2xl p-8 bg-gray-800 mx-auto">
@@ -408,17 +427,24 @@ const CharacterCreationPage = () => {
           <h1 className={`${medievalFont.className} text-5xl text-red-500`}>
             Create Your Character
           </h1>
-          <button
-            className="btn btn-sm"
-            onClick={handleAISuggestions}
-            disabled={isRolling}
-          >
-            {isRolling ? (
-              <span className="animate-spin bg-white">🎲</span>
-            ) : (
-              "Roll Me a Character"
+          <div className="flex gap-2">
+            <button
+              className="btn btn-sm"
+              onClick={handleAISuggestions}
+              disabled={isRolling}
+            >
+              {isRolling ? (
+                <span className="animate-spin bg-white">🎲</span>
+              ) : (
+                "Roll Me a Character"
+              )}
+            </button>
+            {isCharacterModified() && (
+              <button className="btn btn-sm" onClick={handleReset}>
+                Reset
+              </button>
             )}
-          </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-xl">
