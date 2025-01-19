@@ -79,26 +79,25 @@ const CharacterCreationPage = () => {
       !character.subClass
   );
 
-  // When species changes, reset subspecies
+  // When species changes, reset subspecies if needed
   useEffect(() => {
-    handleInputChange("subspecies", "");
-    setFilter("subspecies", "");
+    const hasSubspecies =
+      characterSubspecies[
+        character.species as keyof typeof characterSubspecies
+      ];
+
+    // Only reset subspecies if the species doesn't have subspecies
+    if (!hasSubspecies) {
+      handleInputChange("subspecies", "");
+      setFilter("subspecies", "");
+    }
     setIsSubspeciesDropdownOpen(false);
     setSubspeciesFocusedIndex(-1);
   }, [character.species]);
 
-  // Update the existing useEffect to handle species being cleared
-  useEffect(() => {
-    if (!character.species) {
-      handleInputChange("subspecies", "");
-      setFilter("subspecies", "");
-      setIsSubspeciesDropdownOpen(false);
-      setSubspeciesFocusedIndex(-1);
-    }
-  }, [character.species]);
-
   const handleInputChange = (field: keyof Character, value: any) => {
-    setCharacter({ ...character, [field]: value });
+    const newCharacter = { ...character, [field]: value };
+    setCharacter(newCharacter);
   };
 
   const isCharacterDetailsComplete = () => {
@@ -496,6 +495,8 @@ const CharacterCreationPage = () => {
                   handleInputChange("subspecies", "");
                   setFilter("subspecies", "");
                   setIsSubspeciesDropdownOpen(false);
+                } else {
+                  handleInputChange("species", filters.species);
                 }
               }}
               onFocus={() => setIsSpeciesDropdownOpen(true)}
@@ -552,7 +553,12 @@ const CharacterCreationPage = () => {
                 }
               }}
               onKeyDown={handleSubspeciesKeyDown}
-              disabled={!character.species || availableSubspecies.length === 0}
+              disabled={
+                !character.species ||
+                !characterSubspecies[
+                  character.species as keyof typeof characterSubspecies
+                ]
+              }
             />
             {isSubspeciesDropdownOpen && filteredSubspecies.length > 0 && (
               <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
