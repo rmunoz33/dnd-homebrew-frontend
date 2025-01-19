@@ -54,7 +54,7 @@ export const initialCharacter: Character = {
   level: 1,
   species: "",
   subspecies: "",
-  classes: [""],
+  classes: [],
   subClass: "",
   background: "",
   backStory: "",
