@@ -9,6 +9,7 @@ import {
   characterSubspecies,
   characterAlignments,
   characterBackgrounds,
+  characterClasses,
 } from "./characterValueOptions";
 
 const medievalFont = MedievalSharp({
@@ -36,6 +37,9 @@ const CharacterCreationPage = () => {
     useState(false);
   const [backgroundFocusedIndex, setBackgroundFocusedIndex] =
     useState<number>(-1);
+  const [classFilter, setClassFilter] = useState("");
+  const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
+  const [classFocusedIndex, setClassFocusedIndex] = useState<number>(-1);
 
   const filteredSpecies = characterSpecies.filter((species) =>
     species.toLowerCase().includes(speciesFilter.toLowerCase())
@@ -56,6 +60,12 @@ const CharacterCreationPage = () => {
 
   const filteredBackgrounds = characterBackgrounds.filter((background) =>
     background.toLowerCase().includes(backgroundFilter.toLowerCase())
+  );
+
+  const filteredClasses = characterClasses.filter(
+    (className) =>
+      className.toLowerCase().includes(classFilter.toLowerCase()) &&
+      !character.classes.includes(className)
   );
 
   // When species changes, reset subspecies
@@ -86,7 +96,8 @@ const CharacterCreationPage = () => {
       character.species.trim() !== "" &&
       character.subspecies.trim() !== "" &&
       character.background.trim() !== "" &&
-      character.alignment.trim() !== ""
+      character.alignment.trim() !== "" &&
+      character.classes.length > 0
     );
   };
 
@@ -109,23 +120,33 @@ const CharacterCreationPage = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      event.stopPropagation();
       const target = event.target as HTMLElement;
-      if (!target.closest(".species-dropdown")) {
+      const classDropdown = target.closest(".class-dropdown");
+      const speciesDropdown = target.closest(".species-dropdown");
+      const subspeciesDropdown = target.closest(".subspecies-dropdown");
+      const alignmentDropdown = target.closest(".alignment-dropdown");
+      const backgroundDropdown = target.closest(".background-dropdown");
+
+      if (!classDropdown) {
+        setIsClassDropdownOpen(false);
+      }
+      if (!speciesDropdown) {
         setIsSpeciesDropdownOpen(false);
       }
-      if (!target.closest(".subspecies-dropdown")) {
+      if (!subspeciesDropdown) {
         setIsSubspeciesDropdownOpen(false);
       }
-      if (!target.closest(".alignment-dropdown")) {
+      if (!alignmentDropdown) {
         setIsAlignmentDropdownOpen(false);
       }
-      if (!target.closest(".background-dropdown")) {
+      if (!backgroundDropdown) {
         setIsBackgroundDropdownOpen(false);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mouseup", handleClickOutside);
+    return () => document.removeEventListener("mouseup", handleClickOutside);
   }, []);
 
   const handleSpeciesKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -263,6 +284,46 @@ const CharacterCreationPage = () => {
         setBackgroundFocusedIndex(-1);
         break;
     }
+  };
+
+  const handleClassKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isClassDropdownOpen) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setClassFocusedIndex((prev) =>
+          prev < filteredClasses.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setClassFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (classFocusedIndex >= 0) {
+          const selectedClass = filteredClasses[classFocusedIndex];
+          if (character.classes.length < 3) {
+            handleInputChange("classes", [...character.classes, selectedClass]);
+          }
+          setClassFilter("");
+          setIsClassDropdownOpen(false);
+          setClassFocusedIndex(-1);
+        }
+        break;
+      case "Escape":
+        setIsClassDropdownOpen(false);
+        setClassFocusedIndex(-1);
+        break;
+    }
+  };
+
+  const removeClass = (classToRemove: string) => {
+    handleInputChange(
+      "classes",
+      character.classes.filter((c) => c !== classToRemove)
+    );
   };
 
   return (
@@ -479,6 +540,78 @@ const CharacterCreationPage = () => {
               value={character.backStory}
               onChange={(e) => handleInputChange("backStory", e.target.value)}
             />
+          </div>
+
+          <h2 className="text-xl text-white font-bold col-span-full mt-6 mb-2">
+            Classes
+          </h2>
+          <div className="relative class-dropdown">
+            <div className="flex flex-wrap gap-2 mb-2">
+              {character.classes.map((className) => (
+                <span
+                  key={className}
+                  className="badge badge-neutral-content gap-2"
+                >
+                  {className}
+                  <button
+                    onClick={() => removeClass(className)}
+                    className="btn btn-xs btn-ghost"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <input
+              type="text"
+              placeholder="Add Class (max 3)"
+              className="input input-bordered w-full"
+              value={classFilter}
+              onChange={(e) => {
+                setClassFilter(e.target.value);
+                setIsClassDropdownOpen(true);
+                setClassFocusedIndex(-1);
+              }}
+              onFocus={() => setIsClassDropdownOpen(true)}
+              onBlur={(e) => {
+                // Only close if the related target is not within the dropdown
+                const relatedTarget = e.relatedTarget as HTMLElement;
+                if (!relatedTarget?.closest(".class-dropdown")) {
+                  setTimeout(() => {
+                    setIsClassDropdownOpen(false);
+                  }, 200);
+                }
+              }}
+              onKeyDown={handleClassKeyDown}
+              disabled={character.classes.length >= 3}
+            />
+            {isClassDropdownOpen && filteredClasses.length > 0 && (
+              <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
+                {filteredClasses.map((className, index) => (
+                  <li
+                    key={className}
+                    className={`px-4 py-2 cursor-pointer ${
+                      index === classFocusedIndex
+                        ? "bg-base-300"
+                        : "hover:bg-base-300"
+                    }`}
+                    onClick={() => {
+                      if (character.classes.length < 3) {
+                        handleInputChange("classes", [
+                          ...character.classes,
+                          className,
+                        ]);
+                        setClassFilter("");
+                        setIsClassDropdownOpen(false);
+                        setClassFocusedIndex(-1);
+                      }
+                    }}
+                  >
+                    {className}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <h2 className="text-xl text-white font-bold col-span-full mt-6 mb-2">

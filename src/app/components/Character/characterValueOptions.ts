@@ -63,3 +63,18 @@ export const characterAlignments = [
   "Neutral Evil",
   "Chaotic Evil",
 ];
+
+export const characterClasses = [
+  "Barbarian",
+  "Bard",
+  "Cleric",
+  "Druid",
+  "Fighter",
+  "Monk",
+  "Paladin",
+  "Ranger",
+  "Rogue",
+  "Sorcerer",
+  "Warlock",
+  "Wizard",
+];
