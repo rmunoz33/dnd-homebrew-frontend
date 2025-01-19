@@ -5,6 +5,7 @@ import {
   characterSubspecies,
   characterBackgrounds,
   characterAlignments,
+  characterClasses,
 } from "@/app/components/Character/characterValueOptions";
 
 const client = new OpenAI({
@@ -30,7 +31,8 @@ export const generateCharacterDetails = async (character: Character) => {
   The options for subspecies are: ${JSON.stringify(characterSubspecies)}
   The options for backgrounds are: ${JSON.stringify(characterBackgrounds)}
   The options for alignments are: ${JSON.stringify(characterAlignments)}
-  
+  The options for classes are: ${JSON.stringify(characterClasses)}
+
   Here is the default character profile:
   ${JSON.stringify(initialCharacter)}
 

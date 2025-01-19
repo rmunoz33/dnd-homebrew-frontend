@@ -40,6 +40,13 @@ export interface Character {
     silver: number;
     copper: number;
   };
+  equipment: {
+    weapons: string[];
+    armor: string[];
+    tools: string[];
+    magicItems: string[];
+    items: string[];
+  };
 }
 
 export const initialCharacter: Character = {
@@ -71,6 +78,13 @@ export const initialCharacter: Character = {
     electrum: 0,
     silver: 0,
     copper: 0,
+  },
+  equipment: {
+    weapons: [],
+    armor: [],
+    tools: [],
+    magicItems: [],
+    items: [],
   },
 };
 

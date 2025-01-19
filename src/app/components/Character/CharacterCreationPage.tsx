@@ -40,6 +40,9 @@ const CharacterCreationPage = () => {
   const [classFilter, setClassFilter] = useState("");
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
   const [classFocusedIndex, setClassFocusedIndex] = useState<number>(-1);
+  const [subclassFilter, setSubclassFilter] = useState("");
+  const [isSubclassDropdownOpen, setIsSubclassDropdownOpen] = useState(false);
+  const [subclassFocusedIndex, setSubclassFocusedIndex] = useState<number>(-1);
 
   const filteredSpecies = characterSpecies.filter((species) =>
     species.toLowerCase().includes(speciesFilter.toLowerCase())
@@ -66,6 +69,12 @@ const CharacterCreationPage = () => {
     (className) =>
       className.toLowerCase().includes(classFilter.toLowerCase()) &&
       !character.classes.includes(className)
+  );
+
+  const filteredSubclasses = characterClasses.filter(
+    (className) =>
+      className.toLowerCase().includes(subclassFilter.toLowerCase()) &&
+      !character.subClass
   );
 
   // When species changes, reset subspecies
@@ -127,6 +136,7 @@ const CharacterCreationPage = () => {
       const subspeciesDropdown = target.closest(".subspecies-dropdown");
       const alignmentDropdown = target.closest(".alignment-dropdown");
       const backgroundDropdown = target.closest(".background-dropdown");
+      const subclassDropdown = target.closest(".subclass-dropdown");
 
       if (!classDropdown) {
         setIsClassDropdownOpen(false);
@@ -142,6 +152,9 @@ const CharacterCreationPage = () => {
       }
       if (!backgroundDropdown) {
         setIsBackgroundDropdownOpen(false);
+      }
+      if (!subclassDropdown) {
+        setIsSubclassDropdownOpen(false);
       }
     };
 
@@ -326,6 +339,37 @@ const CharacterCreationPage = () => {
     );
   };
 
+  const handleSubclassKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isSubclassDropdownOpen) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setSubclassFocusedIndex((prev) =>
+          prev < filteredSubclasses.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setSubclassFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (subclassFocusedIndex >= 0) {
+          const selectedSubclass = filteredSubclasses[subclassFocusedIndex];
+          handleInputChange("subClass", selectedSubclass);
+          setSubclassFilter(selectedSubclass);
+          setIsSubclassDropdownOpen(false);
+          setSubclassFocusedIndex(-1);
+        }
+        break;
+      case "Escape":
+        setIsSubclassDropdownOpen(false);
+        setSubclassFocusedIndex(-1);
+        break;
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-800">
       <div className="flex flex-col items-center gap-8 w-full max-w-2xl p-8 bg-gray-800 mx-auto">
@@ -356,6 +400,20 @@ const CharacterCreationPage = () => {
             className="input input-bordered w-full"
             value={character.name}
             onChange={(e) => handleInputChange("name", e.target.value)}
+          />
+          <input
+            type="number"
+            placeholder="Level"
+            className="input input-bordered w-full"
+            value={String(character.level ?? 1)}
+            min="1"
+            max="20"
+            onChange={(e) =>
+              handleInputChange(
+                "level",
+                Math.min(20, Math.max(1, parseInt(e.target.value) || 1))
+              )
+            }
           />
           <div className="relative species-dropdown">
             <input
@@ -605,6 +663,68 @@ const CharacterCreationPage = () => {
                         setIsClassDropdownOpen(false);
                         setClassFocusedIndex(-1);
                       }
+                    }}
+                  >
+                    {className}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="relative subclass-dropdown mt-2">
+            <input
+              type="text"
+              placeholder={
+                (character.level ?? 1) < 2
+                  ? "Reach level 2 to select a subclass"
+                  : "Add Subclass"
+              }
+              className="input input-bordered w-full"
+              value={subclassFilter}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setSubclassFilter(newValue);
+                if (!newValue) {
+                  handleInputChange("subClass", "");
+                } else if (characterClasses.includes(newValue)) {
+                  handleInputChange("subClass", newValue);
+                }
+                setIsSubclassDropdownOpen(true);
+                setSubclassFocusedIndex(-1);
+              }}
+              onBlur={(e) => {
+                // Only close if the related target is not within the dropdown
+                const relatedTarget = e.relatedTarget as HTMLElement;
+                if (!relatedTarget?.closest(".subclass-dropdown")) {
+                  setTimeout(() => {
+                    setIsSubclassDropdownOpen(false);
+                  }, 200);
+                }
+                if (!characterClasses.includes(subclassFilter)) {
+                  setSubclassFilter("");
+                  handleInputChange("subClass", "");
+                }
+              }}
+              onFocus={() => setIsSubclassDropdownOpen(true)}
+              onKeyDown={handleSubclassKeyDown}
+              disabled={(character.level ?? 1) < 2}
+            />
+            {isSubclassDropdownOpen && filteredSubclasses.length > 0 && (
+              <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
+                {filteredSubclasses.map((className, index) => (
+                  <li
+                    key={className}
+                    className={`px-4 py-2 cursor-pointer ${
+                      index === subclassFocusedIndex
+                        ? "bg-base-300"
+                        : "hover:bg-base-300"
+                    }`}
+                    onClick={() => {
+                      handleInputChange("subClass", className);
+                      setSubclassFilter(className);
+                      setIsSubclassDropdownOpen(false);
+                      setSubclassFocusedIndex(-1);
                     }}
                   >
                     {className}
