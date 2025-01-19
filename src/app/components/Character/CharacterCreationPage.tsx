@@ -18,74 +18,71 @@ const medievalFont = MedievalSharp({
 });
 
 const CharacterCreationPage = () => {
-  const { character, setCharacter, setIsCharacterCreated } = useDnDStore();
+  const {
+    character,
+    setCharacter,
+    setIsCharacterCreated,
+    filters,
+    setFilter,
+    resetFilters,
+  } = useDnDStore();
   const [isRolling, setIsRolling] = useState(false);
-  const [speciesFilter, setSpeciesFilter] = useState("");
-  const [subspeciesFilter, setSubspeciesFilter] = useState("");
   const [isSpeciesDropdownOpen, setIsSpeciesDropdownOpen] = useState(false);
   const [isSubspeciesDropdownOpen, setIsSubspeciesDropdownOpen] =
     useState(false);
+  const [isAlignmentDropdownOpen, setIsAlignmentDropdownOpen] = useState(false);
+  const [isBackgroundDropdownOpen, setIsBackgroundDropdownOpen] =
+    useState(false);
+  const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
+  const [isSubclassDropdownOpen, setIsSubclassDropdownOpen] = useState(false);
   const [speciesFocusedIndex, setSpeciesFocusedIndex] = useState<number>(-1);
   const [subspeciesFocusedIndex, setSubspeciesFocusedIndex] =
     useState<number>(-1);
-  const [alignmentFilter, setAlignmentFilter] = useState("");
-  const [isAlignmentDropdownOpen, setIsAlignmentDropdownOpen] = useState(false);
   const [alignmentFocusedIndex, setAlignmentFocusedIndex] =
     useState<number>(-1);
-  const [backgroundFilter, setBackgroundFilter] = useState("");
-  const [isBackgroundDropdownOpen, setIsBackgroundDropdownOpen] =
-    useState(false);
   const [backgroundFocusedIndex, setBackgroundFocusedIndex] =
     useState<number>(-1);
-  const [classFilter, setClassFilter] = useState("");
-  const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
   const [classFocusedIndex, setClassFocusedIndex] = useState<number>(-1);
-  const [subclassFilter, setSubclassFilter] = useState("");
-  const [isSubclassDropdownOpen, setIsSubclassDropdownOpen] = useState(false);
   const [subclassFocusedIndex, setSubclassFocusedIndex] = useState<number>(-1);
-  const [weaponInput, setWeaponInput] = useState("");
-  const [armorInput, setArmorInput] = useState("");
-  const [toolInput, setToolInput] = useState("");
-  const [magicItemInput, setMagicItemInput] = useState("");
-  const [itemInput, setItemInput] = useState("");
 
   const filteredSpecies = characterSpecies.filter((species) =>
-    species.toLowerCase().includes(speciesFilter.toLowerCase())
+    species.toLowerCase().includes(filters.species.toLowerCase())
   );
 
-  const availableSubspecies = speciesFilter
-    ? characterSubspecies[speciesFilter as keyof typeof characterSubspecies] ||
-      []
+  const availableSubspecies = filters.species
+    ? characterSubspecies[
+        filters.species as keyof typeof characterSubspecies
+      ] || []
     : [];
 
   const filteredSubspecies = availableSubspecies.filter((subspecies) =>
-    subspecies.toLowerCase().includes(subspeciesFilter.toLowerCase())
+    subspecies.toLowerCase().includes(filters.subspecies.toLowerCase())
   );
 
   const filteredAlignments = characterAlignments.filter((alignment) =>
-    alignment.toLowerCase().includes(alignmentFilter.toLowerCase())
+    alignment.toLowerCase().includes(filters.alignment.toLowerCase())
   );
 
   const filteredBackgrounds = characterBackgrounds.filter((background) =>
-    background.toLowerCase().includes(backgroundFilter.toLowerCase())
+    background.toLowerCase().includes(filters.background.toLowerCase())
   );
 
   const filteredClasses = characterClasses.filter(
     (className) =>
-      className.toLowerCase().includes(classFilter.toLowerCase()) &&
+      className.toLowerCase().includes(filters.class.toLowerCase()) &&
       !character.classes.includes(className)
   );
 
   const filteredSubclasses = characterClasses.filter(
     (className) =>
-      className.toLowerCase().includes(subclassFilter.toLowerCase()) &&
+      className.toLowerCase().includes(filters.subclass.toLowerCase()) &&
       !character.subClass
   );
 
   // When species changes, reset subspecies
   useEffect(() => {
     handleInputChange("subspecies", "");
-    setSubspeciesFilter("");
+    setFilter("subspecies", "");
     setIsSubspeciesDropdownOpen(false);
     setSubspeciesFocusedIndex(-1);
   }, [character.species]);
@@ -94,7 +91,7 @@ const CharacterCreationPage = () => {
   useEffect(() => {
     if (!character.species) {
       handleInputChange("subspecies", "");
-      setSubspeciesFilter("");
+      setFilter("subspecies", "");
       setIsSubspeciesDropdownOpen(false);
       setSubspeciesFocusedIndex(-1);
     }
@@ -105,13 +102,23 @@ const CharacterCreationPage = () => {
   };
 
   const isCharacterDetailsComplete = () => {
+    const hasRequiredSubspecies =
+      !characterSubspecies[
+        character.species as keyof typeof characterSubspecies
+      ] || character.subspecies.trim() !== "";
+
+    const hasRequiredSubclass =
+      (character.level ?? 1) < 3 || character.subClass.trim() !== "";
+
     return (
       character.name.trim() !== "" &&
+      character.level >= 1 &&
       character.species.trim() !== "" &&
-      character.subspecies.trim() !== "" &&
+      hasRequiredSubspecies &&
       character.background.trim() !== "" &&
       character.alignment.trim() !== "" &&
-      character.classes.length > 0
+      character.classes.length > 0 &&
+      hasRequiredSubclass
     );
   };
 
@@ -121,10 +128,10 @@ const CharacterCreationPage = () => {
       const suggestions = await generateCharacterDetails(character);
       const parsedSuggestions = JSON.parse(suggestions as string) as Character;
       setCharacter(parsedSuggestions);
-      setSpeciesFilter(parsedSuggestions.species);
-      setSubspeciesFilter(parsedSuggestions.subspecies);
-      setAlignmentFilter(parsedSuggestions.alignment);
-      setBackgroundFilter(parsedSuggestions.background);
+      setFilter("species", parsedSuggestions.species);
+      setFilter("subspecies", parsedSuggestions.subspecies);
+      setFilter("alignment", parsedSuggestions.alignment);
+      setFilter("background", parsedSuggestions.background);
     } catch (error) {
       console.error("Error getting AI suggestions:", error);
     } finally {
@@ -186,7 +193,7 @@ const CharacterCreationPage = () => {
         if (speciesFocusedIndex >= 0) {
           const selectedSpecies = filteredSpecies[speciesFocusedIndex];
           handleInputChange("species", selectedSpecies);
-          setSpeciesFilter(selectedSpecies);
+          setFilter("species", selectedSpecies);
           setIsSpeciesDropdownOpen(false);
           setSpeciesFocusedIndex(-1);
           if (
@@ -195,7 +202,7 @@ const CharacterCreationPage = () => {
             ]
           ) {
             handleInputChange("subspecies", "");
-            setSubspeciesFilter("");
+            setFilter("subspecies", "");
           }
         }
         break;
@@ -227,7 +234,7 @@ const CharacterCreationPage = () => {
         if (subspeciesFocusedIndex >= 0) {
           const selectedSubspecies = filteredSubspecies[subspeciesFocusedIndex];
           handleInputChange("subspecies", selectedSubspecies);
-          setSubspeciesFilter(selectedSubspecies);
+          setFilter("subspecies", selectedSubspecies);
           setIsSubspeciesDropdownOpen(false);
           setSubspeciesFocusedIndex(-1);
         }
@@ -258,7 +265,7 @@ const CharacterCreationPage = () => {
         if (alignmentFocusedIndex >= 0) {
           const selectedAlignment = filteredAlignments[alignmentFocusedIndex];
           handleInputChange("alignment", selectedAlignment);
-          setAlignmentFilter(selectedAlignment);
+          setFilter("alignment", selectedAlignment);
           setIsAlignmentDropdownOpen(false);
           setAlignmentFocusedIndex(-1);
         }
@@ -292,7 +299,7 @@ const CharacterCreationPage = () => {
           const selectedBackground =
             filteredBackgrounds[backgroundFocusedIndex];
           handleInputChange("background", selectedBackground);
-          setBackgroundFilter(selectedBackground);
+          setFilter("background", selectedBackground);
           setIsBackgroundDropdownOpen(false);
           setBackgroundFocusedIndex(-1);
         }
@@ -325,7 +332,7 @@ const CharacterCreationPage = () => {
           if (character.classes.length < 3) {
             handleInputChange("classes", [...character.classes, selectedClass]);
           }
-          setClassFilter("");
+          setFilter("class", "");
           setIsClassDropdownOpen(false);
           setClassFocusedIndex(-1);
         }
@@ -363,7 +370,7 @@ const CharacterCreationPage = () => {
         if (subclassFocusedIndex >= 0) {
           const selectedSubclass = filteredSubclasses[subclassFocusedIndex];
           handleInputChange("subClass", selectedSubclass);
-          setSubclassFilter(selectedSubclass);
+          setFilter("subclass", selectedSubclass);
           setIsSubclassDropdownOpen(false);
           setSubclassFocusedIndex(-1);
         }
@@ -407,17 +414,7 @@ const CharacterCreationPage = () => {
 
   const handleReset = () => {
     setCharacter(initialCharacter);
-    setSpeciesFilter("");
-    setSubspeciesFilter("");
-    setAlignmentFilter("");
-    setBackgroundFilter("");
-    setClassFilter("");
-    setSubclassFilter("");
-    setWeaponInput("");
-    setArmorInput("");
-    setToolInput("");
-    setMagicItemInput("");
-    setItemInput("");
+    resetFilters();
   };
 
   return (
@@ -477,14 +474,14 @@ const CharacterCreationPage = () => {
               type="text"
               placeholder="Species"
               className="input input-bordered w-full"
-              value={speciesFilter}
+              value={filters.species}
               onChange={(e) => {
                 const newValue = e.target.value;
-                setSpeciesFilter(newValue);
+                setFilter("species", newValue);
                 if (!newValue) {
                   handleInputChange("species", "");
                   handleInputChange("subspecies", "");
-                  setSubspeciesFilter("");
+                  setFilter("subspecies", "");
                   setIsSubspeciesDropdownOpen(false);
                 } else if (characterSpecies.includes(newValue)) {
                   handleInputChange("species", newValue);
@@ -493,11 +490,11 @@ const CharacterCreationPage = () => {
                 setSpeciesFocusedIndex(-1);
               }}
               onBlur={() => {
-                if (!characterSpecies.includes(speciesFilter)) {
-                  setSpeciesFilter("");
+                if (!characterSpecies.includes(filters.species)) {
+                  setFilter("species", "");
                   handleInputChange("species", "");
                   handleInputChange("subspecies", "");
-                  setSubspeciesFilter("");
+                  setFilter("subspecies", "");
                   setIsSubspeciesDropdownOpen(false);
                 }
               }}
@@ -516,11 +513,11 @@ const CharacterCreationPage = () => {
                     }`}
                     onClick={() => {
                       handleInputChange("species", species);
-                      setSpeciesFilter(species);
+                      setFilter("species", species);
                       setIsSpeciesDropdownOpen(false);
                       setSpeciesFocusedIndex(-1);
                       handleInputChange("subspecies", "");
-                      setSubspeciesFilter("");
+                      setFilter("subspecies", "");
                       setIsSubspeciesDropdownOpen(false);
                     }}
                   >
@@ -535,10 +532,10 @@ const CharacterCreationPage = () => {
               type="text"
               placeholder="Subspecies"
               className="input input-bordered w-full"
-              value={subspeciesFilter}
+              value={filters.subspecies}
               onChange={(e) => {
                 const newValue = e.target.value;
-                setSubspeciesFilter(newValue);
+                setFilter("subspecies", newValue);
                 handleInputChange("subspecies", newValue);
                 setIsSubspeciesDropdownOpen(true);
                 setSubspeciesFocusedIndex(-1);
@@ -548,8 +545,14 @@ const CharacterCreationPage = () => {
                   setIsSubspeciesDropdownOpen(true);
                 }
               }}
+              onBlur={() => {
+                if (!availableSubspecies.includes(filters.subspecies)) {
+                  setFilter("subspecies", "");
+                  handleInputChange("subspecies", "");
+                }
+              }}
               onKeyDown={handleSubspeciesKeyDown}
-              disabled={!character.species}
+              disabled={!character.species || availableSubspecies.length === 0}
             />
             {isSubspeciesDropdownOpen && filteredSubspecies.length > 0 && (
               <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
@@ -563,7 +566,7 @@ const CharacterCreationPage = () => {
                     }`}
                     onClick={() => {
                       handleInputChange("subspecies", subspecies);
-                      setSubspeciesFilter(subspecies);
+                      setFilter("subspecies", subspecies);
                       setIsSubspeciesDropdownOpen(false);
                       setSubspeciesFocusedIndex(-1);
                     }}
@@ -579,9 +582,9 @@ const CharacterCreationPage = () => {
               type="text"
               placeholder="Alignment"
               className="input input-bordered w-full"
-              value={alignmentFilter}
+              value={filters.alignment}
               onChange={(e) => {
-                setAlignmentFilter(e.target.value);
+                setFilter("alignment", e.target.value);
                 setIsAlignmentDropdownOpen(true);
                 setAlignmentFocusedIndex(-1);
               }}
@@ -600,7 +603,7 @@ const CharacterCreationPage = () => {
                     }`}
                     onClick={() => {
                       handleInputChange("alignment", alignment);
-                      setAlignmentFilter(alignment);
+                      setFilter("alignment", alignment);
                       setIsAlignmentDropdownOpen(false);
                       setAlignmentFocusedIndex(-1);
                     }}
@@ -616,9 +619,9 @@ const CharacterCreationPage = () => {
               type="text"
               placeholder="Background"
               className="input input-bordered w-full"
-              value={backgroundFilter}
+              value={filters.background}
               onChange={(e) => {
-                setBackgroundFilter(e.target.value);
+                setFilter("background", e.target.value);
                 setIsBackgroundDropdownOpen(true);
                 setBackgroundFocusedIndex(-1);
               }}
@@ -637,7 +640,7 @@ const CharacterCreationPage = () => {
                     }`}
                     onClick={() => {
                       handleInputChange("background", background);
-                      setBackgroundFilter(background);
+                      setFilter("background", background);
                       setIsBackgroundDropdownOpen(false);
                       setBackgroundFocusedIndex(-1);
                     }}
@@ -681,9 +684,9 @@ const CharacterCreationPage = () => {
               type="text"
               placeholder="Add Class (max 3)"
               className="input input-bordered w-full"
-              value={classFilter}
+              value={filters.class}
               onChange={(e) => {
-                setClassFilter(e.target.value);
+                setFilter("class", e.target.value);
                 setIsClassDropdownOpen(true);
                 setClassFocusedIndex(-1);
               }}
@@ -716,7 +719,7 @@ const CharacterCreationPage = () => {
                           ...character.classes,
                           className,
                         ]);
-                        setClassFilter("");
+                        setFilter("class", "");
                         setIsClassDropdownOpen(false);
                         setClassFocusedIndex(-1);
                       }
@@ -733,15 +736,15 @@ const CharacterCreationPage = () => {
             <input
               type="text"
               placeholder={
-                (character.level ?? 1) < 2
-                  ? "Reach level 2 to select a subclass"
+                (character.level ?? 1) < 3
+                  ? "Reach level 3 to select a subclass"
                   : "Add Subclass"
               }
               className="input input-bordered w-full"
-              value={subclassFilter}
+              value={filters.subclass}
               onChange={(e) => {
                 const newValue = e.target.value;
-                setSubclassFilter(newValue);
+                setFilter("subclass", newValue);
                 if (!newValue) {
                   handleInputChange("subClass", "");
                 } else if (characterClasses.includes(newValue)) {
@@ -758,14 +761,14 @@ const CharacterCreationPage = () => {
                     setIsSubclassDropdownOpen(false);
                   }, 200);
                 }
-                if (!characterClasses.includes(subclassFilter)) {
-                  setSubclassFilter("");
+                if (!characterClasses.includes(filters.subclass)) {
+                  setFilter("subclass", "");
                   handleInputChange("subClass", "");
                 }
               }}
               onFocus={() => setIsSubclassDropdownOpen(true)}
               onKeyDown={handleSubclassKeyDown}
-              disabled={(character.level ?? 1) < 2}
+              disabled={(character.level ?? 1) < 3}
             />
             {isSubclassDropdownOpen && filteredSubclasses.length > 0 && (
               <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
@@ -779,7 +782,7 @@ const CharacterCreationPage = () => {
                     }`}
                     onClick={() => {
                       handleInputChange("subClass", className);
-                      setSubclassFilter(className);
+                      setFilter("subclass", className);
                       setIsSubclassDropdownOpen(false);
                       setSubclassFocusedIndex(-1);
                     }}
@@ -818,11 +821,13 @@ const CharacterCreationPage = () => {
                 type="text"
                 placeholder="Add weapon"
                 className="input input-bordered w-full"
-                value={weaponInput}
-                onChange={(e) => setWeaponInput(e.target.value)}
+                value={filters.weapon}
+                onChange={(e) => setFilter("weapon", e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    addEquipment("weapons", weaponInput, setWeaponInput);
+                    addEquipment("weapons", filters.weapon, () =>
+                      setFilter("weapon", "")
+                    );
                   }
                 }}
               />
@@ -850,11 +855,13 @@ const CharacterCreationPage = () => {
                 type="text"
                 placeholder="Add armor"
                 className="input input-bordered w-full"
-                value={armorInput}
-                onChange={(e) => setArmorInput(e.target.value)}
+                value={filters.armor}
+                onChange={(e) => setFilter("armor", e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    addEquipment("armor", armorInput, setArmorInput);
+                    addEquipment("armor", filters.armor, () =>
+                      setFilter("armor", "")
+                    );
                   }
                 }}
               />
@@ -882,11 +889,13 @@ const CharacterCreationPage = () => {
                 type="text"
                 placeholder="Add tool"
                 className="input input-bordered w-full"
-                value={toolInput}
-                onChange={(e) => setToolInput(e.target.value)}
+                value={filters.tool}
+                onChange={(e) => setFilter("tool", e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    addEquipment("tools", toolInput, setToolInput);
+                    addEquipment("tools", filters.tool, () =>
+                      setFilter("tool", "")
+                    );
                   }
                 }}
               />
@@ -914,14 +923,12 @@ const CharacterCreationPage = () => {
                 type="text"
                 placeholder="Add magic item"
                 className="input input-bordered w-full"
-                value={magicItemInput}
-                onChange={(e) => setMagicItemInput(e.target.value)}
+                value={filters.magicItem}
+                onChange={(e) => setFilter("magicItem", e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    addEquipment(
-                      "magicItems",
-                      magicItemInput,
-                      setMagicItemInput
+                    addEquipment("magicItems", filters.magicItem, () =>
+                      setFilter("magicItem", "")
                     );
                   }
                 }}
@@ -950,11 +957,13 @@ const CharacterCreationPage = () => {
                 type="text"
                 placeholder="Add item"
                 className="input input-bordered w-full"
-                value={itemInput}
-                onChange={(e) => setItemInput(e.target.value)}
+                value={filters.item}
+                onChange={(e) => setFilter("item", e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    addEquipment("items", itemInput, setItemInput);
+                    addEquipment("items", filters.item, () =>
+                      setFilter("item", "")
+                    );
                   }
                 }}
               />

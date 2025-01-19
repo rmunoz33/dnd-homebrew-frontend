@@ -8,6 +8,21 @@ interface DnDStore {
   setIsCharacterCreated: (isCharacterCreated: boolean) => void;
   character: Character;
   setCharacter: (character: Character) => void;
+  filters: {
+    species: string;
+    subspecies: string;
+    alignment: string;
+    background: string;
+    class: string;
+    subclass: string;
+    weapon: string;
+    armor: string;
+    tool: string;
+    magicItem: string;
+    item: string;
+  };
+  setFilter: (key: keyof DnDStore["filters"], value: string) => void;
+  resetFilters: () => void;
 }
 
 export interface Character {
@@ -80,12 +95,26 @@ export const initialCharacter: Character = {
     copper: 0,
   },
   equipment: {
-    weapons: [],
+    weapons: ["Unarmed Strike"],
     armor: [],
     tools: [],
     magicItems: [],
     items: [],
   },
+};
+
+export const initialFilters = {
+  species: "",
+  subspecies: "",
+  alignment: "",
+  background: "",
+  class: "",
+  subclass: "",
+  weapon: "",
+  armor: "",
+  tool: "",
+  magicItem: "",
+  item: "",
 };
 
 export const useDnDStore = create<DnDStore>()(
@@ -98,10 +127,15 @@ export const useDnDStore = create<DnDStore>()(
         set({ isCharacterCreated }),
       character: initialCharacter,
       setCharacter: (character: Character) => set({ character }),
+      filters: initialFilters,
+      setFilter: (key: keyof DnDStore["filters"], value: string) =>
+        set((state) => ({
+          filters: { ...state.filters, [key]: value },
+        })),
+      resetFilters: () => set({ filters: initialFilters }),
     }),
     {
-      name: "dnd-storage",
-      storage: createJSONStorage(() => localStorage),
+      name: "dnd-store",
     }
   )
 );
