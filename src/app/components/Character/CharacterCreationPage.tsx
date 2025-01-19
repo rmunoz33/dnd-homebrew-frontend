@@ -41,11 +41,11 @@ const CharacterCreationPage = () => {
     species.toLowerCase().includes(speciesFilter.toLowerCase())
   );
 
-  const availableSubspecies = character.species
-    ? characterSubspecies[
-        character.species as keyof typeof characterSubspecies
-      ] || []
+  const availableSubspecies = speciesFilter
+    ? characterSubspecies[speciesFilter as keyof typeof characterSubspecies] ||
+      []
     : [];
+
   const filteredSubspecies = availableSubspecies.filter((subspecies) =>
     subspecies.toLowerCase().includes(subspeciesFilter.toLowerCase())
   );
@@ -62,6 +62,8 @@ const CharacterCreationPage = () => {
   useEffect(() => {
     handleInputChange("subspecies", "");
     setSubspeciesFilter("");
+    setIsSubspeciesDropdownOpen(false);
+    setSubspeciesFocusedIndex(-1);
   }, [character.species]);
 
   // Update the existing useEffect to handle species being cleared
@@ -69,6 +71,8 @@ const CharacterCreationPage = () => {
     if (!character.species) {
       handleInputChange("subspecies", "");
       setSubspeciesFilter("");
+      setIsSubspeciesDropdownOpen(false);
+      setSubspeciesFocusedIndex(-1);
     }
   }, [character.species]);
 
@@ -306,11 +310,20 @@ const CharacterCreationPage = () => {
                   handleInputChange("subspecies", "");
                   setSubspeciesFilter("");
                   setIsSubspeciesDropdownOpen(false);
-                } else {
+                } else if (characterSpecies.includes(newValue)) {
                   handleInputChange("species", newValue);
                 }
                 setIsSpeciesDropdownOpen(true);
                 setSpeciesFocusedIndex(-1);
+              }}
+              onBlur={() => {
+                if (!characterSpecies.includes(speciesFilter)) {
+                  setSpeciesFilter("");
+                  handleInputChange("species", "");
+                  handleInputChange("subspecies", "");
+                  setSubspeciesFilter("");
+                  setIsSubspeciesDropdownOpen(false);
+                }
               }}
               onFocus={() => setIsSpeciesDropdownOpen(true)}
               onKeyDown={handleSpeciesKeyDown}
@@ -348,11 +361,17 @@ const CharacterCreationPage = () => {
               className="input input-bordered w-full"
               value={subspeciesFilter}
               onChange={(e) => {
-                setSubspeciesFilter(e.target.value);
+                const newValue = e.target.value;
+                setSubspeciesFilter(newValue);
+                handleInputChange("subspecies", newValue);
                 setIsSubspeciesDropdownOpen(true);
                 setSubspeciesFocusedIndex(-1);
               }}
-              onFocus={() => setIsSubspeciesDropdownOpen(true)}
+              onFocus={() => {
+                if (character.species && availableSubspecies.length > 0) {
+                  setIsSubspeciesDropdownOpen(true);
+                }
+              }}
               onKeyDown={handleSubspeciesKeyDown}
               disabled={!character.species}
             />
