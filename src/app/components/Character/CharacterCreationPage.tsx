@@ -1116,7 +1116,7 @@ const CharacterCreationPage = () => {
               disabled={!isCharacterDetailsComplete()}
               onClick={() => setIsCharacterCreated(true)}
             >
-              Create Character
+              Save Character
             </button>
           </div>
         </div>
