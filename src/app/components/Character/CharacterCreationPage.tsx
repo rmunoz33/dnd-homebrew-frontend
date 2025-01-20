@@ -1,7 +1,7 @@
 "use client";
 
 import { Character, useDnDStore, initialCharacter } from "@/stores/useStore";
-import { MedievalSharp } from "next/font/google";
+import { medievalFont } from "@/app/components/medievalFont";
 import { generateCharacterDetails } from "@/app/api/openai";
 import { useState, useEffect } from "react";
 import {
@@ -11,11 +11,6 @@ import {
   characterBackgrounds,
   characterClasses,
 } from "./characterValueOptions";
-
-const medievalFont = MedievalSharp({
-  weight: "400",
-  subsets: ["latin"],
-});
 
 const CharacterCreationPage = () => {
   const {
