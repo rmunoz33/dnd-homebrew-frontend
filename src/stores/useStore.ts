@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
+export interface Message {
+  id: string;
+  content: string;
+  sender: "user" | "ai";
+  timestamp: Date;
+}
+
 interface DnDStore {
   isLoggedIn: boolean;
   setIsLoggedIn: (isLoggedIn: boolean) => void;
@@ -8,6 +15,11 @@ interface DnDStore {
   setIsCharacterCreated: (isCharacterCreated: boolean) => void;
   character: Character;
   setCharacter: (character: Character) => void;
+  initialCharacter: Character;
+  messages: Message[];
+  addMessage: (message: Message) => void;
+  updateLastMessage: (content: string) => void;
+  clearMessages: () => void;
   filters: {
     species: string;
     subspecies: string;
@@ -127,6 +139,20 @@ export const useDnDStore = create<DnDStore>()(
         set({ isCharacterCreated }),
       character: initialCharacter,
       setCharacter: (character: Character) => set({ character }),
+      initialCharacter,
+      messages: [],
+      addMessage: (message: Message) =>
+        set((state) => ({ messages: [...state.messages, message] })),
+      updateLastMessage: (content: string) =>
+        set((state) => {
+          const messages = [...state.messages];
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage && lastMessage.sender === "ai") {
+            lastMessage.content = content;
+          }
+          return { messages };
+        }),
+      clearMessages: () => set({ messages: [] }),
       filters: initialFilters,
       setFilter: (key: keyof DnDStore["filters"], value: string) =>
         set((state) => ({
@@ -136,6 +162,22 @@ export const useDnDStore = create<DnDStore>()(
     }),
     {
       name: "dnd-store",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        ...state,
+        messages: state.messages.map((msg) => ({
+          ...msg,
+          timestamp: msg.timestamp.toISOString(),
+        })),
+      }),
+      merge: (persistedState: any, currentState: DnDStore) => ({
+        ...currentState,
+        ...persistedState,
+        messages: (persistedState.messages || []).map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        })),
+      }),
     }
   )
 );

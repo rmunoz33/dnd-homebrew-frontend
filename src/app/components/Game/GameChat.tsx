@@ -1,18 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { medievalFont } from "@/app/components/medievalFont";
 import { Send } from "lucide-react";
-import { useDnDStore } from "@/stores/useStore";
-
-interface Message {
-  id: string;
-  content: string;
-  sender: "user" | "ai";
-  timestamp: Date;
-}
+import { useDnDStore, Message } from "@/stores/useStore";
 
 const GameChat = () => {
-  const { character } = useDnDStore();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { character, messages, addMessage, updateLastMessage } = useDnDStore();
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -42,7 +34,8 @@ const GameChat = () => {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage, aiMessage]);
+    addMessage(userMessage);
+    addMessage(aiMessage);
     setInputMessage("");
     setIsLoading(true);
 
@@ -68,32 +61,19 @@ const GameChat = () => {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let fullContent = "";
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
         const text = decoder.decode(value);
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          const lastMessage = newMessages[newMessages.length - 1];
-          if (lastMessage.sender === "ai") {
-            lastMessage.content += text;
-          }
-          return newMessages;
-        });
+        fullContent += text;
+        updateLastMessage(fullContent);
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      setMessages((prev) => {
-        const newMessages = [...prev];
-        const lastMessage = newMessages[newMessages.length - 1];
-        if (lastMessage.sender === "ai") {
-          lastMessage.content =
-            "Sorry, I encountered an error. Please try again.";
-        }
-        return newMessages;
-      });
+      updateLastMessage("Sorry, I encountered an error. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -133,9 +113,13 @@ const GameChat = () => {
                           : "bg-neutral text-neutral-content"
                       }`}
                     >
-                      <p className="break-words whitespace-pre-wrap text-sm sm:text-base">
-                        {message.content}
-                      </p>
+                      {message.sender === "ai" && !message.content ? (
+                        <span className="loading loading-dots loading-sm"></span>
+                      ) : (
+                        <p className="break-words whitespace-pre-wrap text-sm sm:text-base">
+                          {message.content}
+                        </p>
+                      )}
                       <div
                         className={`text-[10px] sm:text-xs mt-1 opacity-70 ${
                           message.sender === "user" ? "text-right" : "text-left"
