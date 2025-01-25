@@ -412,8 +412,8 @@ const CharacterCreationPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-800">
-      <div className="flex flex-col items-center gap-8 w-full max-w-2xl p-8 bg-gray-800 mx-auto">
+    <div className="flex min-h-screen items-center justify-center bg-[#3f3f3f]">
+      <div className="flex flex-col items-center gap-8 w-full max-w-2xl p-8 mx-auto">
         <div className="flex flex-col items-center gap-4">
           <h1 className={`${medievalFont.className} text-5xl text-red-500`}>
             Create Your Character

@@ -100,7 +100,7 @@ const GameChat = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-800">
+    <div className="fixed inset-0">
       <div className="flex flex-col h-full max-w-4xl mx-auto">
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto p-4">
@@ -129,7 +129,7 @@ const GameChat = () => {
                     <div
                       className={`max-w-[85%] rounded-lg p-2 sm:p-3 ${
                         message.sender === "user"
-                          ? "bg-primary text-primary-content"
+                          ? "bg-gray-600 text-white"
                           : "bg-neutral text-neutral-content"
                       }`}
                     >
@@ -153,7 +153,7 @@ const GameChat = () => {
         </div>
 
         {/* Input area */}
-        <div className="border-t border-gray-700 bg-gray-800 text-white">
+        <div className="border-t border-gray-700">
           <div className="max-w-4xl mx-auto px-4 py-2">
             <div className="flex gap-2">
               <input
@@ -167,13 +167,13 @@ const GameChat = () => {
                   }
                 }}
                 placeholder="Type your message..."
-                className="input input-bordered flex-1 text-sm sm:text-base h-10 sm:h-12 bg-gray-700 text-white placeholder-gray-400 disabled:text-gray-500 disabled:bg-gray-600"
+                className="input input-bordered flex-1 text-sm sm:text-base h-10 sm:h-12 bg-accent-content text-white placeholder-gray-400 disabled:text-gray-500 disabled:bg-gray-600"
                 disabled={isLoading}
               />
               <button
                 onClick={handleSendMessage}
                 disabled={!inputMessage.trim() || isLoading}
-                className={`btn btn-circle btn-primary h-10 w-10 sm:h-12 sm:w-12 min-h-0 ${
+                className={`btn btn-circle btn-neutral-content h-10 w-10 sm:h-12 sm:w-12 min-h-0 ${
                   isLoading ? "loading" : ""
                 }`}
               >
