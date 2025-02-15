@@ -2,7 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { medievalFont } from "@/app/components/medievalFont";
 import { Send } from "lucide-react";
 import { useDnDStore, Message } from "@/stores/useStore";
-import { updateCharacterStatsAPI } from "@/app/api/openai";
+import {
+  generateChatCompletion,
+  updateCharacterStatsAPI,
+} from "@/app/api/openai";
 
 const GameChat = () => {
   const {
@@ -48,37 +51,9 @@ const GameChat = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: inputMessage,
-          character,
-          messages: messages,
-        }),
-      });
-
-      if (!response.ok) {
+      const success = await generateChatCompletion();
+      if (!success) {
         throw new Error("Failed to get response");
-      }
-
-      if (!response.body) {
-        throw new Error("No response body");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        const text = decoder.decode(value);
-        fullContent += text;
-        updateLastMessage(fullContent);
       }
     } catch (error) {
       console.error("Error sending message:", error);

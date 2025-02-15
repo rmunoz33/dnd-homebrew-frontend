@@ -1,5 +1,10 @@
 import { OpenAI } from "openai";
-import { Character, initialCharacter, useDnDStore } from "@/stores/useStore";
+import {
+  Character,
+  initialCharacter,
+  useDnDStore,
+  Message,
+} from "@/stores/useStore";
 import {
   characterSpecies,
   characterSubspecies,
@@ -103,5 +108,58 @@ export const updateCharacterStatsAPI = async () => {
     JSON.stringify(useDnDStore.getState().character)
   ) {
     useDnDStore.getState().setCharacter(updatedCharacter);
+  }
+};
+
+export const generateChatCompletion = async () => {
+  try {
+    const { inputMessage, character, messages, updateLastMessage } =
+      useDnDStore.getState();
+
+    const systemMessage = {
+      role: "system" as const,
+      content: `You are a world-class Dungeon Master in a D&D game. The player's character has the following details:
+${JSON.stringify(character, null, 2)}
+
+Respond in character as a DM, guiding the player through their adventure. Keep responses concise but engaging, and maintain the medieval fantasy atmosphere. Balance world-building, story-telling, and combat and game mechanics.
+
+If the player asks about their character's stats or abilities, use the provided character details to inform your response.
+If they want to perform an action, describe the outcome based on their character's abilities and the situation.`,
+    };
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        systemMessage,
+        ...messages.map((msg: Message) => ({
+          role:
+            msg.sender === "user" ? ("user" as const) : ("assistant" as const),
+          content: msg.content,
+        })),
+        {
+          role: "user" as const,
+          content: inputMessage,
+        },
+      ],
+      temperature: 0.7,
+      stream: true,
+    });
+
+    let fullContent = "";
+    for await (const chunk of completion) {
+      const content = chunk.choices[0]?.delta?.content || "";
+      if (content) {
+        fullContent += content;
+        updateLastMessage(fullContent);
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in chat route:", error);
+    useDnDStore
+      .getState()
+      .updateLastMessage("Sorry, I encountered an error. Please try again.");
+    return false;
   }
 };
