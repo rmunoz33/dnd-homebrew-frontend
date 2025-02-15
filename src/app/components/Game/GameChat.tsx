@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { medievalFont } from "@/app/components/medievalFont";
 import { Send } from "lucide-react";
-import { useDnDStore, Message, Character } from "@/stores/useStore";
+import { useDnDStore, Message } from "@/stores/useStore";
+import { updateCharacterStatsAPI } from "@/app/api/openai";
 
 const GameChat = () => {
   const { character, messages, addMessage, updateLastMessage, setCharacter } =
@@ -64,64 +65,13 @@ const GameChat = () => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
-      let buffer = "";
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
         const text = decoder.decode(value);
-        buffer += text;
-
-        // Check for complete update blocks
-        while (
-          buffer.includes("---UPDATE---") &&
-          buffer.includes("---END_UPDATE---")
-        ) {
-          const updateStart = buffer.indexOf("---UPDATE---");
-          const updateEnd =
-            buffer.indexOf("---END_UPDATE---") + "---END_UPDATE---".length;
-          const updateBlock = buffer.slice(updateStart, updateEnd);
-
-          // Remove the update block from the buffer
-          buffer = buffer.slice(0, updateStart) + buffer.slice(updateEnd);
-
-          // Process the update
-          try {
-            const updateJson = JSON.parse(
-              updateBlock
-                .replace("---UPDATE---", "")
-                .replace("---END_UPDATE---", "")
-                .trim()
-            );
-
-            if (updateJson.type === "character_update") {
-              // Merge the updates with the current character state
-              setCharacter({
-                ...character,
-                ...updateJson.content,
-                // Special handling for nested objects
-                equipment: updateJson.content.equipment
-                  ? {
-                      ...character.equipment,
-                      ...updateJson.content.equipment,
-                    }
-                  : character.equipment,
-                money: updateJson.content.money
-                  ? {
-                      ...character.money,
-                      ...updateJson.content.money,
-                    }
-                  : character.money,
-              });
-            }
-          } catch (e) {
-            console.error("Failed to process character update:", e);
-          }
-        }
-
-        // Update the visible message content
-        fullContent = buffer;
+        fullContent += text;
         updateLastMessage(fullContent);
       }
     } catch (error) {
@@ -130,6 +80,11 @@ const GameChat = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const updateCharacterStats = async () => {
+    // API call to update character stats if needed
+    await updateCharacterStatsAPI();
   };
 
   return (
@@ -197,10 +152,11 @@ const GameChat = () => {
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={(e) => {
+                onKeyDown={async (e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    handleSendMessage();
+                    await handleSendMessage();
+                    await updateCharacterStats();
                   }
                 }}
                 placeholder="Type your message..."
@@ -208,7 +164,11 @@ const GameChat = () => {
                 disabled={isLoading}
               />
               <button
-                onClick={handleSendMessage}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  await handleSendMessage();
+                  await updateCharacterStats();
+                }}
                 disabled={!inputMessage.trim() || isLoading}
                 className={`btn btn-circle btn-neutral-content h-10 w-10 sm:h-12 sm:w-12 min-h-0 ${
                   isLoading ? "loading" : ""

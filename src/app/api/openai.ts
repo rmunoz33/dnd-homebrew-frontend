@@ -1,5 +1,5 @@
 import { OpenAI } from "openai";
-import { Character, initialCharacter } from "@/stores/useStore";
+import { Character, initialCharacter, useDnDStore } from "@/stores/useStore";
 import {
   characterSpecies,
   characterSubspecies,
@@ -63,5 +63,45 @@ export const generateCharacterDetails = async (character: Character) => {
   } catch (error) {
     console.error("Error generating character details:", error);
     throw error;
+  }
+};
+
+export const updateCharacterStatsAPI = async () => {
+  // This function updates the character's stats based on the last two messages in the chat. It sends a request to the OpenAI API
+  // with the last two messages and the current character JSON object. The API then returns an updated character JSON object
+  // based on the context provided. If the returned character object is different from the current one, it updates the character
+  // state in the store.
+  const lastTwoMessages = useDnDStore.getState().messages.slice(-2);
+
+  const response = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are an expert at intpreting D&D stories and character stats and traits. Based on the provided last two messages and the given character JSON object, update the character JSON object to reflect any needed changes. If no changes are needed, return the same character JSON object.",
+      },
+      {
+        role: "user",
+        content: `Here are the last two messages:
+        ${JSON.stringify(lastTwoMessages)}
+
+        Here is the character JSON object:
+        ${JSON.stringify(useDnDStore.getState().character)}`,
+      },
+    ],
+    temperature: 0.9,
+    response_format: { type: "json_object" },
+  });
+
+  const updatedCharacter = response.choices[0]?.message?.content
+    ? JSON.parse(response.choices[0].message.content)
+    : useDnDStore.getState().character;
+
+  if (
+    JSON.stringify(updatedCharacter) !==
+    JSON.stringify(useDnDStore.getState().character)
+  ) {
+    useDnDStore.getState().setCharacter(updatedCharacter);
   }
 };
