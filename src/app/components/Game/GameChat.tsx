@@ -8,7 +8,6 @@ import {
 
 const GameChat = () => {
   const {
-    character,
     messages,
     addMessage,
     updateLastMessage,

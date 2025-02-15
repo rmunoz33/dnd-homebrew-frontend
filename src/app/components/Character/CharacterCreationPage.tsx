@@ -88,9 +88,14 @@ const CharacterCreationPage = () => {
     }
     setIsSubspeciesDropdownOpen(false);
     setSubspeciesFocusedIndex(-1);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [character.species]);
 
-  const handleInputChange = (field: keyof Character, value: any) => {
+  const handleInputChange = (
+    field: keyof Character,
+    value: Character[keyof Character]
+  ) => {
     const newCharacter = { ...character, [field]: value };
     setCharacter(newCharacter);
   };

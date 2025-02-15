@@ -18,8 +18,18 @@ const client = new OpenAI({
   dangerouslyAllowBrowser: true,
 });
 
-const isDefaultValue = (value: any, field: keyof Character) => {
+const isDefaultValue = (
+  value: Character[keyof Character],
+  field: keyof Character
+) => {
   return JSON.stringify(value) === JSON.stringify(initialCharacter[field]);
+};
+
+// Add these type definitions at the top of the file, after the imports
+type StatChange = {
+  field: string;
+  old: number | string;
+  new: number | string;
 };
 
 export const generateCharacterDetails = async (character: Character) => {
@@ -102,7 +112,7 @@ export const updateCharacterStatsAPI = async () => {
 
   if (JSON.stringify(updatedCharacter) !== JSON.stringify(currentCharacter)) {
     // Track changes in numeric stats and equipment
-    const changes: { field: string; old: any; new: any }[] = [];
+    const changes: StatChange[] = [];
 
     // Check numeric stats
     const numericStats = [

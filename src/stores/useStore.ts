@@ -131,6 +131,11 @@ export const initialFilters = {
   item: "",
 };
 
+type PersistedMessage = Omit<Message, "timestamp"> & { timestamp: string };
+type PersistedState = Omit<DnDStore, "messages"> & {
+  messages: PersistedMessage[];
+};
+
 export const useDnDStore = create<DnDStore>()(
   persist(
     (set) => ({
@@ -174,14 +179,17 @@ export const useDnDStore = create<DnDStore>()(
           timestamp: msg.timestamp.toISOString(),
         })),
       }),
-      merge: (persistedState: any, currentState: DnDStore) => ({
-        ...currentState,
-        ...persistedState,
-        messages: (persistedState.messages || []).map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        })),
-      }),
+      merge: (persistedState: unknown, currentState: DnDStore) => {
+        const typedPersistedState = persistedState as PersistedState;
+        return {
+          ...currentState,
+          ...typedPersistedState,
+          messages: (typedPersistedState.messages || []).map((msg) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+          })),
+        };
+      },
     }
   )
 );
