@@ -72,27 +72,24 @@ export const generateCharacterDetails = async (character: Character) => {
 };
 
 export const updateCharacterStatsAPI = async () => {
-  // This function updates the character's stats based on the last two messages in the chat. It sends a request to the OpenAI API
-  // with the last two messages and the current character JSON object. The API then returns an updated character JSON object
-  // based on the context provided. If the returned character object is different from the current one, it updates the character
-  // state in the store.
-  const lastTwoMessages = useDnDStore.getState().messages.slice(-2);
+  const currentCharacter = useDnDStore.getState().character;
+  const lastThreeMessages = useDnDStore.getState().messages.slice(-3);
 
   const response = await client.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       {
-        role: "system",
+        role: "system" as const,
         content:
-          "You are an expert at intpreting D&D stories and character stats and traits. Based on the provided last two messages and the given character JSON object, update the character JSON object to reflect any needed changes. If no changes are needed, return the same character JSON object.",
+          "You are an expert at interpreting D&D stories and character stats and traits. Based on the provided last three messages and the given character JSON object, update the character JSON object to reflect any needed changes. If no changes are needed, return the same character JSON object.",
       },
       {
-        role: "user",
-        content: `Here are the last two messages:
-        ${JSON.stringify(lastTwoMessages)}
+        role: "user" as const,
+        content: `Here are the last three messages, first from the user (character) and then from the AI (DM):
+        ${JSON.stringify(lastThreeMessages)}
 
         Here is the character JSON object:
-        ${JSON.stringify(useDnDStore.getState().character)}`,
+        ${JSON.stringify(currentCharacter)}`,
       },
     ],
     temperature: 0.9,
@@ -101,14 +98,100 @@ export const updateCharacterStatsAPI = async () => {
 
   const updatedCharacter = response.choices[0]?.message?.content
     ? JSON.parse(response.choices[0].message.content)
-    : useDnDStore.getState().character;
+    : currentCharacter;
 
-  if (
-    JSON.stringify(updatedCharacter) !==
-    JSON.stringify(useDnDStore.getState().character)
-  ) {
+  if (JSON.stringify(updatedCharacter) !== JSON.stringify(currentCharacter)) {
+    // Track changes in numeric stats and equipment
+    const changes: { field: string; old: any; new: any }[] = [];
+
+    // Check numeric stats
+    const numericStats = [
+      "hitPoints",
+      "armorClass",
+      "initiative",
+      "speed",
+      "strength",
+      "dexterity",
+      "constitution",
+      "intelligence",
+      "wisdom",
+      "charisma",
+      "honor",
+      "sanity",
+      "experience",
+      "level",
+    ] as const;
+
+    numericStats.forEach((stat) => {
+      if (updatedCharacter[stat] !== currentCharacter[stat]) {
+        changes.push({
+          field: stat,
+          old: currentCharacter[stat],
+          new: updatedCharacter[stat],
+        });
+      }
+    });
+
+    // Check money changes
+    const currencies = [
+      "platinum",
+      "gold",
+      "electrum",
+      "silver",
+      "copper",
+    ] as const;
+    currencies.forEach((currency) => {
+      if (
+        updatedCharacter.money[currency] !== currentCharacter.money[currency]
+      ) {
+        changes.push({
+          field: `${currency} pieces`,
+          old: currentCharacter.money[currency],
+          new: updatedCharacter.money[currency],
+        });
+      }
+    });
+
+    // Check equipment changes
+    const equipmentCategories = [
+      "weapons",
+      "armor",
+      "tools",
+      "magicItems",
+      "items",
+    ] as const;
+    equipmentCategories.forEach((category) => {
+      const added = updatedCharacter.equipment[category].filter(
+        (item: string) => !currentCharacter.equipment[category].includes(item)
+      );
+      const removed = currentCharacter.equipment[category].filter(
+        (item: string) => !updatedCharacter.equipment[category].includes(item)
+      );
+
+      if (added.length > 0) {
+        changes.push({
+          field: category,
+          old: "Added",
+          new: added.join(", "),
+        });
+      }
+      if (removed.length > 0) {
+        changes.push({
+          field: category,
+          old: "Removed",
+          new: removed.join(", "),
+        });
+      }
+    });
+
+    // Update character and show toasts for each change
     useDnDStore.getState().setCharacter(updatedCharacter);
+
+    // Return the changes so they can be displayed in toasts
+    return changes;
   }
+
+  return null;
 };
 
 export const generateChatCompletion = async () => {

@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { medievalFont } from "@/app/components/medievalFont";
 import { Send } from "lucide-react";
 import { useDnDStore, Message } from "@/stores/useStore";
 import {
@@ -13,7 +12,6 @@ const GameChat = () => {
     messages,
     addMessage,
     updateLastMessage,
-    setCharacter,
     inputMessage,
     setInputMessage,
   } = useDnDStore();
@@ -64,8 +62,41 @@ const GameChat = () => {
   };
 
   const updateCharacterStats = async () => {
-    // API call to update character stats if needed
-    await updateCharacterStatsAPI();
+    const changes = await updateCharacterStatsAPI();
+    if (changes) {
+      changes.forEach((change) => {
+        const message =
+          change.old === "Added" || change.old === "Removed"
+            ? `${change.field}: ${change.old} ${change.new}`
+            : `${change.field} changed from ${change.old} to ${change.new}`;
+
+        const toast = document.createElement("div");
+        toast.className = "toast toast-end";
+        const alert = document.createElement("div");
+
+        // Determine if the change is positive or negative
+        let isPositive = false;
+        if (change.old === "Added") {
+          isPositive = true;
+        } else if (change.old === "Removed") {
+          isPositive = false;
+        } else {
+          isPositive = Number(change.new) > Number(change.old);
+        }
+
+        alert.className = `alert ${
+          isPositive ? "alert-success" : "alert-error"
+        }`;
+        alert.textContent = message;
+        toast.appendChild(alert);
+        document.body.appendChild(toast);
+
+        // Remove the toast after 5 seconds
+        setTimeout(() => {
+          toast.remove();
+        }, 5000);
+      });
+    }
   };
 
   return (
@@ -76,9 +107,7 @@ const GameChat = () => {
           <div className="flex flex-col justify-end min-h-full">
             {messages.length === 0 ? (
               <div className="text-center text-neutral-content opacity-50">
-                <h2 className={`${medievalFont.className} text-2xl mb-2`}>
-                  Welcome, brave adventurer!
-                </h2>
+                <h2 className="text-2xl mb-2">Welcome, brave adventurer!</h2>
                 <p>
                   Start your journey by sending a message to your Dungeon
                   Master.
