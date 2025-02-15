@@ -20,6 +20,8 @@ interface DnDStore {
   addMessage: (message: Message) => void;
   updateLastMessage: (content: string) => void;
   clearMessages: () => void;
+  inputMessage: string;
+  setInputMessage: (message: string) => void;
   filters: {
     species: string;
     subspecies: string;
@@ -153,6 +155,8 @@ export const useDnDStore = create<DnDStore>()(
           return { messages };
         }),
       clearMessages: () => set({ messages: [] }),
+      inputMessage: "",
+      setInputMessage: (message: string) => set({ inputMessage: message }),
       filters: initialFilters,
       setFilter: (key: keyof DnDStore["filters"], value: string) =>
         set((state) => ({

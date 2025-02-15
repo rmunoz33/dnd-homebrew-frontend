@@ -5,9 +5,15 @@ import { useDnDStore, Message } from "@/stores/useStore";
 import { updateCharacterStatsAPI } from "@/app/api/openai";
 
 const GameChat = () => {
-  const { character, messages, addMessage, updateLastMessage, setCharacter } =
-    useDnDStore();
-  const [inputMessage, setInputMessage] = useState("");
+  const {
+    character,
+    messages,
+    addMessage,
+    updateLastMessage,
+    setCharacter,
+    inputMessage,
+    setInputMessage,
+  } = useDnDStore();
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
