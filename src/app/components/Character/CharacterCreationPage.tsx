@@ -125,6 +125,68 @@ const NumberInput: React.FC<NumberInputProps> = ({
   );
 };
 
+// First, let's create a reusable component for the dropdown inputs with clear button
+interface ClearableInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  onClear: () => void;
+  placeholder: string;
+  onFocus?: () => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
+  className?: string;
+}
+
+const ClearableInput: React.FC<ClearableInputProps> = ({
+  value,
+  onChange,
+  onClear,
+  placeholder,
+  onFocus,
+  onBlur,
+  onKeyDown,
+  disabled = false,
+  className = "input input-bordered w-full",
+}) => {
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        placeholder={placeholder}
+        className={className}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
+        disabled={disabled}
+      />
+      {value && (
+        <button
+          type="button"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+          onClick={onClear}
+          disabled={disabled}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+};
+
 const CharacterCreationPage = () => {
   const {
     character,
@@ -604,13 +666,9 @@ const CharacterCreationPage = () => {
             onChange={(value) => handleInputChange("level", value)}
           />
           <div className="relative species-dropdown">
-            <input
-              type="text"
-              placeholder="Species *"
-              className="input input-bordered w-full"
+            <ClearableInput
               value={filters.species}
-              onChange={(e) => {
-                const newValue = e.target.value;
+              onChange={(newValue) => {
                 setFilter("species", newValue);
                 if (!newValue) {
                   handleInputChange("species", "");
@@ -623,6 +681,16 @@ const CharacterCreationPage = () => {
                 setIsSpeciesDropdownOpen(true);
                 setSpeciesFocusedIndex(-1);
               }}
+              onClear={() => {
+                setFilter("species", "");
+                handleInputChange("species", "");
+                handleInputChange("subspecies", "");
+                setFilter("subspecies", "");
+                setIsSubspeciesDropdownOpen(false);
+                setIsSpeciesDropdownOpen(false);
+              }}
+              placeholder="Species *"
+              onFocus={() => setIsSpeciesDropdownOpen(true)}
               onBlur={() => {
                 if (!characterSpecies.includes(filters.species)) {
                   setFilter("species", "");
@@ -634,7 +702,6 @@ const CharacterCreationPage = () => {
                   handleInputChange("species", filters.species);
                 }
               }}
-              onFocus={() => setIsSpeciesDropdownOpen(true)}
               onKeyDown={handleSpeciesKeyDown}
             />
             {isSpeciesDropdownOpen && filteredSpecies.length > 0 && (
@@ -664,8 +731,19 @@ const CharacterCreationPage = () => {
             )}
           </div>
           <div className="relative subspecies-dropdown">
-            <input
-              type="text"
+            <ClearableInput
+              value={filters.subspecies}
+              onChange={(newValue) => {
+                setFilter("subspecies", newValue);
+                handleInputChange("subspecies", newValue);
+                setIsSubspeciesDropdownOpen(true);
+                setSubspeciesFocusedIndex(-1);
+              }}
+              onClear={() => {
+                setFilter("subspecies", "");
+                handleInputChange("subspecies", "");
+                setIsSubspeciesDropdownOpen(false);
+              }}
               placeholder={
                 characterSubspecies[
                   character.species as keyof typeof characterSubspecies
@@ -673,15 +751,6 @@ const CharacterCreationPage = () => {
                   ? "Subspecies *"
                   : "Subspecies"
               }
-              className="input input-bordered w-full"
-              value={filters.subspecies}
-              onChange={(e) => {
-                const newValue = e.target.value;
-                setFilter("subspecies", newValue);
-                handleInputChange("subspecies", newValue);
-                setIsSubspeciesDropdownOpen(true);
-                setSubspeciesFocusedIndex(-1);
-              }}
               onFocus={() => {
                 if (character.species && availableSubspecies.length > 0) {
                   setIsSubspeciesDropdownOpen(true);
@@ -728,18 +797,27 @@ const CharacterCreationPage = () => {
             )}
           </div>
           <div className="relative alignment-dropdown">
-            <input
-              type="text"
-              placeholder="Alignment *"
-              className="input input-bordered w-full"
+            <ClearableInput
               value={filters.alignment}
-              onChange={(e) => {
-                setFilter("alignment", e.target.value);
+              onChange={(newValue) => {
+                setFilter("alignment", newValue);
                 setIsAlignmentDropdownOpen(true);
                 setAlignmentFocusedIndex(-1);
               }}
+              onClear={() => {
+                setFilter("alignment", "");
+                handleInputChange("alignment", "");
+                setIsAlignmentDropdownOpen(false);
+              }}
+              placeholder="Alignment *"
               onFocus={() => setIsAlignmentDropdownOpen(true)}
               onKeyDown={handleAlignmentKeyDown}
+              onBlur={() => {
+                if (!characterAlignments.includes(filters.alignment)) {
+                  setFilter("alignment", "");
+                  handleInputChange("alignment", "");
+                }
+              }}
             />
             {isAlignmentDropdownOpen && filteredAlignments.length > 0 && (
               <ul
@@ -768,18 +846,27 @@ const CharacterCreationPage = () => {
             )}
           </div>
           <div className="relative background-dropdown">
-            <input
-              type="text"
-              placeholder="Background *"
-              className="input input-bordered w-full"
+            <ClearableInput
               value={filters.background}
-              onChange={(e) => {
-                setFilter("background", e.target.value);
+              onChange={(newValue) => {
+                setFilter("background", newValue);
                 setIsBackgroundDropdownOpen(true);
                 setBackgroundFocusedIndex(-1);
               }}
+              onClear={() => {
+                setFilter("background", "");
+                handleInputChange("background", "");
+                setIsBackgroundDropdownOpen(false);
+              }}
+              placeholder="Background *"
               onFocus={() => setIsBackgroundDropdownOpen(true)}
               onKeyDown={handleBackgroundKeyDown}
+              onBlur={() => {
+                if (!characterBackgrounds.includes(filters.background)) {
+                  setFilter("background", "");
+                  handleInputChange("background", "");
+                }
+              }}
             />
             {isBackgroundDropdownOpen && filteredBackgrounds.length > 0 && (
               <ul
@@ -836,16 +923,18 @@ const CharacterCreationPage = () => {
                 </span>
               ))}
             </div>
-            <input
-              type="text"
-              placeholder="Add Class (max 3) *"
-              className="input input-bordered w-full"
+            <ClearableInput
               value={filters.class}
-              onChange={(e) => {
-                setFilter("class", e.target.value);
+              onChange={(newValue) => {
+                setFilter("class", newValue);
                 setIsClassDropdownOpen(true);
                 setClassFocusedIndex(-1);
               }}
+              onClear={() => {
+                setFilter("class", "");
+                setIsClassDropdownOpen(false);
+              }}
+              placeholder="Add Class (max 3) *"
               onFocus={() => setIsClassDropdownOpen(true)}
               onBlur={(e) => {
                 // Only close if the related target is not within the dropdown
@@ -893,19 +982,9 @@ const CharacterCreationPage = () => {
           </div>
 
           <div className="relative subclass-dropdown mt-2">
-            <input
-              type="text"
-              placeholder={
-                (character.level ?? 1) < 3
-                  ? "Reach level 3 to select a subclass"
-                  : (character.level ?? 1) >= 3
-                  ? "Add Subclass *"
-                  : "Add Subclass"
-              }
-              className="input input-bordered w-full"
+            <ClearableInput
               value={filters.subclass}
-              onChange={(e) => {
-                const newValue = e.target.value;
+              onChange={(newValue) => {
                 setFilter("subclass", newValue);
                 if (!newValue) {
                   handleInputChange("subClass", "");
@@ -915,6 +994,19 @@ const CharacterCreationPage = () => {
                 setIsSubclassDropdownOpen(true);
                 setSubclassFocusedIndex(-1);
               }}
+              onClear={() => {
+                setFilter("subclass", "");
+                handleInputChange("subClass", "");
+                setIsSubclassDropdownOpen(false);
+              }}
+              placeholder={
+                (character.level ?? 1) < 3
+                  ? "Reach level 3 to select a subclass"
+                  : (character.level ?? 1) >= 3
+                  ? "Add Subclass *"
+                  : "Add Subclass"
+              }
+              onFocus={() => setIsSubclassDropdownOpen(true)}
               onBlur={(e) => {
                 // Only close if the related target is not within the dropdown
                 const relatedTarget = e.relatedTarget as HTMLElement;
@@ -928,7 +1020,6 @@ const CharacterCreationPage = () => {
                   handleInputChange("subClass", "");
                 }
               }}
-              onFocus={() => setIsSubclassDropdownOpen(true)}
               onKeyDown={handleSubclassKeyDown}
               disabled={
                 (character.level ?? 1) < 3 || character.classes.length === 0
