@@ -11,6 +11,118 @@ import {
   characterBackgrounds,
   characterClasses,
 } from "./characterValueOptions";
+import React, { useRef, MouseEvent } from "react";
+
+interface NumberInputProps {
+  value: string | number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+}
+
+const NumberInput: React.FC<NumberInputProps> = ({
+  value,
+  onChange,
+  min = 0,
+  max = Infinity,
+  placeholder,
+  disabled = false,
+  className = "input input-bordered w-full",
+}) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue =
+      e.target.value === "" ? min : parseInt(e.target.value) || min;
+    onChange(Math.min(max, Math.max(min, newValue)));
+  };
+
+  const increment = () => {
+    const currentValue =
+      typeof value === "string" ? parseInt(value) || min : value;
+    if (currentValue < max) {
+      onChange(currentValue + 1);
+    }
+  };
+
+  const decrement = () => {
+    const currentValue =
+      typeof value === "string" ? parseInt(value) || min : value;
+    if (currentValue > min) {
+      onChange(currentValue - 1);
+    }
+  };
+
+  return (
+    <div className="relative flex">
+      <input
+        type="number"
+        className={className}
+        value={value}
+        onChange={handleChange}
+        min={min}
+        max={max}
+        placeholder={placeholder}
+        disabled={disabled}
+      />
+      <div className="absolute right-0 top-0 bottom-0 flex flex-col justify-center pr-2">
+        <button
+          type="button"
+          className="text-gray-500 hover:text-gray-700 focus:outline-none"
+          onClick={increment}
+          disabled={
+            disabled ||
+            (typeof value === "number"
+              ? value >= max
+              : parseInt(value as string) >= max)
+          }
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 15l7-7 7 7"
+            />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="text-gray-500 hover:text-gray-700 focus:outline-none"
+          onClick={decrement}
+          disabled={
+            disabled ||
+            (typeof value === "number"
+              ? value <= min
+              : parseInt(value as string) <= min)
+          }
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const CharacterCreationPage = () => {
   const {
@@ -138,33 +250,55 @@ const CharacterCreationPage = () => {
     }
   };
 
+  const speciesDropdownRef = useRef<HTMLUListElement>(null);
+  const subspeciesDropdownRef = useRef<HTMLUListElement>(null);
+  const alignmentDropdownRef = useRef<HTMLUListElement>(null);
+  const backgroundDropdownRef = useRef<HTMLUListElement>(null);
+  const classDropdownRef = useRef<HTMLUListElement>(null);
+  const subclassDropdownRef = useRef<HTMLUListElement>(null);
+
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: globalThis.MouseEvent) => {
       event.stopPropagation();
       const target = event.target as HTMLElement;
-      const classDropdown = target.closest(".class-dropdown");
-      const speciesDropdown = target.closest(".species-dropdown");
-      const subspeciesDropdown = target.closest(".subspecies-dropdown");
-      const alignmentDropdown = target.closest(".alignment-dropdown");
-      const backgroundDropdown = target.closest(".background-dropdown");
-      const subclassDropdown = target.closest(".subclass-dropdown");
 
-      if (!classDropdown) {
+      if (!target.closest(".class-dropdown")) {
         setIsClassDropdownOpen(false);
       }
-      if (!speciesDropdown) {
+
+      if (
+        speciesDropdownRef.current &&
+        !speciesDropdownRef.current.contains(target) &&
+        !target.closest(".species-dropdown")
+      ) {
         setIsSpeciesDropdownOpen(false);
       }
-      if (!subspeciesDropdown) {
+
+      if (
+        subspeciesDropdownRef.current &&
+        !subspeciesDropdownRef.current.contains(target) &&
+        !target.closest(".subspecies-dropdown")
+      ) {
         setIsSubspeciesDropdownOpen(false);
       }
-      if (!alignmentDropdown) {
+
+      if (
+        alignmentDropdownRef.current &&
+        !alignmentDropdownRef.current.contains(target) &&
+        !target.closest(".alignment-dropdown")
+      ) {
         setIsAlignmentDropdownOpen(false);
       }
-      if (!backgroundDropdown) {
+
+      if (
+        backgroundDropdownRef.current &&
+        !backgroundDropdownRef.current.contains(target) &&
+        !target.closest(".background-dropdown")
+      ) {
         setIsBackgroundDropdownOpen(false);
       }
-      if (!subclassDropdown) {
+
+      if (!target.closest(".subclass-dropdown")) {
         setIsSubclassDropdownOpen(false);
       }
     };
@@ -454,19 +588,12 @@ const CharacterCreationPage = () => {
             value={character.name}
             onChange={(e) => handleInputChange("name", e.target.value)}
           />
-          <input
-            type="number"
-            placeholder="Level *"
-            className="input input-bordered w-full"
+          <NumberInput
             value={String(character.level ?? 1)}
-            min="1"
-            max="20"
-            onChange={(e) =>
-              handleInputChange(
-                "level",
-                Math.min(20, Math.max(1, parseInt(e.target.value) || 1))
-              )
-            }
+            min={1}
+            max={20}
+            placeholder="Level *"
+            onChange={(value) => handleInputChange("level", value)}
           />
           <div className="relative species-dropdown">
             <input
@@ -503,7 +630,10 @@ const CharacterCreationPage = () => {
               onKeyDown={handleSpeciesKeyDown}
             />
             {isSpeciesDropdownOpen && filteredSpecies.length > 0 && (
-              <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
+              <ul
+                ref={speciesDropdownRef}
+                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+              >
                 {filteredSpecies.map((species, index) => (
                   <li
                     key={species}
@@ -517,9 +647,6 @@ const CharacterCreationPage = () => {
                       setFilter("species", species);
                       setIsSpeciesDropdownOpen(false);
                       setSpeciesFocusedIndex(-1);
-                      handleInputChange("subspecies", "");
-                      setFilter("subspecies", "");
-                      setIsSubspeciesDropdownOpen(false);
                     }}
                   >
                     {species}
@@ -566,9 +693,12 @@ const CharacterCreationPage = () => {
                 ]
               }
             />
-            {isSubspeciesDropdownOpen && filteredSubspecies.length > 0 && (
-              <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
-                {filteredSubspecies.map((subspecies, index) => (
+            {isSubspeciesDropdownOpen && availableSubspecies.length > 0 && (
+              <ul
+                ref={subspeciesDropdownRef}
+                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+              >
+                {availableSubspecies.map((subspecies, index) => (
                   <li
                     key={subspecies}
                     className={`px-4 py-2 cursor-pointer ${
@@ -604,7 +734,10 @@ const CharacterCreationPage = () => {
               onKeyDown={handleAlignmentKeyDown}
             />
             {isAlignmentDropdownOpen && filteredAlignments.length > 0 && (
-              <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
+              <ul
+                ref={alignmentDropdownRef}
+                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+              >
                 {filteredAlignments.map((alignment, index) => (
                   <li
                     key={alignment}
@@ -641,7 +774,10 @@ const CharacterCreationPage = () => {
               onKeyDown={handleBackgroundKeyDown}
             />
             {isBackgroundDropdownOpen && filteredBackgrounds.length > 0 && (
-              <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
+              <ul
+                ref={backgroundDropdownRef}
+                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+              >
                 {filteredBackgrounds.map((background, index) => (
                   <li
                     key={background}
@@ -716,7 +852,10 @@ const CharacterCreationPage = () => {
               disabled={character.classes.length >= 3}
             />
             {isClassDropdownOpen && filteredClasses.length > 0 && (
-              <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
+              <ul
+                ref={classDropdownRef}
+                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+              >
                 {filteredClasses.map((className, index) => (
                   <li
                     key={className}
@@ -727,10 +866,11 @@ const CharacterCreationPage = () => {
                     }`}
                     onClick={() => {
                       if (character.classes.length < 3) {
-                        handleInputChange("classes", [
+                        const updatedClasses = [
                           ...character.classes,
                           className,
-                        ]);
+                        ];
+                        handleInputChange("classes", updatedClasses);
                         setFilter("class", "");
                         setIsClassDropdownOpen(false);
                         setClassFocusedIndex(-1);
@@ -785,23 +925,26 @@ const CharacterCreationPage = () => {
               disabled={(character.level ?? 1) < 3}
             />
             {isSubclassDropdownOpen && filteredSubclasses.length > 0 && (
-              <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg">
-                {filteredSubclasses.map((className, index) => (
+              <ul
+                ref={subclassDropdownRef}
+                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+              >
+                {filteredSubclasses.map((subclass, index) => (
                   <li
-                    key={className}
+                    key={subclass}
                     className={`px-4 py-2 cursor-pointer ${
                       index === subclassFocusedIndex
                         ? "bg-base-300"
                         : "hover:bg-base-300"
                     }`}
                     onClick={() => {
-                      handleInputChange("subClass", className);
-                      setFilter("subclass", className);
+                      handleInputChange("subClass", subclass);
+                      setFilter("subclass", subclass);
                       setIsSubclassDropdownOpen(false);
                       setSubclassFocusedIndex(-1);
                     }}
                   >
-                    {className}
+                    {subclass}
                   </li>
                 ))}
               </ul>
@@ -1004,17 +1147,12 @@ const CharacterCreationPage = () => {
                     {stat}
                   </span>
                 </label>
-                <input
-                  type="number"
-                  className="input input-bordered w-full"
+                <NumberInput
                   value={String(character[stat as keyof Character] ?? "")}
-                  min="1"
-                  max="30"
-                  onChange={(e) =>
-                    handleInputChange(
-                      stat as keyof Character,
-                      Math.min(30, Math.max(1, parseInt(e.target.value) || 1))
-                    )
+                  min={1}
+                  max={30}
+                  onChange={(value) =>
+                    handleInputChange(stat as keyof Character, value)
                   }
                 />
               </div>
@@ -1029,15 +1167,13 @@ const CharacterCreationPage = () => {
               <label className="label">
                 <span className="label-text text-white">Platinum</span>
               </label>
-              <input
-                type="number"
-                className="input input-bordered w-full"
+              <NumberInput
                 value={String(character.money.platinum)}
-                min="0"
-                onChange={(e) =>
+                min={0}
+                onChange={(value) =>
                   handleInputChange("money", {
                     ...character.money,
-                    platinum: Math.max(0, parseInt(e.target.value) || 0),
+                    platinum: value,
                   })
                 }
               />
@@ -1046,15 +1182,13 @@ const CharacterCreationPage = () => {
               <label className="label">
                 <span className="label-text text-white">Gold</span>
               </label>
-              <input
-                type="number"
-                className="input input-bordered w-full"
+              <NumberInput
                 value={String(character.money.gold)}
-                min="0"
-                onChange={(e) =>
+                min={0}
+                onChange={(value) =>
                   handleInputChange("money", {
                     ...character.money,
-                    gold: Math.max(0, parseInt(e.target.value) || 0),
+                    gold: value,
                   })
                 }
               />
@@ -1063,15 +1197,13 @@ const CharacterCreationPage = () => {
               <label className="label">
                 <span className="label-text text-white">Electrum</span>
               </label>
-              <input
-                type="number"
-                className="input input-bordered w-full"
+              <NumberInput
                 value={String(character.money.electrum)}
-                min="0"
-                onChange={(e) =>
+                min={0}
+                onChange={(value) =>
                   handleInputChange("money", {
                     ...character.money,
-                    electrum: Math.max(0, parseInt(e.target.value) || 0),
+                    electrum: value,
                   })
                 }
               />
@@ -1080,15 +1212,13 @@ const CharacterCreationPage = () => {
               <label className="label">
                 <span className="label-text text-white">Silver</span>
               </label>
-              <input
-                type="number"
-                className="input input-bordered w-full"
+              <NumberInput
                 value={String(character.money.silver)}
-                min="0"
-                onChange={(e) =>
+                min={0}
+                onChange={(value) =>
                   handleInputChange("money", {
                     ...character.money,
-                    silver: Math.max(0, parseInt(e.target.value) || 0),
+                    silver: value,
                   })
                 }
               />
@@ -1097,15 +1227,13 @@ const CharacterCreationPage = () => {
               <label className="label">
                 <span className="label-text text-white">Copper</span>
               </label>
-              <input
-                type="number"
-                className="input input-bordered w-full"
+              <NumberInput
                 value={String(character.money.copper)}
-                min="0"
-                onChange={(e) =>
+                min={0}
+                onChange={(value) =>
                   handleInputChange("money", {
                     ...character.money,
-                    copper: Math.max(0, parseInt(e.target.value) || 0),
+                    copper: value,
                   })
                 }
               />
