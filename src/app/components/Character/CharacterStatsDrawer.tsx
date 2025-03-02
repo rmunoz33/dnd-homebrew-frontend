@@ -82,7 +82,7 @@ const CharacterStatsDrawer = ({
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center">
-                  <span className="text-red-400 mr-1">❤</span> 
+                  <span className="text-red-400 mr-1">❤</span>
                   <span>Hit Points: {character.hitPoints}</span>
                 </div>
                 <div>

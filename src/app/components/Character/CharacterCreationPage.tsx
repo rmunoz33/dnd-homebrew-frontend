@@ -195,8 +195,11 @@ const CharacterCreationPage = () => {
     filters,
     setFilter,
     resetFilters,
+    messages,
+    clearMessages,
   } = useDnDStore();
   const [isRolling, setIsRolling] = useState(false);
+  const [showResetWarning, setShowResetWarning] = useState(false);
   const [isSpeciesDropdownOpen, setIsSpeciesDropdownOpen] = useState(false);
   const [isSubspeciesDropdownOpen, setIsSubspeciesDropdownOpen] =
     useState(false);
@@ -304,6 +307,17 @@ const CharacterCreationPage = () => {
   };
 
   const handleAISuggestions = async () => {
+    // Check if there are existing messages and show warning if needed
+    if (messages.length > 0) {
+      setShowResetWarning(true);
+      return;
+    }
+
+    // Otherwise proceed with character generation
+    await generateRandomCharacter();
+  };
+
+  const generateRandomCharacter = async () => {
     setIsRolling(true);
     try {
       const suggestions = await generateCharacterDetails(character);
@@ -318,6 +332,12 @@ const CharacterCreationPage = () => {
     } finally {
       setIsRolling(false);
     }
+  };
+
+  const handleConfirmReset = () => {
+    clearMessages(); // Clear all chat messages
+    setShowResetWarning(false);
+    generateRandomCharacter();
   };
 
   const speciesDropdownRef = useRef<HTMLUListElement>(null);
@@ -622,6 +642,35 @@ const CharacterCreationPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#3f3f3f]">
+      {/* Reset Warning Modal */}
+      {showResetWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-gray-200 p-6 rounded-lg shadow-xl max-w-md border-2 border-red-500">
+            <h3 className="text-xl font-bold mb-4 text-red-500">
+              Reset Adventure?
+            </h3>
+            <p className="mb-6 text-gray-800">
+              Generating a new character will reset your current adventure and
+              clear all chat messages. Are you sure you want to continue?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                className="btn bg-gray-600 hover:bg-gray-700 text-white border-none"
+                onClick={() => setShowResetWarning(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn bg-red-500 hover:bg-red-600 text-white border-none"
+                onClick={handleConfirmReset}
+              >
+                Reset Adventure
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col items-center gap-8 w-full max-w-2xl p-8 mx-auto">
         <div className="flex flex-col items-center gap-4">
           <h1 className={`${medievalFont.className} text-5xl text-red-500`}>
