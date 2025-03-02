@@ -54,14 +54,16 @@ export interface Character {
   armorClass: number;
   initiative: number;
   speed: number;
-  strength: number;
-  dexterity: number;
-  constitution: number;
-  intelligence: number;
-  wisdom: number;
-  charisma: number;
-  honor: number;
-  sanity: number;
+  attributes: {
+    strength: { value: number; bonus: number };
+    dexterity: { value: number; bonus: number };
+    constitution: { value: number; bonus: number };
+    intelligence: { value: number; bonus: number };
+    wisdom: { value: number; bonus: number };
+    charisma: { value: number; bonus: number };
+    honor: { value: number; bonus: number };
+    sanity: { value: number; bonus: number };
+  };
   money: {
     platinum: number;
     gold: number;
@@ -93,14 +95,16 @@ export const initialCharacter: Character = {
   armorClass: 1,
   initiative: 1,
   speed: 1,
-  strength: 1,
-  dexterity: 1,
-  constitution: 1,
-  intelligence: 1,
-  wisdom: 1,
-  charisma: 1,
-  honor: 1,
-  sanity: 1,
+  attributes: {
+    strength: { value: 1, bonus: -5 },
+    dexterity: { value: 1, bonus: -5 },
+    constitution: { value: 1, bonus: -5 },
+    intelligence: { value: 1, bonus: -5 },
+    wisdom: { value: 1, bonus: -5 },
+    charisma: { value: 1, bonus: -5 },
+    honor: { value: 1, bonus: -5 },
+    sanity: { value: 1, bonus: -5 },
+  },
   money: {
     platinum: 0,
     gold: 0,

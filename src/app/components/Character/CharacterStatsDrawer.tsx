@@ -121,12 +121,83 @@ const CharacterStatsDrawer = ({
                 Attributes
               </h3>
               <div className="grid grid-cols-2 gap-2">
-                <div>Strength: {character.strength}</div>
-                <div>Dexterity: {character.dexterity}</div>
-                <div>Constitution: {character.constitution}</div>
-                <div>Intelligence: {character.intelligence}</div>
-                <div>Wisdom: {character.wisdom}</div>
-                <div>Charisma: {character.charisma}</div>
+                {character.attributes ? (
+                  <>
+                    <div>
+                      Strength: {character.attributes.strength.value}
+                      <span className="ml-2 text-sm">
+                        ({character.attributes.strength.bonus >= 0 ? "+" : ""}
+                        {character.attributes.strength.bonus})
+                      </span>
+                    </div>
+                    <div>
+                      Dexterity: {character.attributes.dexterity.value}
+                      <span className="ml-2 text-sm">
+                        ({character.attributes.dexterity.bonus >= 0 ? "+" : ""}
+                        {character.attributes.dexterity.bonus})
+                      </span>
+                    </div>
+                    <div>
+                      Constitution: {character.attributes.constitution.value}
+                      <span className="ml-2 text-sm">
+                        (
+                        {character.attributes.constitution.bonus >= 0
+                          ? "+"
+                          : ""}
+                        {character.attributes.constitution.bonus})
+                      </span>
+                    </div>
+                    <div>
+                      Intelligence: {character.attributes.intelligence.value}
+                      <span className="ml-2 text-sm">
+                        (
+                        {character.attributes.intelligence.bonus >= 0
+                          ? "+"
+                          : ""}
+                        {character.attributes.intelligence.bonus})
+                      </span>
+                    </div>
+                    <div>
+                      Wisdom: {character.attributes.wisdom.value}
+                      <span className="ml-2 text-sm">
+                        ({character.attributes.wisdom.bonus >= 0 ? "+" : ""}
+                        {character.attributes.wisdom.bonus})
+                      </span>
+                    </div>
+                    <div>
+                      Charisma: {character.attributes.charisma.value}
+                      <span className="ml-2 text-sm">
+                        ({character.attributes.charisma.bonus >= 0 ? "+" : ""}
+                        {character.attributes.charisma.bonus})
+                      </span>
+                    </div>
+                    <div>
+                      Honor: {character.attributes.honor.value}
+                      <span className="ml-2 text-sm">
+                        ({character.attributes.honor.bonus >= 0 ? "+" : ""}
+                        {character.attributes.honor.bonus})
+                      </span>
+                    </div>
+                    <div>
+                      Sanity: {character.attributes.sanity.value}
+                      <span className="ml-2 text-sm">
+                        ({character.attributes.sanity.bonus >= 0 ? "+" : ""}
+                        {character.attributes.sanity.bonus})
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>Strength: -</div>
+                    <div>Dexterity: -</div>
+                    <div>Constitution: -</div>
+                    <div>Intelligence: -</div>
+                    <div>Wisdom: -</div>
+                    <div>Charisma: -</div>
+                    <div>Honor: -</div>
+                    <div>Sanity: -</div>
+                  </>
+                )}
               </div>
             </div>
 

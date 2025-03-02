@@ -22,7 +22,24 @@ const isDefaultValue = (
   value: Character[keyof Character],
   field: keyof Character
 ) => {
-  return JSON.stringify(value) === JSON.stringify(initialCharacter[field]);
+  if (field === "attributes") {
+    const attributes = value as Character["attributes"];
+    const defaultAttributes = initialCharacter.attributes;
+
+    // Check if all attributes have default values
+    return Object.entries(attributes).every(([attrName, attrObj]) => {
+      const typedAttrName = attrName as keyof typeof attributes;
+      return (
+        attrObj.value === defaultAttributes[typedAttrName].value &&
+        attrObj.bonus === defaultAttributes[typedAttrName].bonus
+      );
+    });
+  }
+
+  if (field === "classes" && Array.isArray(value)) {
+    return value.length === 0;
+  }
+  return value === initialCharacter[field];
 };
 
 // Add these type definitions at the top of the file, after the imports
@@ -54,7 +71,10 @@ export const generateCharacterDetails = async (character: Character) => {
   Here is the known character profile:
   ${JSON.stringify(nonDefaultFields)}
 
-  Suggest appropriate values for any missing character attributes in JSON format, maintaining the given structure. If no backstory is provided, provide one in the form of a short paragraph. Focus on creating a cohesive character that makes sense with the provided information.`;
+  Suggest appropriate values for any missing character attributes in JSON format, maintaining the given structure.
+  If no backstory is provided, provide one in the form of a short paragraph.
+  Focus on creating a cohesive character that makes sense with the provided information.
+  Calculate attribute bonuses with this formula: (attribute value - 10) / 2. Round down to the nearest integer.`;
 
   try {
     const response = await client.chat.completions.create({
@@ -120,14 +140,6 @@ export const updateCharacterStatsAPI = async () => {
       "armorClass",
       "initiative",
       "speed",
-      "strength",
-      "dexterity",
-      "constitution",
-      "intelligence",
-      "wisdom",
-      "charisma",
-      "honor",
-      "sanity",
       "experience",
       "level",
     ] as const;
@@ -138,6 +150,44 @@ export const updateCharacterStatsAPI = async () => {
           field: stat,
           old: currentCharacter[stat],
           new: updatedCharacter[stat],
+        });
+      }
+    });
+
+    // Check attribute changes
+    const attributes = [
+      "strength",
+      "dexterity",
+      "constitution",
+      "intelligence",
+      "wisdom",
+      "charisma",
+      "honor",
+      "sanity",
+    ] as const;
+
+    attributes.forEach((attr) => {
+      // Check attribute value changes
+      if (
+        updatedCharacter.attributes[attr].value !==
+        currentCharacter.attributes[attr].value
+      ) {
+        changes.push({
+          field: `${attr} value`,
+          old: currentCharacter.attributes[attr].value,
+          new: updatedCharacter.attributes[attr].value,
+        });
+      }
+
+      // Check attribute bonus changes
+      if (
+        updatedCharacter.attributes[attr].bonus !==
+        currentCharacter.attributes[attr].bonus
+      ) {
+        changes.push({
+          field: `${attr} bonus`,
+          old: currentCharacter.attributes[attr].bonus,
+          new: updatedCharacter.attributes[attr].bonus,
         });
       }
     });

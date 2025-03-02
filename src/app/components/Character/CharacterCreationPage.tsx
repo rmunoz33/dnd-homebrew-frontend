@@ -676,6 +676,14 @@ const CharacterCreationPage = () => {
           <h1 className={`${medievalFont.className} text-5xl text-red-500`}>
             Create Your Character
           </h1>
+          <div className="text-center text-white mb-2 max-w-lg">
+            <p>
+              Fields left at default values will be generated when you click{" "}
+              <span className="font-bold">"Roll Me a Character"</span>. Values
+              you've already customized will not be changed. Adjust any fields
+              as needed before saving.
+            </p>
+          </div>
           <div className="flex gap-2">
             <button
               className="btn btn-sm"
@@ -1297,14 +1305,41 @@ const CharacterCreationPage = () => {
                     {stat}
                   </span>
                 </label>
-                <NumberInput
-                  value={String(character[stat as keyof Character] ?? "")}
-                  min={1}
-                  max={30}
-                  onChange={(value) =>
-                    handleInputChange(stat as keyof Character, value)
-                  }
-                />
+                <div className="flex flex-col gap-2">
+                  <NumberInput
+                    value={String(
+                      character.attributes?.[
+                        stat as keyof typeof character.attributes
+                      ]?.value ?? 1
+                    )}
+                    min={1}
+                    max={30}
+                    onChange={(value) => {
+                      // Calculate bonus using D&D formula: (score - 10) / 2, rounded down
+                      const bonus = Math.floor((value - 10) / 2);
+                      handleInputChange("attributes", {
+                        ...character.attributes,
+                        [stat]: {
+                          value: value,
+                          bonus: bonus,
+                        },
+                      });
+                    }}
+                  />
+                  <div className="flex items-center mt-1">
+                    <span className="text-white text-sm mr-2">Bonus:</span>
+                    <span className="text-white text-sm font-bold">
+                      {character.attributes?.[
+                        stat as keyof typeof character.attributes
+                      ]?.bonus >= 0
+                        ? "+"
+                        : ""}
+                      {character.attributes?.[
+                        stat as keyof typeof character.attributes
+                      ]?.bonus ?? Math.floor((1 - 10) / 2)}
+                    </span>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
