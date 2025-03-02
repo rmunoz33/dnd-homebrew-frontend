@@ -12,7 +12,7 @@ import {
   characterClasses,
   characterSubclasses,
 } from "./characterValueOptions";
-import React, { useRef, MouseEvent } from "react";
+import React, { useRef } from "react";
 
 interface NumberInputProps {
   value: string | number;

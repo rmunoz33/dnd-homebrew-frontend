@@ -154,7 +154,7 @@ const GameChat = () => {
                       ) : message.sender === "ai" ? (
                         <ReactMarkdown
                           components={{
-                            p: ({ node, children, ...props }) => {
+                            p: ({ children, ...props }) => {
                               const formattedChildren =
                                 formatTextNodes(children);
                               return (
@@ -163,44 +163,42 @@ const GameChat = () => {
                                 </p>
                               );
                             },
-                            h1: ({ node, ...props }) => (
+                            h1: (props) => (
                               <h1
                                 className="mb-2 text-2xl font-bold"
                                 {...props}
                               />
                             ),
-                            h2: ({ node, ...props }) => (
+                            h2: (props) => (
                               <h2
                                 className="mb-1 text-xl font-bold"
                                 {...props}
                               />
                             ),
-                            h3: ({ node, ...props }) => (
+                            h3: (props) => (
                               <h3 className="text-lg font-bold" {...props} />
                             ),
-                            ul: ({ node, ...props }) => (
+                            ul: (props) => (
                               <ul
                                 className="mb-4 list-disc pl-3 sm:pl-5"
                                 {...props}
                               />
                             ),
-                            ol: ({ node, ...props }) => (
+                            ol: (props) => (
                               <ol
                                 className="mb-4 list-decimal pl-3 sm:pl-5"
                                 {...props}
                               />
                             ),
-                            li: ({ node, ...props }) => (
+                            li: (props) => (
                               <li className="mb-1 ml-4" {...props} />
                             ),
-                            em: ({ node, ...props }) => (
-                              <em className="italic" {...props} />
-                            ),
-                            strong: ({ node, ...props }) => (
+                            em: (props) => <em className="italic" {...props} />,
+                            strong: (props) => (
                               <strong className="font-bold" {...props} />
                             ),
-                            a: ({ node, ...props }) => <a {...props} />,
-                            blockquote: ({ node, ...props }) => (
+                            a: (props) => <a {...props} />,
+                            blockquote: (props) => (
                               <blockquote
                                 className="border-gray-200 my-4 border-l-4 pl-4 italic"
                                 {...props}
