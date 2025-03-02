@@ -679,9 +679,11 @@ const CharacterCreationPage = () => {
           <div className="text-center text-white mb-2 max-w-lg">
             <p>
               Fields left at default values will be generated when you click{" "}
-              <span className="font-bold">"Roll Me a Character"</span>. Values
-              you've already customized will not be changed. Adjust any fields
-              as needed before saving.
+              <span className="font-bold">
+                &ldquo;Roll Me a Character&rdquo;
+              </span>
+              . Values you&apos;ve already customized will not be changed.
+              Adjust any fields as needed before saving.
             </p>
           </div>
           <div className="flex gap-2">
