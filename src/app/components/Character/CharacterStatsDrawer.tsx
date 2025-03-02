@@ -73,6 +73,33 @@ const CharacterStatsDrawer = ({
               </div>
             </div>
 
+            {/* Combat Stats */}
+            <div>
+              <h3
+                className={`${medievalFont.className} text-xl text-red-500 font-semibold mb-2`}
+              >
+                Combat Stats
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center">
+                  <span className="text-red-400 mr-1">❤</span> 
+                  <span>Hit Points: {character.hitPoints}</span>
+                </div>
+                <div>
+                  <span className="text-gray-300 mr-1">🛡</span>
+                  <span>Armor Class: {character.armorClass}</span>
+                </div>
+                <div>
+                  <span className="text-yellow-400 mr-1">⚡</span>
+                  <span>Initiative: {character.initiative}</span>
+                </div>
+                <div>
+                  <span className="text-blue-400 mr-1">👣</span>
+                  <span>Speed: {character.speed}</span>
+                </div>
+              </div>
+            </div>
+
             {/* Classes */}
             <div>
               <h3
