@@ -169,7 +169,7 @@ const GameChat = () => {
                   }
                 }}
                 placeholder="Type your message..."
-                className="input input-bordered flex-1 text-sm sm:text-base h-10 sm:h-12 bg-gray-500 text-white placeholder-gray-400 disabled:text-gray-500 disabled:bg-gray-600"
+                className="input input-bordered flex-1 text-base md:text-base h-10 sm:h-12 bg-gray-500 text-white placeholder-gray-400 disabled:text-gray-500 disabled:bg-gray-600"
                 disabled={isLoading}
               />
               <button
