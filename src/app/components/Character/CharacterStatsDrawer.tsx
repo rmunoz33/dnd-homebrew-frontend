@@ -42,10 +42,11 @@ const CharacterStatsDrawer = ({
               Character Stats
             </h1>
             <button
-              className="btn btn-ghost btn-circle bg-base-content"
+              className="btn btn-md btn-circle bg-red-500 hover:bg-red-600 text-white border-none shadow-md transition-all duration-200 hover:scale-110"
               onClick={onClose}
+              aria-label="Close character stats"
             >
-              <X size={24} />
+              <X size={22} strokeWidth={2.5} />
             </button>
           </div>
         </div>
