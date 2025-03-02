@@ -78,3 +78,48 @@ export const characterClasses = [
   "Warlock",
   "Wizard",
 ];
+
+export const characterSubclasses = {
+  Barbarian: ["Berserker", "Wild Heart", "The World Tree", "The Zealot"],
+  Bard: [
+    "College of Dance",
+    "College of Glamour",
+    "College of Lore",
+    "College of Valor",
+  ],
+  Cleric: ["Life Domain", "Light Domain", "Trickery Domain", "War Domain"],
+  Druid: [
+    "Circle of the Land",
+    "Circle of the Moon",
+    "Circle of the Sea",
+    "Circle of the Stars",
+  ],
+  Fighter: ["Battle Master", "Champion", "Eldritch Knight", "Psi Warrior"],
+  Monk: [
+    "Warrior of Mercy",
+    "Warrior of Shadow",
+    "Warrior of the Elements",
+    "Warrior of the Open Hand",
+  ],
+  Paladin: [
+    "Oath of Devotion",
+    "Oath of Glory",
+    "Oath of the Ancients",
+    "Oath of Vengeance",
+  ],
+  Ranger: ["Beast Master", "Fey Wanderer", "Gloom Stalker", "Hunter"],
+  Rogue: ["Arcane Trickster", "Assassin", "Soulknife", "Thief"],
+  Sorcerer: [
+    "Aberrant Sourcery",
+    "Clockwork Sorcery",
+    "Draconic Sorcery",
+    "Wild Magic Sorcery",
+  ],
+  Warlock: [
+    "Archfey Patron",
+    "Celestial Patron",
+    "Fiend Patron",
+    "Great Old One Patron",
+  ],
+  Wizard: ["Abjurer", "Diviner", "Evoker", "Illusionist"],
+};

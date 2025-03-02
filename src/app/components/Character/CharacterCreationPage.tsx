@@ -10,6 +10,7 @@ import {
   characterAlignments,
   characterBackgrounds,
   characterClasses,
+  characterSubclasses,
 } from "./characterValueOptions";
 import React, { useRef, MouseEvent } from "react";
 
@@ -180,11 +181,18 @@ const CharacterCreationPage = () => {
       !character.classes.includes(className)
   );
 
-  const filteredSubclasses = characterClasses.filter(
-    (className) =>
-      className.toLowerCase().includes(filters.subclass.toLowerCase()) &&
-      !character.subClass
-  );
+  const filteredSubclasses =
+    character.classes.length > 0
+      ? character.classes.flatMap((className) =>
+          (
+            characterSubclasses[
+              className as keyof typeof characterSubclasses
+            ] || []
+          ).filter((subclass) =>
+            subclass.toLowerCase().includes(filters.subclass.toLowerCase())
+          )
+        )
+      : [];
 
   // When species changes, reset subspecies if needed
   useEffect(() => {
@@ -901,7 +909,7 @@ const CharacterCreationPage = () => {
                 setFilter("subclass", newValue);
                 if (!newValue) {
                   handleInputChange("subClass", "");
-                } else if (characterClasses.includes(newValue)) {
+                } else if (filteredSubclasses.includes(newValue)) {
                   handleInputChange("subClass", newValue);
                 }
                 setIsSubclassDropdownOpen(true);
@@ -915,14 +923,16 @@ const CharacterCreationPage = () => {
                     setIsSubclassDropdownOpen(false);
                   }, 200);
                 }
-                if (!characterClasses.includes(filters.subclass)) {
+                if (!filteredSubclasses.includes(filters.subclass)) {
                   setFilter("subclass", "");
                   handleInputChange("subClass", "");
                 }
               }}
               onFocus={() => setIsSubclassDropdownOpen(true)}
               onKeyDown={handleSubclassKeyDown}
-              disabled={(character.level ?? 1) < 3}
+              disabled={
+                (character.level ?? 1) < 3 || character.classes.length === 0
+              }
             />
             {isSubclassDropdownOpen && filteredSubclasses.length > 0 && (
               <ul
