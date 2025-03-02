@@ -5,6 +5,25 @@ import {
   generateChatCompletion,
   updateCharacterStatsAPI,
 } from "@/app/api/openai";
+import ReactMarkdown from "react-markdown";
+
+// Helper function to format text nodes
+const formatTextNodes = (children: React.ReactNode): React.ReactNode => {
+  if (typeof children === "string") {
+    return children;
+  }
+
+  if (Array.isArray(children)) {
+    return children.map((child, index) => {
+      if (typeof child === "string") {
+        return <span key={index}>{child}</span>;
+      }
+      return child;
+    });
+  }
+
+  return children;
+};
 
 const GameChat = () => {
   const {
@@ -132,6 +151,65 @@ const GameChat = () => {
                     >
                       {message.sender === "ai" && !message.content ? (
                         <span className="loading loading-dots loading-sm"></span>
+                      ) : message.sender === "ai" ? (
+                        <ReactMarkdown
+                          components={{
+                            p: ({ node, children, ...props }) => {
+                              const formattedChildren =
+                                formatTextNodes(children);
+                              return (
+                                <p className={`font-normal`} {...props}>
+                                  {formattedChildren}
+                                </p>
+                              );
+                            },
+                            h1: ({ node, ...props }) => (
+                              <h1
+                                className="mb-2 text-2xl font-bold"
+                                {...props}
+                              />
+                            ),
+                            h2: ({ node, ...props }) => (
+                              <h2
+                                className="mb-1 text-xl font-bold"
+                                {...props}
+                              />
+                            ),
+                            h3: ({ node, ...props }) => (
+                              <h3 className="text-lg font-bold" {...props} />
+                            ),
+                            ul: ({ node, ...props }) => (
+                              <ul
+                                className="mb-4 list-disc pl-3 sm:pl-5"
+                                {...props}
+                              />
+                            ),
+                            ol: ({ node, ...props }) => (
+                              <ol
+                                className="mb-4 list-decimal pl-3 sm:pl-5"
+                                {...props}
+                              />
+                            ),
+                            li: ({ node, ...props }) => (
+                              <li className="mb-1 ml-4" {...props} />
+                            ),
+                            em: ({ node, ...props }) => (
+                              <em className="italic" {...props} />
+                            ),
+                            strong: ({ node, ...props }) => (
+                              <strong className="font-bold" {...props} />
+                            ),
+                            a: ({ node, ...props }) => <a {...props} />,
+                            blockquote: ({ node, ...props }) => (
+                              <blockquote
+                                className="border-gray-200 my-4 border-l-4 pl-4 italic"
+                                {...props}
+                              />
+                            ),
+                          }}
+                        >
+                          {message.content}
+                        </ReactMarkdown>
                       ) : (
                         <p className="break-words whitespace-pre-wrap text-sm sm:text-base">
                           {message.content}

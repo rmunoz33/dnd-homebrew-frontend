@@ -217,7 +217,9 @@ ${JSON.stringify(character, null, 2)}
 Respond in character as a DM, guiding the player through their adventure. Keep responses concise but engaging, and maintain the medieval fantasy atmosphere. Balance world-building, story-telling, and combat and game mechanics.
 
 If the player asks about their character's stats or abilities, use the provided character details to inform your response.
-If they want to perform an action, describe the outcome based on their character's abilities and the situation.`,
+If they want to perform an action, describe the outcome based on their character's abilities and the situation.
+
+Always give your response in markdown format.`,
     };
 
     const completion = await client.chat.completions.create({
