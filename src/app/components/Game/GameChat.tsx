@@ -1,29 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, ArrowDown } from "lucide-react";
+import { Send } from "lucide-react";
 import { useDnDStore, Message } from "@/stores/useStore";
 import {
   generateChatCompletion,
   updateCharacterStatsAPI,
 } from "@/app/api/openai";
-import ReactMarkdown from "react-markdown";
-
-// Helper function to format text nodes
-const formatTextNodes = (children: React.ReactNode): React.ReactNode => {
-  if (typeof children === "string") {
-    return children;
-  }
-
-  if (Array.isArray(children)) {
-    return children.map((child, index) => {
-      if (typeof child === "string") {
-        return <span key={index}>{child}</span>;
-      }
-      return child;
-    });
-  }
-
-  return children;
-};
+import MessageContent from "./MessageContent";
 
 const GameChat = () => {
   const {
@@ -179,67 +161,10 @@ const GameChat = () => {
                     >
                       {message.sender === "ai" && !message.content ? (
                         <span className="loading loading-dots loading-sm"></span>
-                      ) : message.sender === "ai" ? (
-                        <ReactMarkdown
-                          components={{
-                            p: ({ children, ...props }) => {
-                              const formattedChildren =
-                                formatTextNodes(children);
-                              return (
-                                <p className={`font-normal py-2`} {...props}>
-                                  {formattedChildren}
-                                </p>
-                              );
-                            },
-                            h1: (props) => (
-                              <h1
-                                className="mb-2 text-2xl font-bold"
-                                {...props}
-                              />
-                            ),
-                            h2: (props) => (
-                              <h2
-                                className="mb-1 text-xl font-bold"
-                                {...props}
-                              />
-                            ),
-                            h3: (props) => (
-                              <h3 className="text-lg font-bold" {...props} />
-                            ),
-                            ul: (props) => (
-                              <ul
-                                className="mb-4 list-disc pl-3 sm:pl-5"
-                                {...props}
-                              />
-                            ),
-                            ol: (props) => (
-                              <ol
-                                className="mb-4 list-decimal pl-3 sm:pl-5"
-                                {...props}
-                              />
-                            ),
-                            li: (props) => (
-                              <li className="mb-1 ml-4" {...props} />
-                            ),
-                            em: (props) => <em className="italic" {...props} />,
-                            strong: (props) => (
-                              <strong className="font-bold" {...props} />
-                            ),
-                            a: (props) => <a {...props} />,
-                            blockquote: (props) => (
-                              <blockquote
-                                className="border-gray-200 my-4 border-l-4 pl-4 italic"
-                                {...props}
-                              />
-                            ),
-                          }}
-                        >
-                          {message.content}
-                        </ReactMarkdown>
                       ) : (
-                        <p className="break-words whitespace-pre-wrap text-sm sm:text-base">
-                          {message.content}
-                        </p>
+                        <div className="break-words whitespace-pre-wrap sm:text-base">
+                          <MessageContent content={message.content} />
+                        </div>
                       )}
                       <div
                         className={`text-[10px] sm:text-xs mt-1 opacity-70 ${
