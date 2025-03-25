@@ -188,23 +188,15 @@ const GameChat = () => {
                 ref={textareaRef}
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={async (e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    await handleSendMessage();
-                    await updateCharacterStats();
-                  }
-                }}
                 placeholder="Type your message..."
                 className="textarea textarea-bordered flex-1 text-base md:text-base min-h-10 sm:min-h-12 bg-gray-500 text-white placeholder-gray-400 disabled:text-gray-500 disabled:bg-gray-600 resize-none overflow-y-auto transition-none"
                 disabled={isLoading}
                 rows={1}
               />
               <button
-                onClick={async (e) => {
+                onClick={(e) => {
                   e.preventDefault();
-                  await handleSendMessage();
-                  await updateCharacterStats();
+                  handleSendMessage().then(() => updateCharacterStats());
                 }}
                 disabled={!inputMessage.trim() || isLoading}
                 className={`btn btn-circle btn-neutral-content h-10 w-10 sm:h-12 sm:w-12 min-h-0 ${
