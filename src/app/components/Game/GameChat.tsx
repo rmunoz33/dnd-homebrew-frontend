@@ -35,6 +35,7 @@ const GameChat = () => {
   } = useDnDStore();
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,6 +44,28 @@ const GameChat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Auto-resize the textarea based on content
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const adjustHeight = () => {
+      textarea.style.height = "auto";
+      const newHeight = Math.min(textarea.scrollHeight, 128); // 8rem = 128px
+      textarea.style.height = `${newHeight}px`;
+    };
+
+    adjustHeight();
+
+    // Add event listener for input
+    textarea.addEventListener("input", adjustHeight);
+
+    // Cleanup
+    return () => {
+      textarea.removeEventListener("input", adjustHeight);
+    };
+  }, [inputMessage]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -158,7 +181,7 @@ const GameChat = () => {
                               const formattedChildren =
                                 formatTextNodes(children);
                               return (
-                                <p className={`font-normal`} {...props}>
+                                <p className={`font-normal py-2`} {...props}>
                                   {formattedChildren}
                                 </p>
                               );
@@ -232,9 +255,9 @@ const GameChat = () => {
         {/* Input area */}
         <div className="border-t border-gray-700">
           <div className="max-w-4xl mx-auto px-4 py-2">
-            <div className="flex gap-2">
-              <input
-                type="text"
+            <div className="flex gap-2 items-end">
+              <textarea
+                ref={textareaRef}
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={async (e) => {
@@ -245,8 +268,9 @@ const GameChat = () => {
                   }
                 }}
                 placeholder="Type your message..."
-                className="input input-bordered flex-1 text-base md:text-base h-10 sm:h-12 bg-gray-500 text-white placeholder-gray-400 disabled:text-gray-500 disabled:bg-gray-600"
+                className="textarea textarea-bordered flex-1 text-base md:text-base min-h-10 sm:min-h-12 bg-gray-500 text-white placeholder-gray-400 disabled:text-gray-500 disabled:bg-gray-600 resize-none overflow-y-auto transition-none"
                 disabled={isLoading}
+                rows={1}
               />
               <button
                 onClick={async (e) => {
