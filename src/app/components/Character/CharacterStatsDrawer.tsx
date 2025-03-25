@@ -3,6 +3,7 @@
 import { useDnDStore } from "@/stores/useStore";
 import { X } from "lucide-react";
 import { medievalFont } from "@/app/components/medievalFont";
+import { useRef } from "react";
 
 interface CharacterStatsDrawerProps {
   isOpen: boolean;
@@ -14,6 +15,16 @@ const CharacterStatsDrawer = ({
   onClose,
 }: CharacterStatsDrawerProps) => {
   const { character } = useDnDStore();
+  const scrollableContentRef = useRef<HTMLDivElement>(null);
+
+  const scrollToTop = () => {
+    if (scrollableContentRef.current) {
+      scrollableContentRef.current.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  };
 
   return (
     <div
@@ -36,7 +47,15 @@ const CharacterStatsDrawer = ({
         }`}
       >
         {/* Fixed Header */}
-        <div className="p-4 border-b border-base-300 text-neutral-content">
+        <div
+          className="p-4 border-b border-base-300 text-neutral-content cursor-pointer"
+          onClick={(e) => {
+            // Prevent scrolling if clicking the close button
+            if (!(e.target as HTMLElement).closest("button")) {
+              scrollToTop();
+            }
+          }}
+        >
           <div className="flex justify-between items-center">
             <h1 className={`${medievalFont.className} text-2xl text-red-500`}>
               Character Stats
@@ -52,7 +71,10 @@ const CharacterStatsDrawer = ({
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-4 text-neutral-content">
+        <div
+          ref={scrollableContentRef}
+          className="flex-1 overflow-y-auto p-4 text-neutral-content"
+        >
           <div className="space-y-6">
             {/* Basic Info */}
             <div>
