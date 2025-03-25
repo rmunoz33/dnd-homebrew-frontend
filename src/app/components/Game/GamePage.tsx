@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import CharacterStatsDrawer from "@/app/components/Character/CharacterStatsDrawer";
 import SettingsDrawer from "@/app/components/Settings/SettingsDrawer";
 import { User, Settings, ArrowDown } from "lucide-react";
@@ -8,7 +8,6 @@ const GamePage = () => {
   const [isStatsDrawerOpen, setIsStatsDrawerOpen] = useState(false);
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToBottom = () => {
     const messagesEnd = document.querySelector('[data-messages-end="true"]');
