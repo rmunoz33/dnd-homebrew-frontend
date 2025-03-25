@@ -73,6 +73,7 @@ export const generateCharacterDetails = async (character: Character) => {
 
   Suggest appropriate values for any missing character attributes in JSON format, maintaining the given structure.
   If no backstory is provided, provide one in the form of a short paragraph.
+  If no special abilities are provided, provide one or two based on the character's level, class, and background.
   Focus on creating a cohesive character that makes sense with the provided information.
   Calculate attribute bonuses with this formula: (attribute value - 10) / 2. Round down to the nearest integer.`;
 

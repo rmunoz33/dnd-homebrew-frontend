@@ -34,6 +34,7 @@ interface DnDStore {
     tool: string;
     magicItem: string;
     item: string;
+    specialAbility: string;
   };
   setFilter: (key: keyof DnDStore["filters"], value: string) => void;
   resetFilters: () => void;
@@ -46,6 +47,7 @@ export interface Character {
   subspecies: string;
   classes: string[];
   subClass: string;
+  specialAbilities: string[];
   background: string;
   backStory: string;
   alignment: string;
@@ -87,6 +89,7 @@ export const initialCharacter: Character = {
   subspecies: "",
   classes: [],
   subClass: "",
+  specialAbilities: [],
   background: "",
   backStory: "",
   alignment: "",
@@ -133,6 +136,7 @@ export const initialFilters = {
   tool: "",
   magicItem: "",
   item: "",
+  specialAbility: "",
 };
 
 type PersistedMessage = Omit<Message, "timestamp"> & { timestamp: string };

@@ -1112,6 +1112,65 @@ const CharacterCreationPage = () => {
           </div>
 
           <h2 className="text-xl text-white font-bold col-span-full mt-6 mb-2">
+            Special Abilities
+          </h2>
+          <div className="col-span-full">
+            <div className="flex flex-wrap gap-2 mb-2">
+              {(character.specialAbilities || []).map((ability) => (
+                <span
+                  key={ability}
+                  className="badge badge-neutral-content gap-2"
+                >
+                  {ability}
+                  <button
+                    onClick={() => {
+                      handleInputChange(
+                        "specialAbilities",
+                        character.specialAbilities.filter((a) => a !== ability)
+                      );
+                    }}
+                    className="btn btn-xs btn-ghost"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Add special ability"
+                className="input input-bordered w-full"
+                value={filters.specialAbility || ""}
+                onChange={(e) => setFilter("specialAbility", e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && filters.specialAbility?.trim()) {
+                    handleInputChange("specialAbilities", [
+                      ...(character.specialAbilities || []),
+                      filters.specialAbility.trim(),
+                    ]);
+                    setFilter("specialAbility", "");
+                  }
+                }}
+              />
+              <button
+                className="btn btn-sm"
+                onClick={() => {
+                  if (filters.specialAbility?.trim()) {
+                    handleInputChange("specialAbilities", [
+                      ...(character.specialAbilities || []),
+                      filters.specialAbility.trim(),
+                    ]);
+                    setFilter("specialAbility", "");
+                  }
+                }}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          <h2 className="text-xl text-white font-bold col-span-full mt-6 mb-2">
             Equipment
           </h2>
 
