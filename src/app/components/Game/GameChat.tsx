@@ -162,9 +162,7 @@ const GameChat = () => {
                       {message.sender === "ai" && !message.content ? (
                         <span className="loading loading-dots loading-sm"></span>
                       ) : (
-                        <div className="break-words whitespace-pre-wrap sm:text-base">
-                          <MessageContent content={message.content} />
-                        </div>
+                        <MessageContent content={message.content} />
                       )}
                       <div
                         className={`text-[10px] sm:text-xs mt-1 opacity-70 ${

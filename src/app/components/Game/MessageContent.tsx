@@ -30,7 +30,7 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
         p: ({ children, ...props }) => {
           const formattedChildren = formatTextNodes(children);
           return (
-            <p className={`font-normal text-md`} {...props}>
+            <p className={`font-normal my-2 text-md`} {...props}>
               {formattedChildren}
             </p>
           );
@@ -38,9 +38,9 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
         h1: (props) => <h1 className="mb-2 text-2xl font-bold" {...props} />,
         h2: (props) => <h2 className="mb-1 text-xl font-bold" {...props} />,
         h3: (props) => <h3 className="text-lg font-bold" {...props} />,
-        ul: (props) => <ul className=" list-disc pl-3 sm:pl-5" {...props} />,
-        ol: (props) => <ol className=" list-decimal pl-3 sm:pl-5" {...props} />,
-        li: (props) => <li className="mb-1 ml-4" {...props} />,
+        ul: (props) => <ul className="list-disc pl-3 sm:pl-3" {...props} />,
+        ol: (props) => <ol className="list-decimal pl-3 sm:pl-3" {...props} />,
+        li: (props) => <li className="ml-4" {...props} />,
         em: (props) => <em className="italic" {...props} />,
         strong: (props) => <strong className="font-bold" {...props} />,
         a: (props) => <a {...props} />,
