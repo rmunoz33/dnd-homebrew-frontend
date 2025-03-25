@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send } from "lucide-react";
+import { Send, ArrowDown } from "lucide-react";
 import { useDnDStore, Message } from "@/stores/useStore";
 import {
   generateChatCompletion,
@@ -36,6 +36,7 @@ const GameChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -144,7 +145,11 @@ const GameChat = () => {
     <div className="fixed inset-0">
       <div className="flex flex-col h-full max-w-4xl mx-auto">
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div
+          ref={messagesContainerRef}
+          data-messages-container="true"
+          className="flex-1 overflow-y-auto p-4 relative"
+        >
           <div className="flex flex-col justify-end min-h-full">
             {messages.length === 0 ? (
               <div className="text-center text-neutral-content opacity-50">
@@ -246,7 +251,7 @@ const GameChat = () => {
                     </div>
                   </div>
                 ))}
-                <div ref={messagesEndRef} />
+                <div ref={messagesEndRef} data-messages-end="true" />
               </div>
             )}
           </div>
