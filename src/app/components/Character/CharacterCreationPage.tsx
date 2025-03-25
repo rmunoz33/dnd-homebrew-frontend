@@ -283,6 +283,8 @@ const CharacterCreationPage = () => {
     if (!character.specialAbilities) {
       handleInputChange("specialAbilities", []);
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [character]);
 
   const handleInputChange = (
