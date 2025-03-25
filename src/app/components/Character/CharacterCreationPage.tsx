@@ -200,6 +200,7 @@ const CharacterCreationPage = () => {
   } = useDnDStore();
   const [isRolling, setIsRolling] = useState(false);
   const [showResetWarning, setShowResetWarning] = useState(false);
+  const [specialAbilityInput, setSpecialAbilityInput] = useState("");
   const [isSpeciesDropdownOpen, setIsSpeciesDropdownOpen] = useState(false);
   const [isSubspeciesDropdownOpen, setIsSubspeciesDropdownOpen] =
     useState(false);
@@ -277,6 +278,13 @@ const CharacterCreationPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [character.species]);
 
+  // Ensure specialAbilities is always initialized
+  useEffect(() => {
+    if (!character.specialAbilities) {
+      handleInputChange("specialAbilities", []);
+    }
+  }, [character]);
+
   const handleInputChange = (
     field: keyof Character,
     value: Character[keyof Character]
@@ -322,6 +330,12 @@ const CharacterCreationPage = () => {
     try {
       const suggestions = await generateCharacterDetails(character);
       const parsedSuggestions = JSON.parse(suggestions as string) as Character;
+
+      // Ensure specialAbilities is initialized if missing from AI response
+      if (!parsedSuggestions.specialAbilities) {
+        parsedSuggestions.specialAbilities = [];
+      }
+
       setCharacter(parsedSuggestions);
       setFilter("species", parsedSuggestions.species);
       setFilter("subspecies", parsedSuggestions.subspecies);
@@ -638,6 +652,7 @@ const CharacterCreationPage = () => {
   const handleReset = () => {
     setCharacter(initialCharacter);
     resetFilters();
+    setSpecialAbilityInput("");
   };
 
   return (
@@ -1141,27 +1156,27 @@ const CharacterCreationPage = () => {
                 type="text"
                 placeholder="Add special ability"
                 className="input input-bordered w-full"
-                value={filters.specialAbility || ""}
-                onChange={(e) => setFilter("specialAbility", e.target.value)}
+                value={specialAbilityInput}
+                onChange={(e) => setSpecialAbilityInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && filters.specialAbility?.trim()) {
+                  if (e.key === "Enter" && specialAbilityInput?.trim()) {
                     handleInputChange("specialAbilities", [
                       ...(character.specialAbilities || []),
-                      filters.specialAbility.trim(),
+                      specialAbilityInput.trim(),
                     ]);
-                    setFilter("specialAbility", "");
+                    setSpecialAbilityInput("");
                   }
                 }}
               />
               <button
                 className="btn btn-sm"
                 onClick={() => {
-                  if (filters.specialAbility?.trim()) {
+                  if (specialAbilityInput?.trim()) {
                     handleInputChange("specialAbilities", [
                       ...(character.specialAbilities || []),
-                      filters.specialAbility.trim(),
+                      specialAbilityInput.trim(),
                     ]);
-                    setFilter("specialAbility", "");
+                    setSpecialAbilityInput("");
                   }
                 }}
               >
