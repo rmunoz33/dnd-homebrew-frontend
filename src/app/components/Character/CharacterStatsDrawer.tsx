@@ -240,6 +240,16 @@ const CharacterStatsDrawer = ({
                 <div>Platinum: {character.money.platinum}</div>
               </div>
             </div>
+
+            {/* Back Story */}
+            <div>
+              <h3
+                className={`${medievalFont.className} text-xl text-red-500 font-semibold mb-2`}
+              >
+                Back Story
+              </h3>
+              <div>{character.backStory}</div>
+            </div>
           </div>
         </div>
       </div>
