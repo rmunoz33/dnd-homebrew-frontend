@@ -8,6 +8,7 @@ import {
 import MessageContent from "./MessageContent";
 
 const GameChat = () => {
+  // Store
   const {
     messages,
     addMessage,
