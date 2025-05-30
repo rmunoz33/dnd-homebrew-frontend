@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Send } from "lucide-react";
+import { FixedSizeList as List } from "react-window";
 import { useDnDStore, Message } from "@/stores/useStore";
 import {
   generateChatCompletion,
   updateCharacterStatsAPI,
 } from "@/app/api/openai";
-import MessageContent from "./MessageContent";
+import MessageItem from "./MessageItem";
 
 const GameChat = () => {
   // Store
@@ -17,17 +18,50 @@ const GameChat = () => {
     setInputMessage,
   } = useDnDStore();
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState(400); // Default height
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<List>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToBottom = useCallback(() => {
+    if (listRef.current && messages.length > 0) {
+      listRef.current.scrollToItem(messages.length - 1, "end");
+    }
+  }, [messages.length]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [scrollToBottom]);
+
+  // Calculate container height for virtualization
+  useEffect(() => {
+    const updateHeight = () => {
+      if (messagesContainerRef.current) {
+        const containerRect = messagesContainerRef.current.getBoundingClientRect();
+        setContainerHeight(containerRect.height);
+      }
+    };
+
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+    };
+  }, []);
+
+  // Listen for external scroll to bottom events
+  useEffect(() => {
+    const handleScrollToBottomEvent = () => {
+      scrollToBottom();
+    };
+
+    window.addEventListener('scrollToBottom', handleScrollToBottomEvent);
+    
+    return () => {
+      window.removeEventListener('scrollToBottom', handleScrollToBottomEvent);
+    };
+  }, [scrollToBottom]);
 
   // Auto-resize the textarea based on content
   useEffect(() => {
@@ -143,39 +177,17 @@ const GameChat = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      message.sender === "user"
-                        ? "justify-end"
-                        : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-lg p-2 sm:p-3 ${
-                        message.sender === "user"
-                          ? "bg-gray-600 text-white"
-                          : "bg-neutral text-neutral-content"
-                      }`}
-                    >
-                      {message.sender === "ai" && !message.content ? (
-                        <span className="loading loading-dots loading-sm"></span>
-                      ) : (
-                        <MessageContent content={message.content} />
-                      )}
-                      <div
-                        className={`text-[10px] sm:text-xs mt-1 opacity-70 ${
-                          message.sender === "user" ? "text-right" : "text-left"
-                        }`}
-                      >
-                        {message.timestamp.toLocaleTimeString()}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} data-messages-end="true" />
+              <div className="h-full">
+                <List
+                  ref={listRef}
+                  height={containerHeight}
+                  itemCount={messages.length}
+                  itemSize={120} // Estimated height per message
+                  itemData={messages}
+                  width="100%"
+                >
+                  {MessageItem}
+                </List>
               </div>
             )}
           </div>

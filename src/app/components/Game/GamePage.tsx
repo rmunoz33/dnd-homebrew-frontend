@@ -10,8 +10,8 @@ const GamePage = () => {
   const [showScrollBottom, setShowScrollBottom] = useState(false);
 
   const scrollToBottom = () => {
-    const messagesEnd = document.querySelector('[data-messages-end="true"]');
-    messagesEnd?.scrollIntoView({ behavior: "smooth" });
+    // Dispatch custom event for virtualized list
+    window.dispatchEvent(new CustomEvent('scrollToBottom'));
   };
 
   useEffect(() => {

@@ -1,3 +1,4 @@
+import React from "react";
 import ReactMarkdown from "react-markdown";
 
 // Separate component for rendering message content with markdown
@@ -23,7 +24,7 @@ const formatTextNodes = (children: React.ReactNode): React.ReactNode => {
   return children;
 };
 
-const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
+const MessageContent: React.FC<MessageContentProps> = React.memo(({ content }) => {
   return (
     <ReactMarkdown
       components={{
@@ -55,6 +56,8 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
       {content}
     </ReactMarkdown>
   );
-};
+});
+
+MessageContent.displayName = 'MessageContent';
 
 export default MessageContent;
