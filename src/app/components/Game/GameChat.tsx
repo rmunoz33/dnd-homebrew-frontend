@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, forwardRef } from "react";
 import { Send } from "lucide-react";
 import { FixedSizeList as List } from "react-window";
 import { useDnDStore, Message } from "@/stores/useStore";
@@ -7,6 +7,14 @@ import {
   updateCharacterStatsAPI,
 } from "@/app/api/openai";
 import MessageItem from "./MessageItem";
+
+// Custom outer element for the virtualized list
+const OuterElement = forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(
+  (props, ref) => (
+    <div {...props} ref={ref} data-messages-container="true" />
+  )
+);
+OuterElement.displayName = 'OuterElement';
 
 const GameChat = () => {
   // Store
@@ -38,14 +46,19 @@ const GameChat = () => {
     const updateHeight = () => {
       if (messagesContainerRef.current) {
         const containerRect = messagesContainerRef.current.getBoundingClientRect();
-        setContainerHeight(containerRect.height);
+        // Ensure we have a reasonable minimum height
+        const newHeight = Math.max(containerRect.height, 200);
+        setContainerHeight(newHeight);
       }
     };
 
-    updateHeight();
+    // Small delay to ensure the container is properly rendered
+    const timeoutId = setTimeout(updateHeight, 100);
+    
     window.addEventListener('resize', updateHeight);
     
     return () => {
+      clearTimeout(timeoutId);
       window.removeEventListener('resize', updateHeight);
     };
   }, []);
@@ -164,8 +177,7 @@ const GameChat = () => {
         {/* Messages area */}
         <div
           ref={messagesContainerRef}
-          data-messages-container="true"
-          className="flex-1 overflow-y-auto p-4 relative"
+          className="flex-1 p-4 relative"
         >
           <div className="flex flex-col justify-end min-h-full">
             {messages.length === 0 ? (
@@ -182,9 +194,10 @@ const GameChat = () => {
                   ref={listRef}
                   height={containerHeight}
                   itemCount={messages.length}
-                  itemSize={120} // Estimated height per message
+                  itemSize={150} // Increased to accommodate longer messages
                   itemData={messages}
                   width="100%"
+                  outerElementType={OuterElement}
                 >
                   {MessageItem}
                 </List>

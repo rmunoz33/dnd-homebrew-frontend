@@ -17,9 +17,9 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ index, style, data
 
   return (
     <div style={style} className="px-4">
-      <div className="py-2">
+      <div className="py-2 min-h-[120px] flex items-start">
         <div
-          className={`flex ${
+          className={`flex w-full ${
             message.sender === "user"
               ? "justify-end"
               : "justify-start"
