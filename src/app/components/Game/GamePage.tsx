@@ -7,42 +7,6 @@ import GameChat from "@/app/components/Game/GameChat";
 const GamePage = () => {
   const [isStatsDrawerOpen, setIsStatsDrawerOpen] = useState(false);
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
-  const [showScrollBottom, setShowScrollBottom] = useState(false);
-
-  const scrollToBottom = () => {
-    const messagesEnd = document.querySelector('[data-messages-end="true"]');
-    messagesEnd?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const chatContainer = document.querySelector(
-        '[data-messages-container="true"]'
-      );
-      if (!chatContainer) return;
-
-      // Show button when scrolled up at least 300px from bottom
-      const isScrolledUp =
-        chatContainer.scrollHeight -
-          chatContainer.clientHeight -
-          chatContainer.scrollTop >
-        300;
-      setShowScrollBottom(isScrolledUp);
-    };
-
-    const chatContainer = document.querySelector(
-      '[data-messages-container="true"]'
-    );
-    if (chatContainer) {
-      chatContainer.addEventListener("scroll", handleScroll);
-    }
-
-    return () => {
-      if (chatContainer) {
-        chatContainer.removeEventListener("scroll", handleScroll);
-      }
-    };
-  }, []);
 
   return (
     <>
@@ -60,18 +24,6 @@ const GamePage = () => {
           <User size={24} />
         </button>
       </div>
-
-      {showScrollBottom && (
-        <div className="fixed bottom-20 right-4 z-50">
-          <button
-            onClick={scrollToBottom}
-            className="btn btn-circle bg-gray-700 hover:bg-gray-600 text-white shadow-lg"
-            aria-label="Scroll to bottom"
-          >
-            <ArrowDown size={20} />
-          </button>
-        </div>
-      )}
 
       <SettingsDrawer
         isOpen={isSettingsDrawerOpen}
