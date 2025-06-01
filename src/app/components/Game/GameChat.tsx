@@ -6,7 +6,7 @@ import {
   updateCharacterStatsAPI,
 } from "@/app/api/openai";
 import MessageContent from "./MessageContent";
-import { Virtuoso } from "react-virtuoso";
+import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { ArrowDown } from "lucide-react";
 
 const GameChat = () => {
@@ -20,7 +20,7 @@ const GameChat = () => {
   } = useDnDStore();
   const [isLoading, setIsLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const virtuosoRef = useRef<any>(null);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [atBottom, setAtBottom] = useState(true);
 
   // Auto-resize the textarea based on content
@@ -49,20 +49,22 @@ const GameChat = () => {
     ) {
       virtuosoRef.current.scrollTo({ top: 999999, behavior: "smooth" });
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
 
   // NEW: Ensure autoscroll to bottom as the last message content changes (for streaming AI responses)
+  const lastMessageContent =
+    messages.length > 0 ? messages[messages.length - 1].content : "";
   useEffect(() => {
     if (!virtuosoRef.current) return;
     if (messages.length === 0) return;
     if (isLoading || atBottom) {
       virtuosoRef.current.scrollTo({ top: 999999, behavior: "auto" });
     }
-  }, [
-    messages.length > 0 ? messages[messages.length - 1].content : "",
-    isLoading,
-    atBottom,
-  ]);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastMessageContent, isLoading, atBottom]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;

@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import CharacterStatsDrawer from "@/app/components/Character/CharacterStatsDrawer";
 import SettingsDrawer from "@/app/components/Settings/SettingsDrawer";
-import { User, Settings, ArrowDown } from "lucide-react";
+import { User, Settings } from "lucide-react";
 import GameChat from "@/app/components/Game/GameChat";
 
 const GamePage = () => {
