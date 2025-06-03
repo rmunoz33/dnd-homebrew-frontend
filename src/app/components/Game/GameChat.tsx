@@ -21,7 +21,7 @@ const GameChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
-  const [atBottom, setAtBottom] = useState(true);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
   // Auto-resize the textarea based on content
   useEffect(() => {
@@ -39,32 +39,34 @@ const GameChat = () => {
     };
   }, [inputMessage]);
 
-  // Ensure autoscroll to bottom when a new message is sent by the user or when atBottom is true
+  // Use atBottomStateChange to manage autoscroll
+  const handleAtBottomStateChange = (isAtBottom: boolean) => {
+    setShouldAutoScroll(isAtBottom);
+  };
+
+  // When a new message is sent, scroll to bottom and enable autoscroll
   useEffect(() => {
     if (!virtuosoRef.current) return;
     // If user is at bottom or last message is from user, scroll to bottom
     if (
-      atBottom ||
+      shouldAutoScroll ||
       (messages.length > 0 && messages[messages.length - 1].sender === "user")
     ) {
       virtuosoRef.current.scrollTo({ top: 999999, behavior: "smooth" });
     }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
 
-  // NEW: Ensure autoscroll to bottom as the last message content changes (for streaming AI responses)
+  // Autoscroll as the last message content changes (for streaming AI responses), but only if shouldAutoScroll
   const lastMessageContent =
     messages.length > 0 ? messages[messages.length - 1].content : "";
   useEffect(() => {
     if (!virtuosoRef.current) return;
     if (messages.length === 0) return;
-    if (isLoading || atBottom) {
+    if (shouldAutoScroll) {
       virtuosoRef.current.scrollTo({ top: 999999, behavior: "auto" });
     }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastMessageContent, isLoading, atBottom]);
+  }, [lastMessageContent, shouldAutoScroll, messages.length]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -83,10 +85,11 @@ const GameChat = () => {
     addMessage(userMessage);
     addMessage(aiMessage);
     setInputMessage("");
-    // Explicitly scroll to bottom after sending
+    // Explicitly scroll to bottom after sending and enable autoscroll
     if (virtuosoRef.current) {
       virtuosoRef.current.scrollTo({ top: 999999, behavior: "smooth" });
     }
+    setShouldAutoScroll(true);
     setIsLoading(true);
     try {
       const success = await generateChatCompletion();
@@ -195,19 +198,21 @@ const GameChat = () => {
                 totalCount={virtuosoData.length}
                 itemContent={renderMessage}
                 className="h-full"
-                followOutput={isLoading || atBottom}
-                atBottomStateChange={setAtBottom}
+                followOutput={false}
+                atBottomStateChange={handleAtBottomStateChange}
               />
-              {!atBottom && (
+              {!shouldAutoScroll && (
                 <div className="fixed bottom-20 right-4 z-50">
                   <button
-                    onClick={() =>
-                      virtuosoRef.current &&
-                      virtuosoRef.current.scrollTo({
-                        top: 999999,
-                        behavior: "smooth",
-                      })
-                    }
+                    onClick={() => {
+                      if (virtuosoRef.current) {
+                        virtuosoRef.current.scrollTo({
+                          top: 999999,
+                          behavior: "smooth",
+                        });
+                      }
+                      setShouldAutoScroll(true);
+                    }}
                     className="btn btn-circle bg-gray-700 hover:bg-gray-600 text-white shadow-lg"
                     aria-label="Scroll to bottom"
                   >
