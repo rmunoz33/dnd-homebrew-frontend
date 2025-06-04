@@ -4,6 +4,12 @@ import { useDnDStore } from "@/stores/useStore";
 import { X } from "lucide-react";
 import { medievalFont } from "@/app/components/medievalFont";
 import { useState } from "react";
+import { EB_Garamond } from "next/font/google";
+
+const garamondFont = EB_Garamond({
+  weight: ["700"],
+  subsets: ["latin"],
+});
 
 interface SettingsDrawerProps {
   isOpen: boolean;
@@ -86,19 +92,19 @@ const SettingsDrawer = ({ isOpen, onClose }: SettingsDrawerProps) => {
           <div className="flex-1 p-4 text-neutral-content">
             <div className="space-y-4">
               <button
-                className="btn btn-block bg-base-300 hover:bg-base-200"
+                className={`btn btn-block bg-base-300 hover:bg-base-200 ${garamondFont.className}`}
                 onClick={handleCharacterCreation}
               >
                 Edit Character
               </button>
               <button
-                className="btn btn-block bg-yellow-900 hover:bg-yellow-800 border-none text-white"
+                className={`btn btn-block bg-yellow-900 hover:bg-yellow-800 border-none text-white ${garamondFont.className}`}
                 onClick={handleNewGame}
               >
                 New Game
               </button>
               <button
-                className="btn btn-block bg-red-900 hover:bg-red-800 border-none"
+                className={`btn btn-block bg-red-900 hover:bg-red-800 border-none ${garamondFont.className}`}
                 onClick={handleLogout}
               >
                 Logout

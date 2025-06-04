@@ -1,10 +1,15 @@
 import { X, Trash2, Minus, Plus } from "lucide-react";
-import { MedievalSharp } from "next/font/google";
+import { MedievalSharp, EB_Garamond } from "next/font/google";
 import { useState } from "react";
 import { useDnDStore } from "@/stores/useStore";
 
 const medievalFont = MedievalSharp({
   weight: "400",
+  subsets: ["latin"],
+});
+
+const garamondFont = EB_Garamond({
+  weight: ["700"],
   subsets: ["latin"],
 });
 
@@ -198,7 +203,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
           {/* Roll Button */}
           <div className="px-6 pb-2 flex justify-center">
             <button
-              className="btn w-full mt-2 bg-red-500 hover:bg-red-600 text-white border-none shadow-md transition-all duration-200 hover:scale-110 font-bold"
+              className={`btn w-full mt-2 bg-red-500 hover:bg-red-600 text-white border-none shadow-md transition-all duration-200 hover:scale-110 font-bold ${garamondFont.className}`}
               onClick={rollAll}
               disabled={Object.keys(dicePool).length === 0}
             >
@@ -225,7 +230,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                 </div>
                 {results && results.length > 0 && (
                   <button
-                    className="btn w-full mt-4 bg-gray-700 hover:bg-gray-600 text-white border-none shadow-md transition-all duration-200 hover:scale-105 font-bold"
+                    className={`btn w-full mt-4 bg-gray-700 hover:bg-gray-600 text-white border-none shadow-md transition-all duration-200 hover:scale-105 font-bold ${garamondFont.className}`}
                     onClick={handleSendToChat}
                   >
                     Send to Chat
