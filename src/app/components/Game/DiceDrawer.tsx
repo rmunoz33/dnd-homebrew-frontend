@@ -1,6 +1,7 @@
 import { X, Trash2, Minus, Plus } from "lucide-react";
 import { MedievalSharp } from "next/font/google";
 import { useState } from "react";
+import { useDnDStore } from "@/stores/useStore";
 
 const medievalFont = MedievalSharp({
   weight: "400",
@@ -32,6 +33,8 @@ type RollResult = {
 const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
   const [dicePool, setDicePool] = useState<DicePool>({});
   const [results, setResults] = useState<RollResult[] | null>(null);
+  const setInputMessage = useDnDStore((state) => state.setInputMessage);
+  const inputMessage = useDnDStore((state) => state.inputMessage);
 
   const addDie = (name: string) => {
     setDicePool((pool) => ({ ...pool, [name]: (pool[name] || 0) + 1 }));
@@ -67,6 +70,24 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
   const total = results
     ? results.reduce((sum, r) => sum + r.rolls.reduce((a, b) => a + b, 0), 0)
     : 0;
+
+  const formatResultsForChat = () => {
+    if (!results) return "";
+    return results
+      .map(
+        (r) =>
+          `${r.rolls.length}x ${r.name}: ${r.rolls.join(
+            ", "
+          )} (total: ${r.rolls.reduce((a, b) => a + b, 0)})`
+      )
+      .join("; ");
+  };
+
+  const handleSendToChat = () => {
+    const summary = formatResultsForChat();
+    setInputMessage(inputMessage ? `${inputMessage} ${summary}` : summary);
+    onClose();
+  };
 
   return (
     <div
@@ -202,6 +223,14 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                 <div className="mt-2 text-xl text-red-500 font-extrabold drop-shadow-lg">
                   Total: {total}
                 </div>
+                {results && results.length > 0 && (
+                  <button
+                    className="btn w-full mt-4 bg-gray-700 hover:bg-gray-600 text-white border-none shadow-md transition-all duration-200 hover:scale-105 font-bold"
+                    onClick={handleSendToChat}
+                  >
+                    Send to Chat
+                  </button>
+                )}
               </div>
             ) : (
               <div className="mt-4 text-center text-gray-400">
