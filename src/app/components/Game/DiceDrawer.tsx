@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { MedievalSharp } from "next/font/google";
+import { useState } from "react";
 
 const medievalFont = MedievalSharp({
   weight: "400",
@@ -11,7 +12,26 @@ interface DiceDrawerProps {
   onClose: () => void;
 }
 
+const diceTypes = [
+  { name: "d4", sides: 4 },
+  { name: "d6", sides: 6 },
+  { name: "d8", sides: 8 },
+  { name: "d10", sides: 10 },
+  { name: "d12", sides: 12 },
+  { name: "d20", sides: 20 },
+  { name: "d100", sides: 100 },
+];
+
 const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
+  const [result, setResult] = useState<null | { name: string; value: number }>(
+    null
+  );
+
+  const rollDie = (name: string, sides: number) => {
+    const value = Math.floor(Math.random() * sides) + 1;
+    setResult({ name, value });
+  };
+
   return (
     <div
       className={`fixed inset-0 z-50 ${
@@ -48,9 +68,43 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
           </div>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 p-4 text-neutral-content">
-          <p>Dice roller coming soon...</p>
+        {/* Dice Icons */}
+        <div className="flex flex-wrap justify-center gap-4 p-6">
+          {diceTypes.map((die) => (
+            <button
+              key={die.name}
+              className="flex flex-col items-center focus:outline-none hover:scale-110 transition-transform"
+              onClick={() => rollDie(die.name, die.sides)}
+              aria-label={`Roll ${die.name}`}
+            >
+              <img
+                src={`/img/dice_icons/${die.name}.png`}
+                alt={die.name}
+                width={48}
+                height={48}
+                className="mb-1"
+              />
+              <span className="text-xs text-neutral-content font-semibold uppercase">
+                {die.name}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Result Display */}
+        <div className="flex-1 p-4 text-neutral-content flex flex-col items-center justify-center">
+          {result ? (
+            <div className="mt-4 text-center">
+              <div className="text-lg font-bold mb-2">{`You rolled a ${result.name}:`}</div>
+              <div className="text-5xl text-red-500 font-extrabold drop-shadow-lg">
+                {result.value}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 text-center text-base-content/60">
+              Click a die to roll!
+            </div>
+          )}
         </div>
       </div>
     </div>
