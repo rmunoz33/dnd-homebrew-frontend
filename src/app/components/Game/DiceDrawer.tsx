@@ -2,6 +2,7 @@ import { X, Trash2, Minus, Plus } from "lucide-react";
 import { MedievalSharp, EB_Garamond } from "next/font/google";
 import { useState } from "react";
 import { useDnDStore } from "@/stores/useStore";
+import Image from "next/image";
 
 const medievalFont = MedievalSharp({
   weight: "400",
@@ -141,7 +142,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                 onClick={() => addDie(die.name)}
                 aria-label={`Add ${die.name}`}
               >
-                <img
+                <Image
                   src={`/img/dice_icons/${die.name}.png`}
                   alt={die.name}
                   width={48}
@@ -169,7 +170,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                       key={die.name}
                       className="flex items-center bg-base-300 rounded px-2 py-1 gap-1 shadow"
                     >
-                      <img
+                      <Image
                         src={`/img/dice_icons/${die.name}.png`}
                         alt={die.name}
                         width={24}
@@ -239,7 +240,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
               </div>
             ) : (
               <div className="mt-4 text-center text-gray-400">
-                Add dice and click "Roll Dice"!
+                {`Add dice and click "Roll Dice"!`}
               </div>
             )}
           </div>
