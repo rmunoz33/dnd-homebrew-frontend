@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, Trash2, Minus, Plus } from "lucide-react";
 import { MedievalSharp } from "next/font/google";
 import { useState } from "react";
 
@@ -22,15 +22,51 @@ const diceTypes = [
   { name: "d100", sides: 100 },
 ];
 
-const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
-  const [result, setResult] = useState<null | { name: string; value: number }>(
-    null
-  );
+type DicePool = { [key: string]: number };
 
-  const rollDie = (name: string, sides: number) => {
-    const value = Math.floor(Math.random() * sides) + 1;
-    setResult({ name, value });
+type RollResult = {
+  name: string;
+  rolls: number[];
+};
+
+const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
+  const [dicePool, setDicePool] = useState<DicePool>({});
+  const [results, setResults] = useState<RollResult[] | null>(null);
+
+  const addDie = (name: string) => {
+    setDicePool((pool) => ({ ...pool, [name]: (pool[name] || 0) + 1 }));
   };
+
+  const removeDie = (name: string) => {
+    setDicePool((pool) => {
+      if (!pool[name]) return pool;
+      const updated = { ...pool, [name]: pool[name] - 1 };
+      if (updated[name] <= 0) delete updated[name];
+      return updated;
+    });
+  };
+
+  const clearPool = () => {
+    setDicePool({});
+    setResults(null);
+  };
+
+  const rollAll = () => {
+    const newResults: RollResult[] = [];
+    Object.entries(dicePool).forEach(([name, count]) => {
+      const sides = diceTypes.find((d) => d.name === name)?.sides || 0;
+      const rolls = Array.from(
+        { length: count },
+        () => Math.floor(Math.random() * sides) + 1
+      );
+      newResults.push({ name, rolls });
+    });
+    setResults(newResults);
+  };
+
+  const total = results
+    ? results.reduce((sum, r) => sum + r.rolls.reduce((a, b) => a + b, 0), 0)
+    : 0;
 
   return (
     <div
@@ -68,43 +104,111 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
           </div>
         </div>
 
-        {/* Dice Icons */}
-        <div className="flex flex-wrap justify-center gap-4 p-6">
-          {diceTypes.map((die) => (
-            <button
-              key={die.name}
-              className="flex flex-col items-center focus:outline-none hover:scale-110 transition-transform"
-              onClick={() => rollDie(die.name, die.sides)}
-              aria-label={`Roll ${die.name}`}
-            >
-              <img
-                src={`/img/dice_icons/${die.name}.png`}
-                alt={die.name}
-                width={48}
-                height={48}
-                className="mb-1"
-              />
-              <span className="text-xs text-neutral-content font-semibold uppercase">
-                {die.name}
-              </span>
-            </button>
-          ))}
-        </div>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Dice Icons */}
+          <div className="flex flex-wrap justify-center gap-4 p-6">
+            {diceTypes.map((die) => (
+              <button
+                key={die.name}
+                className="flex flex-col items-center focus:outline-none hover:scale-110 transition-transform"
+                onClick={() => addDie(die.name)}
+                aria-label={`Add ${die.name}`}
+              >
+                <img
+                  src={`/img/dice_icons/${die.name}.png`}
+                  alt={die.name}
+                  width={48}
+                  height={48}
+                  className="mb-1"
+                />
+                <span className="text-xs text-neutral-content font-semibold uppercase">
+                  {die.name}
+                </span>
+                <Plus size={16} className="mt-1 text-green-500" />
+              </button>
+            ))}
+          </div>
 
-        {/* Result Display */}
-        <div className="flex-1 p-4 text-neutral-content flex flex-col items-center justify-center">
-          {result ? (
-            <div className="mt-4 text-center">
-              <div className="text-lg font-bold mb-2">{`You rolled a ${result.name}:`}</div>
-              <div className="text-5xl text-red-500 font-extrabold drop-shadow-lg">
-                {result.value}
+          {/* Dice Pool */}
+          <div className="px-6 pb-2">
+            <div className="flex flex-wrap gap-2 items-center min-h-[32px]">
+              {Object.keys(dicePool).length === 0 ? (
+                <span className="text-white">Add dice to your pool above.</span>
+              ) : (
+                diceTypes
+                  .filter((die) => dicePool[die.name])
+                  .map((die) => (
+                    <div
+                      key={die.name}
+                      className="flex items-center bg-base-300 rounded px-2 py-1 gap-1 shadow"
+                    >
+                      <img
+                        src={`/img/dice_icons/${die.name}.png`}
+                        alt={die.name}
+                        width={24}
+                        height={24}
+                      />
+                      <span className="font-bold text-sm text-black">
+                        {dicePool[die.name]}x {die.name}
+                      </span>
+                      <button
+                        className="btn btn-xs btn-circle btn-ghost text-red-500 hover:bg-red-200"
+                        onClick={() => removeDie(die.name)}
+                        aria-label={`Remove one ${die.name}`}
+                      >
+                        <Minus size={14} />
+                      </button>
+                    </div>
+                  ))
+              )}
+              {Object.keys(dicePool).length > 0 && (
+                <button
+                  className="btn btn-xs btn-circle btn-ghost text-gray-400 hover:text-red-500 ml-2"
+                  onClick={clearPool}
+                  aria-label="Clear all dice"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Roll Button */}
+          <div className="px-6 pb-2 flex justify-center">
+            <button
+              className="btn w-full mt-2 bg-red-500 hover:bg-red-600 text-white border-none shadow-md transition-all duration-200 hover:scale-110 font-bold"
+              onClick={rollAll}
+              disabled={Object.keys(dicePool).length === 0}
+            >
+              Roll Dice
+            </button>
+          </div>
+
+          {/* Result Display */}
+          <div className="flex-1 p-4 text-neutral-content flex flex-col items-center justify-center">
+            {results ? (
+              <div className="w-full max-w-xs mt-4 text-center">
+                <div className="text-lg font-bold mb-2">Results:</div>
+                {results.map((r) => (
+                  <div key={r.name} className="mb-2">
+                    <span className="font-semibold uppercase">{r.name}:</span>
+                    <span className="ml-2">{r.rolls.join(", ")}</span>
+                    <span className="ml-2 text-sm text-gray-400">
+                      (total: {r.rolls.reduce((a, b) => a + b, 0)})
+                    </span>
+                  </div>
+                ))}
+                <div className="mt-2 text-xl text-red-500 font-extrabold drop-shadow-lg">
+                  Total: {total}
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="mt-4 text-center text-base-content/60">
-              Click a die to roll!
-            </div>
-          )}
+            ) : (
+              <div className="mt-4 text-center text-gray-400">
+                Add dice and click "Roll Dice"!
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
