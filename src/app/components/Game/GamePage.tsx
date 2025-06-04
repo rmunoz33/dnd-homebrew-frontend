@@ -1,12 +1,14 @@
 import { useState } from "react";
 import CharacterStatsDrawer from "@/app/components/Character/CharacterStatsDrawer";
 import SettingsDrawer from "@/app/components/Settings/SettingsDrawer";
-import { User, Settings } from "lucide-react";
+import { User, Settings, Dices } from "lucide-react";
 import GameChat from "@/app/components/Game/GameChat";
+import DiceDrawer from "@/app/components/Game/DiceDrawer";
 
 const GamePage = () => {
   const [isStatsDrawerOpen, setIsStatsDrawerOpen] = useState(false);
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
+  const [isDiceDrawerOpen, setIsDiceDrawerOpen] = useState(false);
 
   return (
     <>
@@ -23,6 +25,12 @@ const GamePage = () => {
         >
           <User size={24} />
         </button>
+        <button
+          className="btn btn-circle btn-ghost bg-base-200"
+          onClick={() => setIsDiceDrawerOpen(true)}
+        >
+          <Dices size={24} />
+        </button>
       </div>
 
       <SettingsDrawer
@@ -33,6 +41,11 @@ const GamePage = () => {
       <CharacterStatsDrawer
         isOpen={isStatsDrawerOpen}
         onClose={() => setIsStatsDrawerOpen(false)}
+      />
+
+      <DiceDrawer
+        isOpen={isDiceDrawerOpen}
+        onClose={() => setIsDiceDrawerOpen(false)}
       />
 
       <GameChat />
