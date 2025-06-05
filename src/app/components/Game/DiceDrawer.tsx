@@ -168,7 +168,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                   .map((die) => (
                     <div
                       key={die.name}
-                      className="flex items-center bg-base-300 rounded px-2 py-1 gap-1 shadow"
+                      className="flex items-center bg-base-100 rounded px-2 py-1 gap-1 shadow"
                     >
                       <Image
                         src={`/img/dice_icons/${die.name}.png`}
@@ -176,7 +176,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                         width={24}
                         height={24}
                       />
-                      <span className="font-bold text-sm text-black">
+                      <span className="font-bold text-sm text-gray-500">
                         {dicePool[die.name]}x {die.name}
                       </span>
                       <button
