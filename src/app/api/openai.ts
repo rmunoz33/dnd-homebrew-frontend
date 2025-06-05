@@ -255,17 +255,119 @@ export const updateCharacterStatsAPI = async () => {
   return null;
 };
 
+export const generateCampaignOutline = async (character: Character) => {
+  const startingLevel = character.level || 1;
+  const prompt = `As a D&D campaign designer, create a detailed campaign outline for a solo adventure featuring this character:
+
+${JSON.stringify(character, null, 2)}
+
+Follow this structure:
+
+1. Campaign Overview
+- Main plot hook and central conflict
+- Setting and atmosphere
+- Major themes and tone
+- Expected character arc
+- Starting level: ${startingLevel}
+
+2. Three-Act Structure (adjust acts and challenges to the starting level)
+Act 1 (Starting Level to Midpoint):
+- Inciting incident
+- Initial challenges and discoveries
+- Key NPCs and locations
+- First major decision point
+
+Act 2 (Midpoint to Pre-Climax):
+- Rising action and complications
+- Character development opportunities
+- Mid-campaign twist
+- Second major decision point
+
+Act 3 (Climax and Resolution):
+- Climax and resolution
+- Final challenges and revelations
+- Character's ultimate test
+- Multiple possible endings
+
+3. Key NPCs and Enemies
+- Allies and mentors
+- Rivals and antagonists
+- Their motivations and relationships to the character
+- How they can help or hinder the character's goals
+
+4. Stat Blocks
+- For each major NPC and enemy, provide a D&D 5e-style stat block (level-appropriate, including AC, HP, abilities, attacks, and special traits)
+
+5. Major Locations
+- Important settings and their significance
+- Key landmarks and points of interest
+- How they connect to the character's journey
+
+6. Side Quests and Optional Content
+- Potential side adventures
+- Character development opportunities
+- Additional rewards and challenges
+
+7. Character Integration
+- How the character's background ties into the main plot
+- Personal stakes and motivations
+- Opportunities for character growth
+- Ways to incorporate the character's class and abilities
+
+8. Pacing and Progression
+- Expected level progression
+- Key milestones and achievements
+- Balance of combat, exploration, and social interaction
+- Opportunities for character development
+
+Format the response as a detailed markdown document that can be used as a campaign guide.`;
+
+  try {
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert D&D campaign designer who creates engaging, character-driven adventures.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+    });
+
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error("Error generating campaign outline:", error);
+    throw error;
+  }
+};
+
 export const generateChatCompletion = async () => {
   try {
-    const { inputMessage, character, messages, updateLastMessage } =
-      useDnDStore.getState();
+    const {
+      inputMessage,
+      character,
+      messages,
+      updateLastMessage,
+      campaignOutline,
+    } = useDnDStore.getState();
 
     const systemMessage = {
       role: "system" as const,
       content: `You are a world-class Dungeon Master in a D&D game. The player's character has the following details:
 ${JSON.stringify(character, null, 2)}
 
-Respond in character as a DM, guiding the player through their adventure. Keep responses concise but engaging, and maintain the medieval fantasy atmosphere. Balance world-building, story-telling, and combat and game mechanics.
+Campaign Framework:
+${
+  campaignOutline ||
+  "No campaign outline available. Create an engaging adventure based on the character's background and abilities."
+}
+
+Respond in character as a DM, guiding the player through their adventure. Keep responses concise but engaging, and maintain the medieval fantasy atmosphere. Balance world-building, story-telling, and game mechanics.
 
 If the player asks about their character's stats or abilities, use the provided character details to inform your response.
 

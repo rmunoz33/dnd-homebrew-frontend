@@ -22,6 +22,8 @@ interface DnDStore {
   clearMessages: () => void;
   inputMessage: string;
   setInputMessage: (message: string) => void;
+  campaignOutline: string;
+  setCampaignOutline: (outline: string) => void;
   filters: {
     species: string;
     subspecies: string;
@@ -170,6 +172,9 @@ export const useDnDStore = create<DnDStore>()(
       clearMessages: () => set({ messages: [] }),
       inputMessage: "",
       setInputMessage: (message: string) => set({ inputMessage: message }),
+      campaignOutline: "",
+      setCampaignOutline: (outline: string) =>
+        set({ campaignOutline: outline }),
       filters: initialFilters,
       setFilter: (key: keyof DnDStore["filters"], value: string) =>
         set((state) => ({
