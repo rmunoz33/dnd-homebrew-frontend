@@ -2,7 +2,15 @@ import { X, Trash2, Minus, Plus } from "lucide-react";
 import { MedievalSharp, EB_Garamond } from "next/font/google";
 import { useState } from "react";
 import { useDnDStore } from "@/stores/useStore";
-import Image from "next/image";
+import Icon from "@mdi/react";
+import {
+  mdiDiceD4Outline,
+  mdiDiceD6Outline,
+  mdiDiceD8Outline,
+  mdiDiceD10Outline,
+  mdiDiceD12Outline,
+  mdiDiceD20Outline,
+} from "@mdi/js";
 
 const medievalFont = MedievalSharp({
   weight: "400",
@@ -26,7 +34,6 @@ const diceTypes = [
   { name: "d10", sides: 10 },
   { name: "d12", sides: 12 },
   { name: "d20", sides: 20 },
-  { name: "d100", sides: 100 },
 ];
 
 type DicePool = { [key: string]: number };
@@ -34,6 +41,26 @@ type DicePool = { [key: string]: number };
 type RollResult = {
   name: string;
   rolls: number[];
+};
+
+// Helper function to get mdi icon path by die name
+const getDieIcon = (name: string) => {
+  switch (name) {
+    case "d4":
+      return mdiDiceD4Outline;
+    case "d6":
+      return mdiDiceD6Outline;
+    case "d8":
+      return mdiDiceD8Outline;
+    case "d10":
+      return mdiDiceD10Outline;
+    case "d12":
+      return mdiDiceD12Outline;
+    case "d20":
+      return mdiDiceD20Outline;
+    default:
+      return "";
+  }
 };
 
 const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
@@ -134,7 +161,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
           {/* Dice Icons */}
-          <div className="flex flex-wrap justify-center gap-4 p-6">
+          <div className="grid grid-cols-3 gap-4 p-6 justify-items-center">
             {diceTypes.map((die) => (
               <button
                 key={die.name}
@@ -142,17 +169,13 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                 onClick={() => addDie(die.name)}
                 aria-label={`Add ${die.name}`}
               >
-                <Image
-                  src={`/img/dice_icons/${die.name}.png`}
-                  alt={die.name}
-                  width={48}
-                  height={48}
-                  className="mb-1"
+                <Icon
+                  path={getDieIcon(die.name)}
+                  size={2}
+                  className="text-neutral-content"
                 />
-                <span className="text-xs text-neutral-content font-semibold uppercase">
-                  {die.name}
-                </span>
-                <Plus size={16} className="mt-1 text-green-500" />
+
+                <Plus size={16} className="text-green-500" />
               </button>
             ))}
           </div>
@@ -170,13 +193,12 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                       key={die.name}
                       className="flex items-center bg-base-100 rounded px-2 py-1 gap-1 shadow"
                     >
-                      <Image
-                        src={`/img/dice_icons/${die.name}.png`}
-                        alt={die.name}
-                        width={24}
-                        height={24}
+                      <Icon
+                        path={getDieIcon(die.name)}
+                        size={1.5}
+                        className="text-gray-500 dark:text-gray-400"
                       />
-                      <span className="font-bold text-sm text-gray-500">
+                      <span className="font-bold text-sm text-gray-500 dark:text-gray-400">
                         {dicePool[die.name]}x {die.name}
                       </span>
                       <button
