@@ -2,7 +2,10 @@
 
 import { Character, useDnDStore, initialCharacter } from "@/stores/useStore";
 import { medievalFont } from "@/app/components/medievalFont";
-import { generateCharacterDetails } from "@/app/api/openai";
+import {
+  generateCharacterDetails,
+  generateCampaignOutline,
+} from "@/app/api/openai";
 import { useState, useEffect } from "react";
 import {
   characterSpecies,
@@ -197,8 +200,11 @@ const CharacterCreationPage = () => {
     resetFilters,
     messages,
     clearMessages,
+    campaignOutline,
+    setCampaignOutline,
   } = useDnDStore();
   const [isRolling, setIsRolling] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showResetWarning, setShowResetWarning] = useState(false);
   const [specialAbilityInput, setSpecialAbilityInput] = useState("");
   const [isSpeciesDropdownOpen, setIsSpeciesDropdownOpen] = useState(false);
@@ -323,6 +329,8 @@ const CharacterCreationPage = () => {
       return;
     }
 
+    // Reset campaign outline
+    setCampaignOutline("");
     // Otherwise proceed with character generation
     await generateRandomCharacter();
   };
@@ -353,6 +361,7 @@ const CharacterCreationPage = () => {
   const handleConfirmReset = () => {
     clearMessages(); // Clear all chat messages
     setShowResetWarning(false);
+    setCampaignOutline("");
     generateRandomCharacter();
   };
 
@@ -657,6 +666,47 @@ const CharacterCreationPage = () => {
     setSpecialAbilityInput("");
   };
 
+  const loadingMessages = [
+    "Consulting the ancient tomes...",
+    "Rolling for plot twists...",
+    "Negotiating with goblin union reps...",
+    "Summoning the campaign spirits...",
+    "Bribing the DM with snacks...",
+    "Untangling the plot threads...",
+    "Polishing the dragon's scales...",
+    "Casting 'Outlineus Campaignus'...",
+    "Checking for traps in the story...",
+    "Convincing the NPCs to behave...",
+    "Sharpening the plot hooks...",
+    "Feeding the random encounter generator...",
+    "Making sure the villain has a monologue ready...",
+    "Rolling a natural 20 on creativity...",
+    "Herding plot bunnies...",
+  ];
+  const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
+
+  const handleSaveCharacter = async () => {
+    if (!isCharacterDetailsComplete()) return;
+    setIsSaving(true);
+    // Pick a random loading message
+    setLoadingMessage(
+      loadingMessages[Math.floor(Math.random() * loadingMessages.length)]
+    );
+    try {
+      // Only generate if not already set
+      if (!campaignOutline) {
+        const outline = await generateCampaignOutline(character);
+        setCampaignOutline(outline ?? "");
+      }
+      setIsCharacterCreated(true);
+    } catch (error) {
+      console.error("Error saving character:", error);
+      // You might want to show an error message to the user here
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#3f3f3f]">
       {/* Reset Warning Modal */}
@@ -710,7 +760,7 @@ const CharacterCreationPage = () => {
               disabled={isRolling}
             >
               {isRolling ? (
-                <span className="animate-spin bg-white">🎲</span>
+                <span className="animate-spin text-2xl text-white">🎲</span>
               ) : (
                 "Roll Me a Character"
               )}
@@ -1509,10 +1559,17 @@ const CharacterCreationPage = () => {
           <div className="col-span-full">
             <button
               className="btn mt-8"
-              disabled={!isCharacterDetailsComplete()}
-              onClick={() => setIsCharacterCreated(true)}
+              disabled={!isCharacterDetailsComplete() || isSaving}
+              onClick={handleSaveCharacter}
             >
-              Save Character
+              {isSaving ? (
+                <span className="flex items-center gap-2 text-white font-bold">
+                  <span className="animate-spin text-2xl">🎲</span>
+                  {loadingMessage}
+                </span>
+              ) : (
+                "Save Character"
+              )}
             </button>
           </div>
         </div>
