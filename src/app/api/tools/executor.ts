@@ -152,6 +152,16 @@ export function formatToolResult(toolName: string, result: unknown): string {
       return formatMonsterResult(result);
     case "getSpellDetails":
       return formatSpellResult(result);
+    case "getEquipmentDetails":
+      return formatEquipmentResult(result);
+    case "getClassDetails":
+      return formatClassResult(result);
+    case "getRaceDetails":
+      return formatRaceResult(result);
+    case "getConditionDetails":
+      return formatConditionResult(result);
+    case "getSkillDetails":
+      return formatSkillResult(result);
     default:
       return `\n\n**Tool Result**: ${JSON.stringify(result, null, 2)}`;
   }
@@ -362,5 +372,217 @@ function formatSpellResult(result: unknown): string {
   ) {
     formatted += `**At Higher Levels**:\n${spell.higher_level.join("\n")}\n`;
   }
+  return formatted;
+}
+
+/**
+ * Formats equipment data for readable display
+ */
+function formatEquipmentResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Equipment Data**: Unable to format result`;
+  }
+  const equipment = result as Record<string, any>;
+  let formatted = "\n\n**Equipment Information**:\n";
+
+  if (equipment.name) formatted += `**Name**: ${equipment.name}\n`;
+  if (equipment.equipment_category && equipment.equipment_category.name)
+    formatted += `**Category**: ${equipment.equipment_category.name}\n`;
+  if (equipment.cost)
+    formatted += `**Cost**: ${equipment.cost.quantity} ${equipment.cost.unit}\n`;
+  if (equipment.weight) formatted += `**Weight**: ${equipment.weight} lb\n`;
+
+  // Weapon properties
+  if (equipment.weapon_category)
+    formatted += `**Weapon Category**: ${equipment.weapon_category}\n`;
+  if (equipment.weapon_range)
+    formatted += `**Weapon Range**: ${equipment.weapon_range}\n`;
+  if (equipment.damage && equipment.damage.damage_dice) {
+    formatted += `**Damage**: ${equipment.damage.damage_dice} ${
+      equipment.damage.damage_type?.name || ""
+    }\n`;
+  }
+  if (equipment.properties && Array.isArray(equipment.properties)) {
+    formatted += `**Properties**: ${equipment.properties
+      .map((p: any) => p.name)
+      .join(", ")}\n`;
+  }
+
+  // Armor properties
+  if (equipment.armor_category)
+    formatted += `**Armor Category**: ${equipment.armor_category}\n`;
+  if (equipment.armor_class && equipment.armor_class.base) {
+    formatted += `**Armor Class**: ${equipment.armor_class.base}`;
+    if (equipment.armor_class.dex_bonus !== undefined) {
+      formatted += ` + DEX modifier${
+        equipment.armor_class.max_bonus
+          ? ` (max +${equipment.armor_class.max_bonus})`
+          : ""
+      }`;
+    }
+    formatted += "\n";
+  }
+  if (equipment.str_minimum)
+    formatted += `**Strength Requirement**: ${equipment.str_minimum}\n`;
+  if (equipment.stealth_disadvantage)
+    formatted += `**Stealth Disadvantage**: Yes\n`;
+
+  // Magic item properties
+  if (equipment.rarity && equipment.rarity.name)
+    formatted += `**Rarity**: ${equipment.rarity.name}\n`;
+  if (equipment.desc && Array.isArray(equipment.desc)) {
+    formatted += `**Description**:\n${equipment.desc.join("\n")}\n`;
+  }
+
+  return formatted;
+}
+
+/**
+ * Formats class data for readable display
+ */
+function formatClassResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Class Data**: Unable to format result`;
+  }
+  const classData = result as Record<string, any>;
+  let formatted = "\n\n**Class Information**:\n";
+
+  if (classData.name) formatted += `**Name**: ${classData.name}\n`;
+  if (classData.hit_die) formatted += `**Hit Die**: d${classData.hit_die}\n`;
+  if (
+    classData.proficiency_choices &&
+    Array.isArray(classData.proficiency_choices)
+  ) {
+    formatted += `**Proficiency Choices**:\n`;
+    classData.proficiency_choices.forEach((choice: any, index: number) => {
+      formatted += `  ${index + 1}. Choose ${choice.choose} from:\n`;
+      if (choice.from && Array.isArray(choice.from)) {
+        choice.from.forEach((item: any) => {
+          formatted += `    - ${item.name || item}\n`;
+        });
+      }
+    });
+  }
+  if (classData.proficiencies && Array.isArray(classData.proficiencies)) {
+    formatted += `**Proficiencies**: ${classData.proficiencies
+      .map((p: any) => p.name)
+      .join(", ")}\n`;
+  }
+  if (classData.saving_throws && Array.isArray(classData.saving_throws)) {
+    formatted += `**Saving Throw Proficiencies**: ${classData.saving_throws
+      .map((s: any) => s.name)
+      .join(", ")}\n`;
+  }
+  if (
+    classData.starting_equipment &&
+    Array.isArray(classData.starting_equipment)
+  ) {
+    formatted += `**Starting Equipment**:\n`;
+    classData.starting_equipment.forEach((item: any) => {
+      formatted += `  - ${item.equipment?.name || item}\n`;
+    });
+  }
+  if (classData.class_levels) formatted += `**Class Levels**: Available\n`;
+  if (classData.spellcasting && classData.spellcasting.spellcasting_ability) {
+    formatted += `**Spellcasting Ability**: ${classData.spellcasting.spellcasting_ability.name}\n`;
+  }
+  if (classData.subclasses && Array.isArray(classData.subclasses)) {
+    formatted += `**Subclasses**: ${classData.subclasses
+      .map((s: any) => s.name)
+      .join(", ")}\n`;
+  }
+
+  return formatted;
+}
+
+/**
+ * Formats race data for readable display
+ */
+function formatRaceResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Race Data**: Unable to format result`;
+  }
+  const race = result as Record<string, any>;
+  let formatted = "\n\n**Race Information**:\n";
+
+  if (race.name) formatted += `**Name**: ${race.name}\n`;
+  if (race.speed) formatted += `**Speed**: ${race.speed} feet\n`;
+  if (race.ability_bonuses && Array.isArray(race.ability_bonuses)) {
+    formatted += `**Ability Score Bonuses**:\n`;
+    race.ability_bonuses.forEach((bonus: any) => {
+      formatted += `  - ${bonus.ability_score.name}: +${bonus.bonus}\n`;
+    });
+  }
+  if (race.age) formatted += `**Age**: ${race.age}\n`;
+  if (race.alignment) formatted += `**Alignment**: ${race.alignment}\n`;
+  if (race.size) formatted += `**Size**: ${race.size}\n`;
+  if (race.size_description)
+    formatted += `**Size Description**: ${race.size_description}\n`;
+  if (
+    race.starting_proficiencies &&
+    Array.isArray(race.starting_proficiencies)
+  ) {
+    formatted += `**Starting Proficiencies**: ${race.starting_proficiencies
+      .map((p: any) => p.name)
+      .join(", ")}\n`;
+  }
+  if (race.languages && Array.isArray(race.languages)) {
+    formatted += `**Languages**: ${race.languages
+      .map((l: any) => l.name)
+      .join(", ")}\n`;
+  }
+  if (race.language_desc)
+    formatted += `**Language Description**: ${race.language_desc}\n`;
+  if (race.traits && Array.isArray(race.traits)) {
+    formatted += `**Traits**:\n`;
+    race.traits.forEach((trait: any) => {
+      formatted += `  - ${trait.name}\n`;
+    });
+  }
+  if (race.subraces && Array.isArray(race.subraces)) {
+    formatted += `**Subraces**: ${race.subraces
+      .map((s: any) => s.name)
+      .join(", ")}\n`;
+  }
+
+  return formatted;
+}
+
+/**
+ * Formats condition data for readable display
+ */
+function formatConditionResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Condition Data**: Unable to format result`;
+  }
+  const condition = result as Record<string, any>;
+  let formatted = "\n\n**Condition Information**:\n";
+
+  if (condition.name) formatted += `**Name**: ${condition.name}\n`;
+  if (condition.desc && Array.isArray(condition.desc)) {
+    formatted += `**Description**:\n${condition.desc.join("\n")}\n`;
+  }
+
+  return formatted;
+}
+
+/**
+ * Formats skill data for readable display
+ */
+function formatSkillResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Skill Data**: Unable to format result`;
+  }
+  const skill = result as Record<string, any>;
+  let formatted = "\n\n**Skill Information**:\n";
+
+  if (skill.name) formatted += `**Name**: ${skill.name}\n`;
+  if (skill.desc && Array.isArray(skill.desc)) {
+    formatted += `**Description**:\n${skill.desc.join("\n")}\n`;
+  }
+  if (skill.ability_score && skill.ability_score.name) {
+    formatted += `**Ability Score**: ${skill.ability_score.name}\n`;
+  }
+
   return formatted;
 }

@@ -1,6 +1,11 @@
 // Import all tools to register them with the tool registry
 import "./monsterTools";
 import "./spellTools";
+import "./equipmentTools";
+import "./classTools";
+import "./raceTools";
+import "./conditionTools";
+import "./skillTools";
 
 // Export the registry for use in other parts of the application
 export { toolRegistry } from "./registry";
