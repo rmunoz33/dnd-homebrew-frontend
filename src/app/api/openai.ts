@@ -22,6 +22,7 @@ const client = new OpenAI({
 // Type definitions for equipment data
 interface EquipmentItem {
   name: string;
+  index: string;
   equipment_category?: {
     index: string;
   };
@@ -37,9 +38,39 @@ interface EquipmentChoice {
   };
 }
 
+// Interfaces for starting_equipment_options
+interface EquipmentReference {
+  index: string;
+  name: string;
+  url: string;
+}
+
+interface CountedReference {
+  option_type: "counted_reference";
+  count: number;
+  of: EquipmentReference;
+}
+
+interface ChoiceOption {
+  option_type: "choice";
+  // Further details can be added if choice options are implemented
+}
+
+interface StartingEquipmentFromOption {
+  option_set_type: "options_array";
+  options: (CountedReference | ChoiceOption)[];
+}
+
+interface StartingEquipmentOption {
+  desc: string;
+  choose: number;
+  type: string;
+  from: StartingEquipmentFromOption;
+}
+
 interface ClassData {
   starting_equipment?: EquipmentChoice[];
-  starting_equipment_options?: any[]; // Keep this flexible for now
+  starting_equipment_options?: StartingEquipmentOption[];
   hit_die?: number;
 }
 
@@ -372,20 +403,24 @@ Return ONLY a JSON object with these creative fields. Example:
     // 6. Equip Starting Equipment from Class Data
     if (
       enhancedCharacter.canonicalData &&
-      (enhancedCharacter.canonicalData as any).classes &&
-      (enhancedCharacter.canonicalData as any).classes.length > 0
+      (enhancedCharacter as Character & { canonicalData: CanonicalData })
+        .canonicalData.classes &&
+      (enhancedCharacter as Character & { canonicalData: CanonicalData })
+        .canonicalData.classes!.length > 0
     ) {
-      const mainClassData = (enhancedCharacter.canonicalData as any).classes[0];
+      const mainClassData = (
+        enhancedCharacter as Character & { canonicalData: CanonicalData }
+      ).canonicalData.classes![0];
       if (mainClassData) {
         const equipmentToFetch: { index: string; quantity: number }[] = [];
 
         // Process guaranteed equipment from starting_equipment
         if (mainClassData.starting_equipment) {
-          mainClassData.starting_equipment.forEach((item: any) => {
+          mainClassData.starting_equipment.forEach((item) => {
             if (item.equipment) {
               equipmentToFetch.push({
                 index: item.equipment.index,
-                quantity: item.quantity,
+                quantity: 1, // Defaulting quantity, as it's not always present
               });
             }
           });
@@ -393,9 +428,9 @@ Return ONLY a JSON object with these creative fields. Example:
 
         // Process equipment options, choosing the first valid option
         if (mainClassData.starting_equipment_options) {
-          mainClassData.starting_equipment_options.forEach((option: any) => {
+          mainClassData.starting_equipment_options.forEach((option) => {
             const choice = option.from?.options?.[0];
-            if (choice?.option_type === "counted_reference" && choice.of) {
+            if (choice?.option_type === "counted_reference") {
               equipmentToFetch.push({
                 index: choice.of.index,
                 quantity: choice.count,

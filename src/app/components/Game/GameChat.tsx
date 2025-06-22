@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Send } from "lucide-react";
-import { useDnDStore, Message } from "@/stores/useStore";
+import { useDnDStore, Message, ApiChanges } from "@/stores/useStore";
 import {
   generateChatCompletion,
   updateCharacterStatsAPI,
@@ -107,7 +107,7 @@ const GameChat = () => {
 
   const updateCharacterStats = async () => {
     console.log("Checking for character stat updates...");
-    const changes = await updateCharacterStatsAPI();
+    const changes = (await updateCharacterStatsAPI()) as ApiChanges | null;
     console.log("Received changes from API:", changes);
 
     const showToast = (message: string, isPositive: boolean) => {
@@ -127,7 +127,7 @@ const GameChat = () => {
       useDnDStore.getState().applyCharacterChanges(changes);
 
       if (changes.type === "stat_changes" && changes.changes) {
-        changes.changes.forEach((change: any) => {
+        changes.changes.forEach((change) => {
           if (change.type === "item_remove") {
             const message = `Removed: ${change.item}`;
             showToast(message, false);
@@ -138,18 +138,22 @@ const GameChat = () => {
             showToast(message, true);
             return;
           }
-          const formattedStat = change.stat
-            .split(".")
-            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" ");
-          const message = `${formattedStat} ${change.change > 0 ? "+" : ""}${
-            change.change
-          }`;
-          showToast(message, change.change > 0);
+          if (change.type === "stat") {
+            const formattedStat = change.stat
+              .split(".")
+              .map(
+                (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
+              )
+              .join(" ");
+            const message = `${formattedStat} ${change.change > 0 ? "+" : ""}${
+              change.change
+            }`;
+            showToast(message, change.change > 0);
+          }
         });
       }
       if (changes.type === "tool_results" && changes.results?.allResults) {
-        changes.results.allResults.forEach((result: any) => {
+        changes.results.allResults.forEach((result) => {
           if (result.result && result.result.name) {
             const message = `Acquired: ${result.result.name}`;
             showToast(message, true);
