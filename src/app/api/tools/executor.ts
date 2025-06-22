@@ -1,4 +1,10 @@
-import { toolRegistry } from "./registry";
+import { toolRegistry, Tool } from "./index";
+import { OpenAI } from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY!,
+  dangerouslyAllowBrowser: true,
+});
 
 interface ToolExecutionResult {
   toolUsed: boolean;
@@ -8,206 +14,97 @@ interface ToolExecutionResult {
 }
 
 /**
- * Analyzes AI response for tool usage intent and executes appropriate tools
+ * Generates a tool schema prompt for the LLM from the tool registry
+ */
+function generateToolSchemaPrompt(): string {
+  const tools = toolRegistry.getAllTools();
+  return tools
+    .map((tool) => {
+      const params = tool.parameters
+        .map(
+          (p) =>
+            `${p.name}: ${p.type} - ${p.description} [${
+              p.required ? "required" : "optional"
+            }]`
+        )
+        .join(", ");
+      return `- ${tool.name}: ${tool.description} Arguments: { ${params} }`;
+    })
+    .join("\n");
+}
+
+/**
+ * Analyzes AI response for tool usage intent and executes appropriate tools (AI-driven)
  */
 export async function executeToolsFromResponse(
   aiResponse: string,
   userInput: string
 ): Promise<ToolExecutionResult> {
-  const tools = toolRegistry.getAllTools();
+  const toolSchema = generateToolSchemaPrompt();
 
-  // Check for monster-related queries
-  if (shouldUseMonsterTool(aiResponse, userInput)) {
-    const monsterName = extractMonsterName(userInput, aiResponse);
-    if (monsterName) {
-      try {
-        const result = await toolRegistry.executeTool("getMonsterStats", {
-          monsterName,
-        });
-        return {
-          toolUsed: true,
-          result,
-          toolName: "getMonsterStats",
-        };
-      } catch (error) {
-        return {
-          toolUsed: true,
-          error: `Failed to fetch monster data: ${error}`,
-        };
-      }
+  const systemPrompt = `You are an expert D&D assistant. Given the following user input and AI response, decide if a tool should be used. Here are the available tools:\n\n${toolSchema}\n\nReturn a JSON object in this format:\n{ "tool": "getSpellDetails", "args": { "spellName": "Fireball" } }\nor\n{ "tool": "getMonsterStats", "args": { "monsterName": "Owlbear" } }\nor\n{ "tool": null }`;
+
+  const userPrompt = `User input: "${userInput}"
+AI response: "${aiResponse}"`;
+
+  try {
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.1,
+      max_tokens: 200,
+      response_format: { type: "json_object" },
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      return { toolUsed: false };
     }
-  }
 
-  return { toolUsed: false };
-}
+    // Log the raw LLM response for debugging
+    console.log("Raw LLM tool selection response:", content);
 
-/**
- * Determines if the AI response indicates a need for monster data
- */
-function shouldUseMonsterTool(aiResponse: string, userInput: string): boolean {
-  const monsterKeywords = [
-    "monster",
-    "creature",
-    "beast",
-    "dragon",
-    "goblin",
-    "orc",
-    "troll",
-    "ogre",
-    "goblin",
-    "kobold",
-    "hobgoblin",
-    "bugbear",
-    "gnoll",
-    "lizardfolk",
-    "orc",
-    "troll",
-    "ogre",
-    "giant",
-    "dragon",
-    "wyvern",
-    "griffon",
-    "manticore",
-    "basilisk",
-    "cockatrice",
-    "gargoyle",
-    "ghost",
-    "ghoul",
-    "wraith",
-    "specter",
-    "vampire",
-    "werewolf",
-    "lycanthrope",
-    "medusa",
-    "minotaur",
-    "centaur",
-    "satyr",
-    "dryad",
-    "nymph",
-    "fairy",
-    "pixie",
-    "sprite",
-    "imp",
-    "quasit",
-    "succubus",
-    "incubus",
-    "demon",
-    "devil",
-    "angel",
-    "celestial",
-  ];
-
-  const userLower = userInput.toLowerCase();
-  const responseLower = aiResponse.toLowerCase();
-
-  // Check if user is asking about a specific monster
-  return monsterKeywords.some(
-    (keyword) => userLower.includes(keyword) || responseLower.includes(keyword)
-  );
-}
-
-/**
- * Extracts monster name from user input or AI response
- */
-function extractMonsterName(
-  userInput: string,
-  aiResponse: string
-): string | null {
-  // Common monster names to look for (ordered by length, longest first)
-  const commonMonsters = [
-    "ancient red dragon",
-    "ancient blue dragon",
-    "ancient green dragon",
-    "ancient black dragon",
-    "ancient white dragon",
-    "ancient brass dragon",
-    "ancient bronze dragon",
-    "ancient copper dragon",
-    "ancient gold dragon",
-    "ancient silver dragon",
-    "adult red dragon",
-    "adult blue dragon",
-    "adult green dragon",
-    "adult black dragon",
-    "adult white dragon",
-    "adult brass dragon",
-    "adult bronze dragon",
-    "adult copper dragon",
-    "adult gold dragon",
-    "adult silver dragon",
-    "young red dragon",
-    "young blue dragon",
-    "young green dragon",
-    "young black dragon",
-    "young white dragon",
-    "young brass dragon",
-    "young bronze dragon",
-    "young copper dragon",
-    "young gold dragon",
-    "young silver dragon",
-    "red dragon wyrmling",
-    "blue dragon wyrmling",
-    "green dragon wyrmling",
-    "black dragon wyrmling",
-    "white dragon wyrmling",
-    "brass dragon wyrmling",
-    "bronze dragon wyrmling",
-    "copper dragon wyrmling",
-    "gold dragon wyrmling",
-    "silver dragon wyrmling",
-    "goblin",
-    "orc",
-    "troll",
-    "ogre",
-    "dragon",
-    "wyvern",
-    "griffon",
-    "manticore",
-    "basilisk",
-    "cockatrice",
-    "gargoyle",
-    "ghost",
-    "ghoul",
-    "wraith",
-    "specter",
-    "vampire",
-    "werewolf",
-    "medusa",
-    "minotaur",
-    "centaur",
-    "satyr",
-    "dryad",
-    "nymph",
-    "fairy",
-    "pixie",
-    "sprite",
-    "imp",
-    "quasit",
-    "succubus",
-    "incubus",
-  ];
-
-  const text = `${userInput} ${aiResponse}`.toLowerCase();
-
-  // Look for exact monster names (longest first)
-  for (const monster of commonMonsters) {
-    if (text.includes(monster)) {
-      // Convert to API format (lowercase, hyphenated)
-      return monster.replace(/\s+/g, "-");
+    let parsed: { tool: string | null; args?: Record<string, unknown> };
+    try {
+      parsed = JSON.parse(content);
+    } catch (err) {
+      console.error("Failed to parse LLM response:", err);
+      return {
+        toolUsed: false,
+        error: "Failed to parse LLM tool selection response.",
+      };
     }
-  }
-
-  // Look for "a" or "an" followed by a potential monster name
-  const articleMatch = text.match(/(?:a|an)\s+([a-z\s]+?)(?:\s|$|\.|,)/);
-  if (articleMatch) {
-    const potentialMonster = articleMatch[1].trim();
-    if (potentialMonster.length > 3) {
-      // Avoid short words like "a cat"
-      return potentialMonster.replace(/\s+/g, "-");
+    if (!parsed.tool) {
+      return { toolUsed: false };
     }
+    if (!toolRegistry.hasTool(parsed.tool)) {
+      return {
+        toolUsed: false,
+        error: `Tool '${parsed.tool}' is not registered.`,
+      };
+    }
+    try {
+      const result = await toolRegistry.executeTool(
+        parsed.tool,
+        parsed.args || {}
+      );
+      return {
+        toolUsed: true,
+        result,
+        toolName: parsed.tool,
+      };
+    } catch (error) {
+      return {
+        toolUsed: true,
+        error: `Failed to execute tool '${parsed.tool}': ${error}`,
+      };
+    }
+  } catch (error) {
+    return { toolUsed: false, error: `LLM tool selection failed: ${error}` };
   }
-
-  return null;
 }
 
 /**
@@ -221,6 +118,8 @@ export function formatToolResult(toolName: string, result: unknown): string {
   switch (toolName) {
     case "getMonsterStats":
       return formatMonsterResult(result);
+    case "getSpellDetails":
+      return formatSpellResult(result);
     default:
       return `\n\n**Tool Result**: ${JSON.stringify(result, null, 2)}`;
   }
@@ -389,5 +288,47 @@ function formatMonsterResult(result: unknown): string {
     formatted += `**Condition Immunities**: ${conds}\n`;
   }
 
+  return formatted;
+}
+
+/**
+ * Formats spell data for readable display
+ */
+function formatSpellResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Spell Data**: Unable to format result`;
+  }
+  const spell = result as Record<string, any>;
+  let formatted = "\n\n**Spell Information**:\n";
+  if (spell.name) formatted += `**Name**: ${spell.name}\n`;
+  if (spell.level !== undefined)
+    formatted += `**Level**: ${spell.level === 0 ? "Cantrip" : spell.level}\n`;
+  if (spell.school && spell.school.name)
+    formatted += `**School**: ${spell.school.name}\n`;
+  if (spell.casting_time)
+    formatted += `**Casting Time**: ${spell.casting_time}\n`;
+  if (spell.range) formatted += `**Range**: ${spell.range}\n`;
+  if (spell.components)
+    formatted += `**Components**: ${spell.components.join(", ")}\n`;
+  if (spell.material) formatted += `**Material**: ${spell.material}\n`;
+  if (spell.duration) formatted += `**Duration**: ${spell.duration}\n`;
+  if (spell.concentration)
+    formatted += `**Concentration**: ${spell.concentration ? "Yes" : "No"}\n`;
+  if (spell.ritual) formatted += `**Ritual**: ${spell.ritual ? "Yes" : "No"}\n`;
+  if (spell.classes && Array.isArray(spell.classes)) {
+    formatted += `**Classes**: ${spell.classes
+      .map((c: any) => c.name)
+      .join(", ")}\n`;
+  }
+  if (spell.desc && Array.isArray(spell.desc)) {
+    formatted += `**Description**:\n${spell.desc.join("\n")}\n`;
+  }
+  if (
+    spell.higher_level &&
+    Array.isArray(spell.higher_level) &&
+    spell.higher_level.length > 0
+  ) {
+    formatted += `**At Higher Levels**:\n${spell.higher_level.join("\n")}\n`;
+  }
   return formatted;
 }

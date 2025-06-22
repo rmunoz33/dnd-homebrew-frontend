@@ -1,27 +1,43 @@
-import { NextResponse } from "next/server";
-import { toolRegistry } from "../tools";
+import { NextRequest, NextResponse } from "next/server";
+import { executeToolsFromResponse, formatToolResult } from "../tools/executor";
 
-export async function GET() {
+export async function POST(request: NextRequest) {
   try {
-    // Get all registered tools
-    const tools = toolRegistry.getAllTools();
+    const { userInput, aiResponse } = await request.json();
 
-    // Generate tool descriptions
-    const descriptions = toolRegistry.generateToolDescriptions();
+    console.log("Testing tools with AI intent detection:");
+    console.log("User Input:", userInput);
+    console.log("AI Response:", aiResponse);
 
-    // Test a simple tool execution (we'll test with a mock since we don't want to hit the API in a test)
-    const testResult = {
-      toolCount: tools.length,
-      toolNames: tools.map((tool) => tool.name),
-      descriptions: descriptions,
-      registryWorking: true,
-    };
+    // Execute tools based on AI response
+    const toolResult = await executeToolsFromResponse(aiResponse, userInput);
 
-    return NextResponse.json(testResult);
+    if (toolResult.toolUsed) {
+      const formattedResult = formatToolResult(
+        toolResult.toolName!,
+        toolResult.result
+      );
+
+      return NextResponse.json({
+        success: true,
+        toolUsed: true,
+        toolName: toolResult.toolName,
+        result: toolResult.result,
+        formattedResult,
+        message: `Successfully used ${toolResult.toolName} tool`,
+      });
+    } else {
+      return NextResponse.json({
+        success: true,
+        toolUsed: false,
+        error: toolResult.error,
+        message: "No tools were triggered for this input",
+      });
+    }
   } catch (error) {
-    console.error("Error testing tool registry:", error);
+    console.error("Error in test-tools:", error);
     return NextResponse.json(
-      { error: "Failed to test tool registry", details: error },
+      { success: false, error: `Test failed: ${error}` },
       { status: 500 }
     );
   }
