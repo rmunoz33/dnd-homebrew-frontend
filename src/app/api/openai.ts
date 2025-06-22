@@ -294,157 +294,115 @@ Return ONLY a JSON object with these creative fields. Example:
   }
 };
 
+/**
+ * Analyzes the latest game messages to identify changes to the character's state,
+ * using tools to fetch canonical data for items, spells, or conditions.
+ */
 export const updateCharacterStatsAPI = async () => {
-  const currentCharacter = useDnDStore.getState().character;
-  const lastThreeMessages = useDnDStore.getState().messages.slice(-3);
+  const { character, messages } = useDnDStore.getState();
+  const lastTwoMessages = messages.slice(-2);
 
-  const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system" as const,
-        content:
-          "You are an expert at interpreting D&D stories and character stats and traits. Based on the provided last three messages and the given character JSON object, update the character JSON object to reflect any needed changes. If no changes are needed, return the same character JSON object.",
-      },
-      {
-        role: "user" as const,
-        content: `Here are the last three messages, first from the user (character) and then from the AI (DM):
-        ${JSON.stringify(lastThreeMessages)}
-
-        Here is the character JSON object:
-        ${JSON.stringify(currentCharacter)}`,
-      },
-    ],
-    temperature: 0.9,
-    response_format: { type: "json_object" },
-  });
-
-  const updatedCharacter = response.choices[0]?.message?.content
-    ? JSON.parse(response.choices[0].message.content)
-    : currentCharacter;
-
-  if (JSON.stringify(updatedCharacter) !== JSON.stringify(currentCharacter)) {
-    // Track changes in numeric stats and equipment
-    const changes: StatChange[] = [];
-
-    // Check numeric stats
-    const numericStats = [
-      "hitPoints",
-      "armorClass",
-      "initiative",
-      "speed",
-      "experience",
-      "level",
-    ] as const;
-
-    numericStats.forEach((stat) => {
-      if (updatedCharacter[stat] !== currentCharacter[stat]) {
-        changes.push({
-          field: stat,
-          old: currentCharacter[stat],
-          new: updatedCharacter[stat],
-        });
-      }
-    });
-
-    // Check attribute changes
-    const attributes = [
-      "strength",
-      "dexterity",
-      "constitution",
-      "intelligence",
-      "wisdom",
-      "charisma",
-      "honor",
-      "sanity",
-    ] as const;
-
-    attributes.forEach((attr) => {
-      // Check attribute value changes
-      if (
-        updatedCharacter.attributes[attr].value !==
-        currentCharacter.attributes[attr].value
-      ) {
-        changes.push({
-          field: `${attr} value`,
-          old: currentCharacter.attributes[attr].value,
-          new: updatedCharacter.attributes[attr].value,
-        });
-      }
-
-      // Check attribute bonus changes
-      if (
-        updatedCharacter.attributes[attr].bonus !==
-        currentCharacter.attributes[attr].bonus
-      ) {
-        changes.push({
-          field: `${attr} bonus`,
-          old: currentCharacter.attributes[attr].bonus,
-          new: updatedCharacter.attributes[attr].bonus,
-        });
-      }
-    });
-
-    // Check money changes
-    const currencies = [
-      "platinum",
-      "gold",
-      "electrum",
-      "silver",
-      "copper",
-    ] as const;
-    currencies.forEach((currency) => {
-      if (
-        updatedCharacter.money[currency] !== currentCharacter.money[currency]
-      ) {
-        changes.push({
-          field: `${currency} pieces`,
-          old: currentCharacter.money[currency],
-          new: updatedCharacter.money[currency],
-        });
-      }
-    });
-
-    // Check equipment changes
-    const equipmentCategories = [
-      "weapons",
-      "armor",
-      "tools",
-      "magicItems",
-      "items",
-    ] as const;
-    equipmentCategories.forEach((category) => {
-      const added = updatedCharacter.equipment[category].filter(
-        (item: string) => !currentCharacter.equipment[category].includes(item)
-      );
-      const removed = currentCharacter.equipment[category].filter(
-        (item: string) => !updatedCharacter.equipment[category].includes(item)
-      );
-
-      if (added.length > 0) {
-        changes.push({
-          field: category,
-          old: "Added",
-          new: added.join(", "),
-        });
-      }
-      if (removed.length > 0) {
-        changes.push({
-          field: category,
-          old: "Removed",
-          new: removed.join(", "),
-        });
-      }
-    });
-
-    // Update character and show toasts for each change
-    useDnDStore.getState().setCharacter(updatedCharacter);
-
-    // Return the changes so they can be displayed in toasts
-    return changes;
+  if (lastTwoMessages.length < 2) {
+    return null;
   }
 
-  return null;
+  // Get tool descriptions for the AI
+  const toolDescriptions = toolRegistry.generateToolDescriptions();
+  const toolSchema = toolRegistry.generateToolSchemaPrompt();
+
+  const systemPrompt = `You are a D&D game state manager. Your task is to analyze the last message from the DM and identify any changes to the player character's state.
+
+  Character State:
+  ${JSON.stringify(character, null, 2)}
+  
+  Last two messages (user and DM):
+  ${JSON.stringify(lastTwoMessages)}
+  
+  AVAILABLE D&D TOOLS (${toolRegistry.getToolCount()} tools):
+  ${toolDescriptions}
+  
+  TOOL SCHEMA FOR REFERENCE:
+  ${toolSchema}
+  
+  TASK:
+  1. Analyze the DM's last response for events that would change the character's sheet.
+  2. If you see a currency change (giving, spending, or receiving gold, silver, etc.), you MUST return a stat change. Infer the amount from the context.
+     - Example: If the DM says "You fish the coin out of the well", you return: { "changes": [{ "type": "stat", "stat": "money.gold", "change": 1 }] }.
+     - Do NOT use tools for currency.
+  3. If a player gets rid of an item (sells, drops, buries, etc.), you MUST return a stat change with an 'item_remove' type.
+     - Example: If the player buries their "family heirloom", you return: { "changes": [{ "type": "item_remove", "item": "family heirloom", "category": "items" }] }.
+  4. If a player re-acquires a generic item they previously had, you MUST return an 'item_add' type.
+     - Example: If the player digs up their "family heirloom", you return: { "changes": [{ "type": "item_add", "item": "family heirloom", "category": "items" }] }.
+  5. For events involving adding new, official D&D items, spells, conditions, etc., use the appropriate tool to get the official data.
+  6. For simple stat changes (like HP loss/gain), describe the change in a structured format. Use dot notation for nested properties.
+  
+  Return a JSON object containing a list of changes. Each change can be a tool call result or a simple stat modification.
+  
+  EXAMPLES:
+  - If the DM says "The goblin hits you for 5 slashing damage", you return:
+    { "changes": [{ "type": "stat", "stat": "hitPoints", "change": -5 }] }
+
+  - If the player gives 1 gold to a beggar, you return:
+    { "changes": [{ "type": "stat", "stat": "money.gold", "change": -1 }] }
+  
+  - If the DM says "You find a Potion of Healing", you call the 'getEquipmentDetails' tool for "Potion of Healing".
+  
+  - If the DM says "You are now poisoned", you call the 'getConditionDetails' tool for "Poisoned".`;
+
+  try {
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: `Analyze the last DM message and report any character state changes.`,
+        },
+      ],
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      tools: toolRegistry.getAllTools().map((tool) => ({
+        type: "function",
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: {
+            type: "object",
+            properties: tool.parameters.reduce((acc, param) => {
+              acc[param.name] = {
+                type: param.type,
+                description: param.description,
+              };
+              return acc;
+            }, {} as Record<string, unknown>),
+            required: tool.parameters
+              .filter((p) => p.required)
+              .map((p) => p.name),
+          },
+        },
+      })),
+    });
+
+    const message = response.choices[0].message;
+
+    if (message.tool_calls) {
+      // The model wants to call tools.
+      const toolResults = await executeToolsFromResponse(
+        JSON.stringify(message.tool_calls),
+        lastTwoMessages.find((m) => m.sender === "user")?.content || ""
+      );
+      return { type: "tool_results", results: toolResults };
+    } else if (message.content) {
+      // The model returned a simple stat change.
+      const parsedContent = JSON.parse(message.content);
+      return { type: "stat_changes", changes: parsedContent.changes };
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error updating character stats:", error);
+    return null;
+  }
 };
 
 export const generateCampaignOutline = async (character: Character) => {

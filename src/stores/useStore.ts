@@ -40,6 +40,7 @@ interface DnDStore {
   };
   setFilter: (key: keyof DnDStore["filters"], value: string) => void;
   resetFilters: () => void;
+  applyCharacterChanges: (changes: any) => void;
 }
 
 export interface Character {
@@ -181,6 +182,93 @@ export const useDnDStore = create<DnDStore>()(
           filters: { ...state.filters, [key]: value },
         })),
       resetFilters: () => set({ filters: initialFilters }),
+      applyCharacterChanges: (changeResult: any) =>
+        set((state) => {
+          const { character } = state;
+          const newCharacter = { ...character };
+
+          console.log("Applying character changes:", changeResult);
+
+          if (changeResult.type === "stat_changes" && changeResult.changes) {
+            changeResult.changes.forEach((change: any) => {
+              if (change.type === "stat") {
+                const path = change.stat.split(".");
+                let current = newCharacter as any;
+
+                // Traverse the path to the second-to-last element
+                for (let i = 0; i < path.length - 1; i++) {
+                  current = current[path[i]];
+                  if (typeof current !== "object" || current === null) {
+                    return; // Invalid path, skip this change
+                  }
+                }
+
+                const finalKey = path[path.length - 1];
+                if (typeof current[finalKey] === "number") {
+                  current[finalKey] += change.change;
+                }
+              } else if (
+                change.type === "item_remove" &&
+                change.item &&
+                change.category
+              ) {
+                const category =
+                  change.category as keyof Character["equipment"];
+                if (newCharacter.equipment[category]) {
+                  newCharacter.equipment[category] = newCharacter.equipment[
+                    category
+                  ].filter(
+                    (item: string) =>
+                      item.toLowerCase() !== change.item.toLowerCase()
+                  );
+                }
+              } else if (
+                change.type === "item_add" &&
+                change.item &&
+                change.category
+              ) {
+                const category =
+                  change.category as keyof Character["equipment"];
+                if (!newCharacter.equipment[category]) {
+                  newCharacter.equipment[category] = [];
+                }
+                newCharacter.equipment[category].push(change.item);
+              }
+            });
+          } else if (
+            changeResult.type === "tool_results" &&
+            changeResult.results?.results
+          ) {
+            changeResult.results.results.forEach((result: any) => {
+              if (result.result) {
+                switch (result.toolName) {
+                  case "getEquipmentDetails":
+                  case "getMagicItemDetails":
+                    if (result.result.name) {
+                      const category =
+                        result.result.equipment_category?.index || "items";
+                      if (
+                        !newCharacter.equipment[
+                          category as keyof Character["equipment"]
+                        ]
+                      ) {
+                        newCharacter.equipment[
+                          category as keyof Character["equipment"]
+                        ] = [];
+                      }
+                      newCharacter.equipment[
+                        category as keyof Character["equipment"]
+                      ].push(result.result.name);
+                    }
+                    break;
+                  // Add cases for other tools like getConditionDetails if needed
+                }
+              }
+            });
+          }
+
+          return { character: newCharacter };
+        }),
     }),
     {
       name: "dnd-store",
