@@ -51,6 +51,12 @@ interface DndApiEquipment {
   gear_category?: {
     index: string;
   };
+  contents?: Array<{
+    item: {
+      name: string;
+    };
+    quantity: number;
+  }>;
   // Add other properties as needed
 }
 
@@ -427,22 +433,37 @@ Return ONLY a JSON object with these creative fields. Example:
                 return;
               }
 
-              const { quantity } = equipmentToFetch[i];
-              const itemName = equipmentData.name;
-              let categoryKey: keyof Character["equipment"] = "items";
-              const apiCategory = equipmentData.equipment_category?.index;
-              if (apiCategory === "weapon") {
-                categoryKey = "weapons";
-              } else if (apiCategory === "armor") {
-                categoryKey = "armor";
-              } else if (
-                apiCategory === "tools" ||
-                equipmentData.gear_category?.index === "tools"
+              // If the item is a pack, unpack its contents
+              if (
+                equipmentData.gear_category?.index === "equipment-packs" &&
+                equipmentData.contents
               ) {
-                categoryKey = "tools";
-              }
-              for (let j = 0; j < quantity; j++) {
-                enhancedCharacter.equipment[categoryKey].push(itemName);
+                equipmentData.contents.forEach((contentItem) => {
+                  for (let k = 0; k < contentItem.quantity; k++) {
+                    enhancedCharacter.equipment.items.push(
+                      contentItem.item.name
+                    );
+                  }
+                });
+              } else {
+                // Otherwise, add the item directly
+                const { quantity } = equipmentToFetch[i];
+                const itemName = equipmentData.name;
+                let categoryKey: keyof Character["equipment"] = "items";
+                const apiCategory = equipmentData.equipment_category?.index;
+                if (apiCategory === "weapon") {
+                  categoryKey = "weapons";
+                } else if (apiCategory === "armor") {
+                  categoryKey = "armor";
+                } else if (
+                  apiCategory === "tools" ||
+                  equipmentData.gear_category?.index === "tools"
+                ) {
+                  categoryKey = "tools";
+                }
+                for (let j = 0; j < quantity; j++) {
+                  enhancedCharacter.equipment[categoryKey].push(itemName);
+                }
               }
             }
           });
