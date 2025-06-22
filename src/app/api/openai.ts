@@ -276,6 +276,57 @@ Return ONLY a JSON object with these creative fields. Example:
       }
     }
 
+    // 5. Calculate Combat Stats
+    if (
+      enhancedCharacter.level &&
+      enhancedCharacter.attributes.constitution &&
+      enhancedCharacter.attributes.dexterity &&
+      enhancedCharacter.canonicalData
+    ) {
+      const constitutionModifier =
+        enhancedCharacter.attributes.constitution.bonus;
+      const dexterityModifier = enhancedCharacter.attributes.dexterity.bonus;
+
+      // Initiative
+      enhancedCharacter.initiative = dexterityModifier;
+
+      // Speed (from race data)
+      if (
+        (enhancedCharacter.canonicalData as any).race &&
+        (enhancedCharacter.canonicalData as any).race.speed
+      ) {
+        enhancedCharacter.speed = (
+          enhancedCharacter.canonicalData as any
+        ).race.speed;
+      }
+
+      // Armor Class (base calculation, does not include armor)
+      enhancedCharacter.armorClass = 10 + dexterityModifier;
+
+      // Hit Points
+      if (
+        (enhancedCharacter.canonicalData as any).classes &&
+        (enhancedCharacter.canonicalData as any).classes.length > 0
+      ) {
+        const mainClassData = (enhancedCharacter.canonicalData as any)
+          .classes[0];
+        if (mainClassData && mainClassData.hit_die) {
+          // Level 1 HP
+          let totalHp = mainClassData.hit_die + constitutionModifier;
+
+          // HP for levels 2 through 'level'
+          if (enhancedCharacter.level > 1) {
+            // Using average hit die roll for simplicity
+            const averageHitDie = Math.floor(mainClassData.hit_die / 2) + 1;
+            totalHp +=
+              (enhancedCharacter.level - 1) *
+              (averageHitDie + constitutionModifier);
+          }
+          enhancedCharacter.hitPoints = Math.max(1, totalHp);
+        }
+      }
+    }
+
     return enhancedCharacter;
   } catch (error) {
     console.error("Error generating character details:", error);
