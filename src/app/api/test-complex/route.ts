@@ -39,11 +39,17 @@ For feats, use exact feat names like "Alert", "Lucky", "Sharpshooter".
 For backgrounds, use exact background names like "Acolyte", "Criminal", "Folk Hero".
 For subclasses, use exact subclass names like "Evocation", "Thief", "Life Domain".
 For magic items, use exact item names like "Sword of Sharpness", "Ring of Protection".
+For rules, use exact rule names like "Combat", "Ability Scores", "Saving Throws".
+For traits, use exact trait names like "Darkvision", "Fey Ancestry", "Second Wind".
+For languages, use exact language names like "Common", "Elvish", "Draconic".
+For damage types, use exact damage type names like "Slashing", "Fire", "Cold".
 
 Complex examples:
 - "I want to create a wizard character with the Evocation school and Acolyte background" → {"tools": [{"tool": "getClassDetails", "args": {"className": "Wizard"}}, {"tool": "getSubclassDetails", "args": {"subclassName": "Evocation"}}, {"tool": "getBackgroundDetails", "args": {"backgroundName": "Acolyte"}}]}
 - "I need a longsword, plate armor, and a Ring of Protection for my fighter" → {"tools": [{"tool": "getEquipmentDetails", "args": {"itemName": "Longsword"}}, {"tool": "getEquipmentDetails", "args": {"itemName": "Plate Armor"}}, {"tool": "getMagicItemDetails", "args": {"itemName": "Ring of Protection"}}]}
 - "What's the difference between a goblin and an orc, and what spells can I use against them?" → {"tools": [{"tool": "getMonsterStats", "args": {"monsterName": "Goblin"}}, {"tool": "getMonsterStats", "args": {"monsterName": "Orc"}}, {"tool": "getSpellDetails", "args": {"spellName": "Fireball"}}]}
+- "Tell me about elves, their racial traits, and what languages they speak" → {"tools": [{"tool": "getRaceDetails", "args": {"raceName": "Elf"}}, {"tool": "getTraitDetails", "args": {"traitName": "Darkvision"}}, {"tool": "getLanguageDetails", "args": {"languageName": "Elvish"}}]}
+- "How does combat work and what damage types are there?" → {"tools": [{"tool": "getRuleDetails", "args": {"ruleName": "Combat"}}, {"tool": "getDamageTypeDetails", "args": {"damageTypeName": "Slashing"}}, {"tool": "getDamageTypeDetails", "args": {"damageTypeName": "Fire"}}]}
 
 Respond with only the JSON object:`;
 
@@ -116,10 +122,8 @@ export async function GET() {
       "I want to create a wizard character with the Evocation school and Acolyte background",
       "I need a longsword, plate armor, and a Ring of Protection for my fighter",
       "What's the difference between a goblin and an orc, and what spells can I use against them?",
-      "Tell me about elves, their racial traits, and what classes work well with them",
-      "I want to build a stealthy rogue with the Thief subclass and Criminal background",
-      "What equipment do I need for a cleric, and what's the Life Domain like?",
-      "I found a magic sword and want to know about both the weapon and the magic item properties",
+      "Tell me about elves, their racial traits, and what languages they speak",
+      "How does combat work and what damage types are there?",
     ],
   });
 }

@@ -39,6 +39,10 @@ For feats, use exact feat names like "Alert", "Lucky", "Sharpshooter".
 For backgrounds, use exact background names like "Acolyte", "Criminal", "Folk Hero".
 For subclasses, use exact subclass names like "Evocation", "Thief", "Life Domain".
 For magic items, use exact item names like "Sword of Sharpness", "Ring of Protection".
+For rules, use exact rule names like "Combat", "Ability Scores", "Saving Throws".
+For traits, use exact trait names like "Darkvision", "Fey Ancestry", "Second Wind".
+For languages, use exact language names like "Common", "Elvish", "Draconic".
+For damage types, use exact damage type names like "Slashing", "Fire", "Cold".
 
 Examples:
 - "I want to buy a sword" → {"tool": "getEquipmentDetails", "args": {"itemName": "Longsword"}}
@@ -52,6 +56,10 @@ Examples:
 - "What's the Acolyte background?" → {"tool": "getBackgroundDetails", "args": {"backgroundName": "Acolyte"}}
 - "Tell me about Evocation wizards" → {"tool": "getSubclassDetails", "args": {"subclassName": "Evocation"}}
 - "What's a Ring of Protection?" → {"tool": "getMagicItemDetails", "args": {"itemName": "Ring of Protection"}}
+- "How does combat work?" → {"tool": "getRuleDetails", "args": {"ruleName": "Combat"}}
+- "What is Darkvision?" → {"tool": "getTraitDetails", "args": {"traitName": "Darkvision"}}
+- "Tell me about Elvish" → {"tool": "getLanguageDetails", "args": {"languageName": "Elvish"}}
+- "What is fire damage?" → {"tool": "getDamageTypeDetails", "args": {"damageTypeName": "Fire"}}
 - "I want armor and a weapon" → {"tools": [{"tool": "getEquipmentDetails", "args": {"itemName": "Plate Armor"}}, {"tool": "getEquipmentDetails", "args": {"itemName": "Longsword"}}]}
 
 Respond with only the JSON object:`;

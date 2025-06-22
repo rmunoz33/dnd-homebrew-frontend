@@ -10,6 +10,10 @@ import "./featTools";
 import "./backgroundTools";
 import "./subclassTools";
 import "./magicItemTools";
+import "./ruleTools";
+import "./traitTools";
+import "./languageTools";
+import "./damageTypeTools";
 
 // Export the registry for use in other parts of the application
 export { toolRegistry } from "./registry";

@@ -170,6 +170,14 @@ export function formatToolResult(toolName: string, result: unknown): string {
       return formatSubclassResult(result);
     case "getMagicItemDetails":
       return formatMagicItemResult(result);
+    case "getRuleDetails":
+      return formatRuleResult(result);
+    case "getTraitDetails":
+      return formatTraitResult(result);
+    case "getLanguageDetails":
+      return formatLanguageResult(result);
+    case "getDamageTypeDetails":
+      return formatDamageTypeResult(result);
     default:
       return `\n\n**Tool Result**: ${JSON.stringify(result, null, 2)}`;
   }
@@ -728,6 +736,110 @@ function formatMagicItemResult(result: unknown): string {
     formatted += `**Variants**: ${item.variants
       .map((v: any) => v.name)
       .join(", ")}\n`;
+  }
+
+  return formatted;
+}
+
+/**
+ * Formats rule data for readable display
+ */
+function formatRuleResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Rule Data**: Unable to format result`;
+  }
+  const rule = result as Record<string, any>;
+  let formatted = "\n\n**Rule Information**:\n";
+
+  if (rule.name) formatted += `**Name**: ${rule.name}\n`;
+  if (rule.desc && Array.isArray(rule.desc)) {
+    formatted += `**Description**:\n${rule.desc.join("\n")}\n`;
+  }
+  if (rule.subsections && Array.isArray(rule.subsections)) {
+    formatted += `**Subsections**:\n`;
+    rule.subsections.forEach((subsection: any) => {
+      formatted += `  - ${subsection.name}\n`;
+    });
+  }
+
+  return formatted;
+}
+
+/**
+ * Formats trait data for readable display
+ */
+function formatTraitResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Trait Data**: Unable to format result`;
+  }
+  const trait = result as Record<string, any>;
+  let formatted = "\n\n**Trait Information**:\n";
+
+  if (trait.name) formatted += `**Name**: ${trait.name}\n`;
+  if (trait.desc && Array.isArray(trait.desc)) {
+    formatted += `**Description**:\n${trait.desc.join("\n")}\n`;
+  }
+  if (trait.races && Array.isArray(trait.races)) {
+    formatted += `**Races**: ${trait.races
+      .map((r: any) => r.name)
+      .join(", ")}\n`;
+  }
+  if (trait.subraces && Array.isArray(trait.subraces)) {
+    formatted += `**Subraces**: ${trait.subraces
+      .map((s: any) => s.name)
+      .join(", ")}\n`;
+  }
+  if (trait.proficiencies && Array.isArray(trait.proficiencies)) {
+    formatted += `**Proficiencies**: ${trait.proficiencies
+      .map((p: any) => p.name)
+      .join(", ")}\n`;
+  }
+  if (trait.proficiency_choices && Array.isArray(trait.proficiency_choices)) {
+    formatted += `**Proficiency Choices**:\n`;
+    trait.proficiency_choices.forEach((choice: any) => {
+      formatted += `  Choose ${choice.choose} from ${choice.from.count} options\n`;
+    });
+  }
+
+  return formatted;
+}
+
+/**
+ * Formats language data for readable display
+ */
+function formatLanguageResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Language Data**: Unable to format result`;
+  }
+  const language = result as Record<string, any>;
+  let formatted = "\n\n**Language Information**:\n";
+
+  if (language.name) formatted += `**Name**: ${language.name}\n`;
+  if (language.type) formatted += `**Type**: ${language.type}\n`;
+  if (language.typical_speakers && Array.isArray(language.typical_speakers)) {
+    formatted += `**Typical Speakers**: ${language.typical_speakers.join(
+      ", "
+    )}\n`;
+  }
+  if (language.script) formatted += `**Script**: ${language.script}\n`;
+  if (language.desc) formatted += `**Description**: ${language.desc}\n`;
+
+  return formatted;
+}
+
+/**
+ * Formats damage type data for readable display
+ */
+function formatDamageTypeResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Damage Type Data**: Unable to format result`;
+  }
+  const damageType = result as Record<string, any>;
+  let formatted = "\n\n**Damage Type Information**:\n";
+
+  if (damageType.name) formatted += `**Name**: ${damageType.name}\n`;
+  if (damageType.desc && Array.isArray(damageType.desc)) {
+    formatted += `**Description**:\n${damageType.desc.join("\n")}\n`;
   }
 
   return formatted;
