@@ -2,6 +2,19 @@ import { Tool, toolRegistry } from "./registry";
 
 const classCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
+let classList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all classes on startup
+const fetchClassList = async () => {
+  if (classList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/classes");
+    const data = await response.json();
+    classList = data.results;
+  } catch (error) {
+    console.error("Error fetching class list:", error);
+  }
+};
 
 const getClassDetails: Tool = {
   name: "getClassDetails",
@@ -17,6 +30,7 @@ const getClassDetails: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchClassList();
     const className = params.className as string;
     const cacheKey = `class_${className.toLowerCase()}`;
     const cached = classCache.get(cacheKey);
@@ -26,23 +40,20 @@ const getClassDetails: Tool = {
     }
 
     try {
-      // Convert class name to API index format
-      const classIndex = className
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-
-      const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/classes/${classIndex}`
+      const classInfo = classList.find(
+        (c) => c.name.toLowerCase() === className.toLowerCase()
       );
 
+      if (!classInfo) {
+        return {
+          error: true,
+          message: `Class "${className}" not found. Please check the spelling or try a different class name.`,
+        };
+      }
+
+      const response = await fetch(`https://www.dnd5eapi.co${classInfo.url}`);
+
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Class "${className}" not found. Please check the spelling or try a different class name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
 

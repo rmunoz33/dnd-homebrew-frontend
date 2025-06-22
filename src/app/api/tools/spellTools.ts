@@ -2,6 +2,19 @@ import { Tool, toolRegistry } from "./registry";
 
 const spellCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
+let spellList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all spells on startup
+const fetchSpellList = async () => {
+  if (spellList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/spells");
+    const data = await response.json();
+    spellList = data.results;
+  } catch (error) {
+    console.error("Error fetching spell list:", error);
+  }
+};
 
 const getSpellDetails: Tool = {
   name: "getSpellDetails",
@@ -16,6 +29,7 @@ const getSpellDetails: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchSpellList();
     const spellName = params.spellName as string;
     const cacheKey = `spell_${spellName.toLowerCase()}`;
     const cached = spellCache.get(cacheKey);
@@ -23,21 +37,20 @@ const getSpellDetails: Tool = {
       return cached.data;
     }
     try {
-      // Convert spell name to API index format
-      const spellIndex = spellName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-      const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/spells/${spellIndex}`
+      const spellInfo = spellList.find(
+        (s) => s.name.toLowerCase() === spellName.toLowerCase()
       );
+
+      if (!spellInfo) {
+        return {
+          error: true,
+          message: `Spell \"${spellName}\" not found. Please check the spelling or try a different spell name.`,
+        };
+      }
+
+      const response = await fetch(`https://www.dnd5eapi.co${spellInfo.url}`);
+
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Spell \"${spellName}\" not found. Please check the spelling or try a different spell name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
       const data = await response.json();

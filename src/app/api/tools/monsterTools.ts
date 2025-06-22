@@ -3,6 +3,19 @@ import { Tool, toolRegistry } from "./registry";
 // Simple in-memory cache for frequently accessed data
 const monsterCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
+let monsterList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all monsters on startup
+const fetchMonsterList = async () => {
+  if (monsterList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/monsters");
+    const data = await response.json();
+    monsterList = data.results;
+  } catch (error) {
+    console.error("Error fetching monster list:", error);
+  }
+};
 
 const getMonsterStats: Tool = {
   name: "getMonsterStats",
@@ -18,6 +31,7 @@ const getMonsterStats: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchMonsterList();
     const monsterName = params.monsterName as string;
 
     // Check cache first
@@ -29,24 +43,20 @@ const getMonsterStats: Tool = {
     }
 
     try {
-      // Convert monster name to API index format (lowercase, hyphenated)
-      const monsterIndex = monsterName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-
-      // Call the correct D&D 5e API
-      const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/monsters/${monsterIndex}`
+      const monsterInfo = monsterList.find(
+        (m) => m.name.toLowerCase() === monsterName.toLowerCase()
       );
 
+      if (!monsterInfo) {
+        return {
+          error: true,
+          message: `Monster "${monsterName}" not found. Please check the spelling or try a different monster name.`,
+        };
+      }
+
+      const response = await fetch(`https://www.dnd5eapi.co${monsterInfo.url}`);
+
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Monster "${monsterName}" not found. Please check the spelling or try a different monster name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
 

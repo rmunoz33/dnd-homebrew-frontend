@@ -2,6 +2,19 @@ import { Tool, toolRegistry } from "./registry";
 
 const damageTypeCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
+let damageTypeList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all damage types on startup
+const fetchDamageTypeList = async () => {
+  if (damageTypeList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/damage-types");
+    const data = await response.json();
+    damageTypeList = data.results;
+  } catch (error) {
+    console.error("Error fetching damage type list:", error);
+  }
+};
 
 const getDamageTypeDetails: Tool = {
   name: "getDamageTypeDetails",
@@ -17,6 +30,7 @@ const getDamageTypeDetails: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchDamageTypeList();
     const damageTypeName = params.damageTypeName as string;
     const cacheKey = `damagetype_${damageTypeName.toLowerCase()}`;
     const cached = damageTypeCache.get(cacheKey);
@@ -26,23 +40,22 @@ const getDamageTypeDetails: Tool = {
     }
 
     try {
-      // Convert damage type name to API index format
-      const damageTypeIndex = damageTypeName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
+      const damageTypeInfo = damageTypeList.find(
+        (d) => d.name.toLowerCase() === damageTypeName.toLowerCase()
+      );
+
+      if (!damageTypeInfo) {
+        return {
+          error: true,
+          message: `Damage type "${damageTypeName}" not found. Please check the spelling or try a different damage type name.`,
+        };
+      }
 
       const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/damage-types/${damageTypeIndex}`
+        `https://www.dnd5eapi.co${damageTypeInfo.url}`
       );
 
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Damage type "${damageTypeName}" not found. Please check the spelling or try a different damage type name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
 

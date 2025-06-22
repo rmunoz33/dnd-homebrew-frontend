@@ -2,6 +2,19 @@ import { Tool, toolRegistry } from "./registry";
 
 const featCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
+let featList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all feats on startup
+const fetchFeatList = async () => {
+  if (featList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/feats");
+    const data = await response.json();
+    featList = data.results;
+  } catch (error) {
+    console.error("Error fetching feat list:", error);
+  }
+};
 
 const getFeatDetails: Tool = {
   name: "getFeatDetails",
@@ -17,6 +30,7 @@ const getFeatDetails: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchFeatList();
     const featName = params.featName as string;
     const cacheKey = `feat_${featName.toLowerCase()}`;
     const cached = featCache.get(cacheKey);
@@ -26,23 +40,20 @@ const getFeatDetails: Tool = {
     }
 
     try {
-      // Convert feat name to API index format
-      const featIndex = featName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-
-      const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/feats/${featIndex}`
+      const featInfo = featList.find(
+        (f) => f.name.toLowerCase() === featName.toLowerCase()
       );
 
+      if (!featInfo) {
+        return {
+          error: true,
+          message: `Feat "${featName}" not found. Please check the spelling or try a different feat name.`,
+        };
+      }
+
+      const response = await fetch(`https://www.dnd5eapi.co${featInfo.url}`);
+
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Feat "${featName}" not found. Please check the spelling or try a different feat name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
 

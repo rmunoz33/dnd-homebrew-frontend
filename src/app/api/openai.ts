@@ -1,51 +1,23 @@
 import { OpenAI } from "openai";
+import { Character, useDnDStore, Message } from "@/stores/useStore";
 import {
-  Character,
-  initialCharacter,
-  useDnDStore,
-  Message,
-} from "@/stores/useStore";
+  toolRegistry,
+  executeToolsFromResponse,
+  formatToolResult,
+} from "./tools";
 import {
   characterSpecies,
   characterSubspecies,
   characterBackgrounds,
   characterAlignments,
   characterClasses,
-} from "@/app/components/Character/characterValueOptions";
-import {
-  toolRegistry,
-  executeToolsFromResponse,
-  formatToolResult,
-} from "./tools";
+  characterSubclasses,
+} from "../components/Character/characterValueOptions";
 
 const client = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY!,
   dangerouslyAllowBrowser: true,
 });
-
-const isDefaultValue = (
-  value: Character[keyof Character],
-  field: keyof Character
-) => {
-  if (field === "attributes") {
-    const attributes = value as Character["attributes"];
-    const defaultAttributes = initialCharacter.attributes;
-
-    // Check if all attributes have default values
-    return Object.entries(attributes).every(([attrName, attrObj]) => {
-      const typedAttrName = attrName as keyof typeof attributes;
-      return (
-        attrObj.value === defaultAttributes[typedAttrName].value &&
-        attrObj.bonus === defaultAttributes[typedAttrName].bonus
-      );
-    });
-  }
-
-  if (field === "classes" && Array.isArray(value)) {
-    return value.length === 0;
-  }
-  return value === initialCharacter[field];
-};
 
 // Add these type definitions at the top of the file, after the imports
 type StatChange = {
@@ -54,56 +26,271 @@ type StatChange = {
   new: number | string;
 };
 
+/**
+ * Generates character details using a hybrid approach:
+ * 1. Fetches canonical D&D data from the tool system for selected fields
+ * 2. Uses LLM for creative fields only (backstory, personality, etc.)
+ * 3. Merges both for a complete character profile
+ */
 export const generateCharacterDetails = async (character: Character) => {
-  const nonDefaultFields = Object.entries(character)
-    .filter(([key, value]) => !isDefaultValue(value, key as keyof Character))
-    .reduce<Partial<Character>>((acc, [key, value]) => {
-      acc[key as keyof Character] = value;
-      return acc;
-    }, {});
-
-  const prompt = `As a D&D character creation expert, help complete a character profile based on these known details.
-
-  The options for species are: ${JSON.stringify(characterSpecies)}
-  The options for subspecies are: ${JSON.stringify(characterSubspecies)}
-  The options for backgrounds are: ${JSON.stringify(characterBackgrounds)}
-  The options for alignments are: ${JSON.stringify(characterAlignments)}
-  The options for classes are: ${JSON.stringify(characterClasses)}
-
-  Here is the default character profile:
-  ${JSON.stringify(initialCharacter)}
-
-  Here is the known character profile:
-  ${JSON.stringify(nonDefaultFields)}
-
-  Suggest appropriate values for any missing character attributes in JSON format, maintaining the given structure.
-  If no backstory is provided, provide one in the form of a short paragraph.
-  If no special abilities are provided, provide one or two based on the character's level, class, and background. For special abilities, provide only the name of the ability (e.g., "Spellcasting", "Action Surge"), not the full description.
-  Focus on creating a cohesive character that makes sense with the provided information.
-  Calculate attribute bonuses with this formula: (attribute value - 10) / 2. Round down to the nearest integer.`;
-
   try {
+    const filledCharacter = { ...character };
+
+    // If a field is empty, select a random value from the predefined options.
+    if (!filledCharacter.species) {
+      filledCharacter.species =
+        characterSpecies[Math.floor(Math.random() * characterSpecies.length)];
+    }
+
+    if (
+      !filledCharacter.subspecies &&
+      characterSubspecies[
+        filledCharacter.species as keyof typeof characterSubspecies
+      ]
+    ) {
+      const subspeciesOptions =
+        characterSubspecies[
+          filledCharacter.species as keyof typeof characterSubspecies
+        ];
+      filledCharacter.subspecies =
+        subspeciesOptions[Math.floor(Math.random() * subspeciesOptions.length)];
+    }
+
+    if (!filledCharacter.background) {
+      filledCharacter.background =
+        characterBackgrounds[
+          Math.floor(Math.random() * characterBackgrounds.length)
+        ];
+    }
+
+    if (!filledCharacter.alignment) {
+      filledCharacter.alignment =
+        characterAlignments[
+          Math.floor(Math.random() * characterAlignments.length)
+        ];
+    }
+
+    if (!filledCharacter.classes || filledCharacter.classes.length === 0) {
+      filledCharacter.classes = [
+        characterClasses[Math.floor(Math.random() * characterClasses.length)],
+      ];
+    }
+
+    const mainClass = filledCharacter
+      .classes[0] as keyof typeof characterSubclasses;
+    if (!filledCharacter.subClass && characterSubclasses[mainClass]) {
+      const subclassOptions = characterSubclasses[mainClass];
+      filledCharacter.subClass =
+        subclassOptions[Math.floor(Math.random() * subclassOptions.length)];
+    }
+
+    // 1. Fetch canonical data for each selected field using the tool system
+    const canonicalDataPromises = [];
+
+    // Fetch class data if specified
+    if (filledCharacter.classes && filledCharacter.classes.length > 0) {
+      for (const className of filledCharacter.classes) {
+        canonicalDataPromises.push(
+          toolRegistry.executeTool("getClassDetails", { className })
+        );
+      }
+    }
+
+    // Fetch race data if specified
+    if (filledCharacter.species) {
+      canonicalDataPromises.push(
+        toolRegistry.executeTool("getRaceDetails", {
+          raceName: filledCharacter.species,
+        })
+      );
+    }
+
+    // Fetch background data if specified
+    if (filledCharacter.background) {
+      canonicalDataPromises.push(
+        toolRegistry.executeTool("getBackgroundDetails", {
+          backgroundName: filledCharacter.background,
+        })
+      );
+    }
+
+    // Fetch subclass data if specified
+    if (filledCharacter.subClass) {
+      canonicalDataPromises.push(
+        toolRegistry.executeTool("getSubclassDetails", {
+          subclassName: filledCharacter.subClass,
+        })
+      );
+    }
+
+    // Wait for all canonical data to be fetched
+    const canonicalResults = await Promise.allSettled(canonicalDataPromises);
+
+    // Process results and extract successful data
+    const canonicalData = {
+      classes: canonicalResults
+        .filter(
+          (result, index) =>
+            result.status === "fulfilled" &&
+            index < (filledCharacter.classes?.length || 0)
+        )
+        .map((result) => (result as PromiseFulfilledResult<unknown>).value),
+      race:
+        canonicalResults.find(
+          (result, index) =>
+            result.status === "fulfilled" &&
+            index >= (filledCharacter.classes?.length || 0) &&
+            index < (filledCharacter.classes?.length || 0) + 1
+        )?.status === "fulfilled"
+          ? (
+              canonicalResults.find(
+                (result, index) =>
+                  result.status === "fulfilled" &&
+                  index >= (filledCharacter.classes?.length || 0) &&
+                  index < (filledCharacter.classes?.length || 0) + 1
+              ) as PromiseFulfilledResult<unknown>
+            ).value
+          : null,
+      background:
+        canonicalResults.find(
+          (result, index) =>
+            result.status === "fulfilled" &&
+            index >= (filledCharacter.classes?.length || 0) + 1 &&
+            index < (filledCharacter.classes?.length || 0) + 2
+        )?.status === "fulfilled"
+          ? (
+              canonicalResults.find(
+                (result, index) =>
+                  result.status === "fulfilled" &&
+                  index >= (filledCharacter.classes?.length || 0) + 1 &&
+                  index < (filledCharacter.classes?.length || 0) + 2
+              ) as PromiseFulfilledResult<unknown>
+            ).value
+          : null,
+      subclass:
+        canonicalResults.find(
+          (result, index) =>
+            result.status === "fulfilled" &&
+            index >= (filledCharacter.classes?.length || 0) + 2
+        )?.status === "fulfilled"
+          ? (
+              canonicalResults.find(
+                (result, index) =>
+                  result.status === "fulfilled" &&
+                  index >= (filledCharacter.classes?.length || 0) + 2
+              ) as PromiseFulfilledResult<unknown>
+            ).value
+          : null,
+    };
+
+    // 2. Compose canonical character data
+    const canonicalCharacter = {
+      ...filledCharacter,
+      canonicalData,
+    };
+
+    // 3. Use LLM for creative fields only
+    const creativePrompt = `
+You are a D&D character creation expert. Based on the provided character data, fill in the creative fields while respecting the canonical D&D rules.
+
+CHARACTER DATA:
+${JSON.stringify(canonicalCharacter, null, 2)}
+
+CANONICAL D&D DATA AVAILABLE:
+- Classes: ${canonicalData.classes.length > 0 ? "Available" : "None specified"}
+- Race: ${canonicalData.race ? "Available" : "None specified"}
+- Background: ${canonicalData.background ? "Available" : "None specified"}
+- Subclass: ${canonicalData.subclass ? "Available" : "None specified"}
+
+TASK: Fill in ONLY the creative fields below. Do NOT invent or change rules data. Use the canonical data to inform your creative choices.
+
+CREATIVE FIELDS TO FILL:
+1. backStory: A compelling backstory that fits the character's race, class, and background.
+2. personality: Character personality traits and quirks.
+3. specialAbilities: An array of 2-3 special ability names (not descriptions) that fit the character's class and level.
+4. name: A fitting name for the character (if not already provided).
+5. attributes: A JSON object for the character's attributes (strength, dexterity, constitution, intelligence, wisdom, charisma). Assign a value for each between 8 and 18, keeping the character's class in mind.
+6. money: A JSON object with a starting 'gold' value, appropriate for the character's background (typically between 10 and 25).
+
+Return ONLY a JSON object with these creative fields. Example:
+{
+  "name": "Character Name",
+  "backStory": "A compelling backstory...",
+  "personality": "Character personality...",
+  "specialAbilities": ["Ability 1", "Ability 2"],
+  "attributes": {
+    "strength": { "value": 14 },
+    "dexterity": { "value": 16 },
+    "constitution": { "value": 12 },
+    "intelligence": { "value": 10 },
+    "wisdom": { "value": 13 },
+    "charisma": { "value": 8 }
+  },
+  "money": { "gold": 15 }
+}`;
+
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content:
-            "You are a D&D character creation expert who provides detailed, lore-appropriate suggestions for character attributes.",
+            "You are a D&D character creation expert. Generate creative character elements that fit the provided canonical data.",
         },
-        {
-          role: "user",
-          content: prompt,
-        },
+        { role: "user", content: creativePrompt },
       ],
-      temperature: 0.9,
+      temperature: 0.7,
       response_format: { type: "json_object" },
     });
 
-    return response.choices[0].message.content;
+    const creativeFields = response.choices[0]?.message?.content
+      ? JSON.parse(response.choices[0].message.content)
+      : {};
+
+    // 4. Merge canonical data with creative fields
+    const enhancedCharacter = {
+      ...canonicalCharacter,
+      ...creativeFields,
+      // Ensure arrays and objects are properly initialized
+      specialAbilities: creativeFields.specialAbilities || [],
+      classes: filledCharacter.classes || [],
+      attributes: {
+        ...filledCharacter.attributes,
+        ...creativeFields.attributes,
+      },
+      money: { ...filledCharacter.money, ...creativeFields.money },
+    };
+
+    // Calculate attribute bonuses based on the new values
+    for (const attr in enhancedCharacter.attributes) {
+      const attribute = attr as keyof typeof enhancedCharacter.attributes;
+      if (
+        typeof enhancedCharacter.attributes[attribute] === "object" &&
+        enhancedCharacter.attributes[attribute] !== null &&
+        "value" in enhancedCharacter.attributes[attribute]
+      ) {
+        const value = enhancedCharacter.attributes[attribute].value;
+        enhancedCharacter.attributes[attribute].bonus = Math.floor(
+          (value - 10) / 2
+        );
+      }
+    }
+
+    return enhancedCharacter;
   } catch (error) {
     console.error("Error generating character details:", error);
-    throw error;
+
+    // Fallback: return character with basic enhancements
+    return {
+      ...character,
+      specialAbilities: character.specialAbilities || [],
+      classes: character.classes || [],
+      backStory:
+        character.backStory ||
+        "A mysterious adventurer with a past shrouded in secrecy.",
+      personality:
+        "Determined and resourceful, this character faces challenges with courage and wit.",
+    };
   }
 };
 

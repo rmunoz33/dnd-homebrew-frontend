@@ -2,6 +2,19 @@ import { Tool, toolRegistry } from "./registry";
 
 const subclassCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
+let subclassList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all subclasses on startup
+const fetchSubclassList = async () => {
+  if (subclassList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/subclasses");
+    const data = await response.json();
+    subclassList = data.results;
+  } catch (error) {
+    console.error("Error fetching subclass list:", error);
+  }
+};
 
 const getSubclassDetails: Tool = {
   name: "getSubclassDetails",
@@ -17,6 +30,7 @@ const getSubclassDetails: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchSubclassList();
     const subclassName = params.subclassName as string;
     const cacheKey = `subclass_${subclassName.toLowerCase()}`;
     const cached = subclassCache.get(cacheKey);
@@ -26,23 +40,22 @@ const getSubclassDetails: Tool = {
     }
 
     try {
-      // Convert subclass name to API index format
-      const subclassIndex = subclassName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
+      const subclassInfo = subclassList.find(
+        (s) => s.name.toLowerCase() === subclassName.toLowerCase()
+      );
+
+      if (!subclassInfo) {
+        return {
+          error: true,
+          message: `Subclass "${subclassName}" not found. Please check the spelling or try a different subclass name.`,
+        };
+      }
 
       const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/subclasses/${subclassIndex}`
+        `https://www.dnd5eapi.co${subclassInfo.url}`
       );
 
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Subclass "${subclassName}" not found. Please check the spelling or try a different subclass name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
 

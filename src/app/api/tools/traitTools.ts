@@ -2,6 +2,19 @@ import { Tool, toolRegistry } from "./registry";
 
 const traitCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
+let traitList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all traits on startup
+const fetchTraitList = async () => {
+  if (traitList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/traits");
+    const data = await response.json();
+    traitList = data.results;
+  } catch (error) {
+    console.error("Error fetching trait list:", error);
+  }
+};
 
 const getTraitDetails: Tool = {
   name: "getTraitDetails",
@@ -17,6 +30,7 @@ const getTraitDetails: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchTraitList();
     const traitName = params.traitName as string;
     const cacheKey = `trait_${traitName.toLowerCase()}`;
     const cached = traitCache.get(cacheKey);
@@ -26,23 +40,20 @@ const getTraitDetails: Tool = {
     }
 
     try {
-      // Convert trait name to API index format
-      const traitIndex = traitName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-
-      const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/traits/${traitIndex}`
+      const traitInfo = traitList.find(
+        (t) => t.name.toLowerCase() === traitName.toLowerCase()
       );
 
+      if (!traitInfo) {
+        return {
+          error: true,
+          message: `Trait "${traitName}" not found. Please check the spelling or try a different trait name.`,
+        };
+      }
+
+      const response = await fetch(`https://www.dnd5eapi.co${traitInfo.url}`);
+
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Trait "${traitName}" not found. Please check the spelling or try a different trait name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
 

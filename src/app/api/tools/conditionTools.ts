@@ -2,6 +2,19 @@ import { Tool, toolRegistry } from "./registry";
 
 const conditionCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
+let conditionList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all conditions on startup
+const fetchConditionList = async () => {
+  if (conditionList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/conditions");
+    const data = await response.json();
+    conditionList = data.results;
+  } catch (error) {
+    console.error("Error fetching condition list:", error);
+  }
+};
 
 const getConditionDetails: Tool = {
   name: "getConditionDetails",
@@ -17,6 +30,7 @@ const getConditionDetails: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchConditionList();
     const conditionName = params.conditionName as string;
     const cacheKey = `condition_${conditionName.toLowerCase()}`;
     const cached = conditionCache.get(cacheKey);
@@ -26,23 +40,22 @@ const getConditionDetails: Tool = {
     }
 
     try {
-      // Convert condition name to API index format
-      const conditionIndex = conditionName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
+      const conditionInfo = conditionList.find(
+        (c) => c.name.toLowerCase() === conditionName.toLowerCase()
+      );
+
+      if (!conditionInfo) {
+        return {
+          error: true,
+          message: `Condition "${conditionName}" not found. Please check the spelling or try a different condition name.`,
+        };
+      }
 
       const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/conditions/${conditionIndex}`
+        `https://www.dnd5eapi.co${conditionInfo.url}`
       );
 
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Condition "${conditionName}" not found. Please check the spelling or try a different condition name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
 

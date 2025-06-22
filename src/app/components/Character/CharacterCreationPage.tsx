@@ -339,7 +339,7 @@ const CharacterCreationPage = () => {
     setIsRolling(true);
     try {
       const suggestions = await generateCharacterDetails(character);
-      const parsedSuggestions = JSON.parse(suggestions as string) as Character;
+      const parsedSuggestions = suggestions as Character;
 
       // Ensure specialAbilities is initialized if missing from AI response
       if (!parsedSuggestions.specialAbilities) {

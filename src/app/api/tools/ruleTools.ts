@@ -2,6 +2,19 @@ import { Tool, toolRegistry } from "./registry";
 
 const ruleCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
+let ruleList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all rules on startup
+const fetchRuleList = async () => {
+  if (ruleList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/rules");
+    const data = await response.json();
+    ruleList = data.results;
+  } catch (error) {
+    console.error("Error fetching rule list:", error);
+  }
+};
 
 const getRuleDetails: Tool = {
   name: "getRuleDetails",
@@ -17,6 +30,7 @@ const getRuleDetails: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchRuleList();
     const ruleName = params.ruleName as string;
     const cacheKey = `rule_${ruleName.toLowerCase()}`;
     const cached = ruleCache.get(cacheKey);
@@ -26,23 +40,20 @@ const getRuleDetails: Tool = {
     }
 
     try {
-      // Convert rule name to API index format
-      const ruleIndex = ruleName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-
-      const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/rules/${ruleIndex}`
+      const ruleInfo = ruleList.find(
+        (r) => r.name.toLowerCase() === ruleName.toLowerCase()
       );
 
+      if (!ruleInfo) {
+        return {
+          error: true,
+          message: `Rule "${ruleName}" not found. Please check the spelling or try a different rule name.`,
+        };
+      }
+
+      const response = await fetch(`https://www.dnd5eapi.co${ruleInfo.url}`);
+
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Rule "${ruleName}" not found. Please check the spelling or try a different rule name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
 

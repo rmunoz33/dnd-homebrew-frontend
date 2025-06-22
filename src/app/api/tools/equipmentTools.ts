@@ -2,6 +2,19 @@ import { Tool, toolRegistry } from "./registry";
 
 const equipmentCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
+let equipmentList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all equipment on startup
+const fetchEquipmentList = async () => {
+  if (equipmentList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/equipment");
+    const data = await response.json();
+    equipmentList = data.results;
+  } catch (error) {
+    console.error("Error fetching equipment list:", error);
+  }
+};
 
 const getEquipmentDetails: Tool = {
   name: "getEquipmentDetails",
@@ -17,6 +30,7 @@ const getEquipmentDetails: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchEquipmentList();
     const itemName = params.itemName as string;
     const cacheKey = `equipment_${itemName.toLowerCase()}`;
     const cached = equipmentCache.get(cacheKey);
@@ -26,23 +40,20 @@ const getEquipmentDetails: Tool = {
     }
 
     try {
-      // Convert item name to API index format
-      const itemIndex = itemName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-
-      const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/equipment/${itemIndex}`
+      const itemInfo = equipmentList.find(
+        (e) => e.name.toLowerCase() === itemName.toLowerCase()
       );
 
+      if (!itemInfo) {
+        return {
+          error: true,
+          message: `Equipment "${itemName}" not found. Please check the spelling or try a different item name.`,
+        };
+      }
+
+      const response = await fetch(`https://www.dnd5eapi.co${itemInfo.url}`);
+
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Equipment "${itemName}" not found. Please check the spelling or try a different item name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
 

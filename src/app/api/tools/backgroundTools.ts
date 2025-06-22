@@ -2,6 +2,19 @@ import { Tool, toolRegistry } from "./registry";
 
 const backgroundCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
+let backgroundList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all backgrounds on startup
+const fetchBackgroundList = async () => {
+  if (backgroundList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/backgrounds");
+    const data = await response.json();
+    backgroundList = data.results;
+  } catch (error) {
+    console.error("Error fetching background list:", error);
+  }
+};
 
 const getBackgroundDetails: Tool = {
   name: "getBackgroundDetails",
@@ -17,6 +30,7 @@ const getBackgroundDetails: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchBackgroundList();
     const backgroundName = params.backgroundName as string;
     const cacheKey = `background_${backgroundName.toLowerCase()}`;
     const cached = backgroundCache.get(cacheKey);
@@ -26,23 +40,22 @@ const getBackgroundDetails: Tool = {
     }
 
     try {
-      // Convert background name to API index format
-      const backgroundIndex = backgroundName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
+      const backgroundInfo = backgroundList.find(
+        (b) => b.name.toLowerCase() === backgroundName.toLowerCase()
+      );
+
+      if (!backgroundInfo) {
+        return {
+          error: true,
+          message: `Background "${backgroundName}" not found. Please check the spelling or try a different background name.`,
+        };
+      }
 
       const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/backgrounds/${backgroundIndex}`
+        `https://www.dnd5eapi.co${backgroundInfo.url}`
       );
 
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Background "${backgroundName}" not found. Please check the spelling or try a different background name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
 

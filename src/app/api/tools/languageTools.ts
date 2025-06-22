@@ -2,6 +2,19 @@ import { Tool, toolRegistry } from "./registry";
 
 const languageCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
+let languageList: { index: string; name: string; url: string }[] = [];
+
+// Fetch the list of all languages on startup
+const fetchLanguageList = async () => {
+  if (languageList.length > 0) return;
+  try {
+    const response = await fetch("https://www.dnd5eapi.co/api/languages");
+    const data = await response.json();
+    languageList = data.results;
+  } catch (error) {
+    console.error("Error fetching language list:", error);
+  }
+};
 
 const getLanguageDetails: Tool = {
   name: "getLanguageDetails",
@@ -17,6 +30,7 @@ const getLanguageDetails: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
+    await fetchLanguageList();
     const languageName = params.languageName as string;
     const cacheKey = `language_${languageName.toLowerCase()}`;
     const cached = languageCache.get(cacheKey);
@@ -26,23 +40,22 @@ const getLanguageDetails: Tool = {
     }
 
     try {
-      // Convert language name to API index format
-      const languageIndex = languageName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
+      const languageInfo = languageList.find(
+        (l) => l.name.toLowerCase() === languageName.toLowerCase()
+      );
+
+      if (!languageInfo) {
+        return {
+          error: true,
+          message: `Language "${languageName}" not found. Please check the spelling or try a different language name.`,
+        };
+      }
 
       const response = await fetch(
-        `https://www.dnd5eapi.co/api/2014/languages/${languageIndex}`
+        `https://www.dnd5eapi.co${languageInfo.url}`
       );
 
       if (!response.ok) {
-        if (response.status === 404) {
-          return {
-            error: true,
-            message: `Language "${languageName}" not found. Please check the spelling or try a different language name.`,
-          };
-        }
         throw new Error(`API request failed: ${response.status}`);
       }
 
