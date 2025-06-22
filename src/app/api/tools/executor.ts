@@ -113,8 +113,48 @@ function extractMonsterName(
   userInput: string,
   aiResponse: string
 ): string | null {
-  // Common monster names to look for
+  // Common monster names to look for (ordered by length, longest first)
   const commonMonsters = [
+    "ancient red dragon",
+    "ancient blue dragon",
+    "ancient green dragon",
+    "ancient black dragon",
+    "ancient white dragon",
+    "ancient brass dragon",
+    "ancient bronze dragon",
+    "ancient copper dragon",
+    "ancient gold dragon",
+    "ancient silver dragon",
+    "adult red dragon",
+    "adult blue dragon",
+    "adult green dragon",
+    "adult black dragon",
+    "adult white dragon",
+    "adult brass dragon",
+    "adult bronze dragon",
+    "adult copper dragon",
+    "adult gold dragon",
+    "adult silver dragon",
+    "young red dragon",
+    "young blue dragon",
+    "young green dragon",
+    "young black dragon",
+    "young white dragon",
+    "young brass dragon",
+    "young bronze dragon",
+    "young copper dragon",
+    "young gold dragon",
+    "young silver dragon",
+    "red dragon wyrmling",
+    "blue dragon wyrmling",
+    "green dragon wyrmling",
+    "black dragon wyrmling",
+    "white dragon wyrmling",
+    "brass dragon wyrmling",
+    "bronze dragon wyrmling",
+    "copper dragon wyrmling",
+    "gold dragon wyrmling",
+    "silver dragon wyrmling",
     "goblin",
     "orc",
     "troll",
@@ -149,22 +189,21 @@ function extractMonsterName(
 
   const text = `${userInput} ${aiResponse}`.toLowerCase();
 
-  // Look for exact monster names
+  // Look for exact monster names (longest first)
   for (const monster of commonMonsters) {
     if (text.includes(monster)) {
-      return monster.charAt(0).toUpperCase() + monster.slice(1);
+      // Convert to API format (lowercase, hyphenated)
+      return monster.replace(/\s+/g, "-");
     }
   }
 
   // Look for "a" or "an" followed by a potential monster name
-  const articleMatch = text.match(/(?:a|an)\s+([a-z]+)/);
+  const articleMatch = text.match(/(?:a|an)\s+([a-z\s]+?)(?:\s|$|\.|,)/);
   if (articleMatch) {
-    const potentialMonster = articleMatch[1];
+    const potentialMonster = articleMatch[1].trim();
     if (potentialMonster.length > 3) {
       // Avoid short words like "a cat"
-      return (
-        potentialMonster.charAt(0).toUpperCase() + potentialMonster.slice(1)
-      );
+      return potentialMonster.replace(/\s+/g, "-");
     }
   }
 
@@ -195,7 +234,7 @@ function formatMonsterResult(result: unknown): string {
     return `\n\n**Monster Data**: Unable to format result`;
   }
 
-  const monster = result as Record<string, unknown>;
+  const monster = result as Record<string, any>;
 
   let formatted = "\n\n**Monster Information**:\n";
 
@@ -203,11 +242,40 @@ function formatMonsterResult(result: unknown): string {
   if (monster.size) formatted += `**Size**: ${monster.size}\n`;
   if (monster.type) formatted += `**Type**: ${monster.type}\n`;
   if (monster.alignment) formatted += `**Alignment**: ${monster.alignment}\n`;
-  if (monster.armor_class)
-    formatted += `**Armor Class**: ${monster.armor_class}\n`;
+
+  // Armor Class formatting
+  if (monster.armor_class) {
+    if (Array.isArray(monster.armor_class)) {
+      const acs = monster.armor_class
+        .map((ac: any) => {
+          let desc = `${ac.value}`;
+          if (ac.armor && Array.isArray(ac.armor)) {
+            desc += ` (${ac.armor.map((a: any) => a.name).join(", ")})`;
+          }
+          if (ac.type && !ac.armor) {
+            desc += ` (${ac.type})`;
+          }
+          return desc;
+        })
+        .join(", ");
+      formatted += `**Armor Class**: ${acs}\n`;
+    } else {
+      formatted += `**Armor Class**: ${monster.armor_class}\n`;
+    }
+  }
+
   if (monster.hit_points)
     formatted += `**Hit Points**: ${monster.hit_points}\n`;
-  if (monster.speed) formatted += `**Speed**: ${monster.speed}\n`;
+
+  // Speed formatting
+  if (monster.speed && typeof monster.speed === "object") {
+    const speeds = Object.entries(monster.speed)
+      .map(([type, value]) => `${type}: ${value}`)
+      .join(", ");
+    formatted += `**Speed**: ${speeds}\n`;
+  } else if (monster.speed) {
+    formatted += `**Speed**: ${monster.speed}\n`;
+  }
 
   if (monster.strength) formatted += `**STR**: ${monster.strength}`;
   if (monster.dexterity) formatted += ` **DEX**: ${monster.dexterity}`;
@@ -216,16 +284,109 @@ function formatMonsterResult(result: unknown): string {
   if (monster.wisdom) formatted += ` **WIS**: ${monster.wisdom}`;
   if (monster.charisma) formatted += ` **CHA**: ${monster.charisma}\n`;
 
-  if (monster.actions && Array.isArray(monster.actions)) {
-    formatted += `**Actions**: ${monster.actions
-      .map((action: any) => action.name)
-      .join(", ")}\n`;
+  // Proficiencies
+  if (
+    monster.proficiencies &&
+    Array.isArray(monster.proficiencies) &&
+    monster.proficiencies.length > 0
+  ) {
+    const profs = monster.proficiencies
+      .map((p: any) => {
+        const name = p.proficiency?.name || "";
+        const value = p.value !== undefined ? `+${p.value}` : "";
+        return `${name} ${value}`.trim();
+      })
+      .join(", ");
+    formatted += `**Proficiencies**: ${profs}\n`;
   }
 
+  // Senses
+  if (monster.senses && typeof monster.senses === "object") {
+    const senses = Object.entries(monster.senses)
+      .map(([sense, value]) => `${sense.replace(/_/g, " ")}: ${value}`)
+      .join(", ");
+    formatted += `**Senses**: ${senses}\n`;
+  }
+
+  // Languages
+  if (monster.languages) formatted += `**Languages**: ${monster.languages}\n`;
+
+  // Challenge Rating
+  if (monster.challenge_rating)
+    formatted += `**Challenge Rating**: ${monster.challenge_rating}\n`;
+
+  // Actions (detailed)
+  if (monster.actions && Array.isArray(monster.actions)) {
+    formatted += `**Actions**:\n`;
+    monster.actions.forEach((action: any) => {
+      formatted += `- ${action.name}`;
+      if (action.attack_bonus !== undefined)
+        formatted += ` (Attack Bonus: +${action.attack_bonus})`;
+      if (
+        action.damage &&
+        Array.isArray(action.damage) &&
+        action.damage.length > 0
+      ) {
+        const dmg = action.damage
+          .map((d: any) =>
+            `${d.damage_dice || ""} ${d.damage_type?.name || ""}`.trim()
+          )
+          .join(", ");
+        formatted += `, Damage: ${dmg}`;
+      }
+      if (action.desc) formatted += `\n  ${action.desc}`;
+      formatted += "\n";
+    });
+  }
+
+  // Special Abilities
   if (monster.special_abilities && Array.isArray(monster.special_abilities)) {
-    formatted += `**Special Abilities**: ${monster.special_abilities
-      .map((ability: any) => ability.name)
-      .join(", ")}\n`;
+    formatted += `**Special Abilities**:\n`;
+    monster.special_abilities.forEach((ability: any) => {
+      formatted += `- ${ability.name}`;
+      if (ability.desc) formatted += `: ${ability.desc}`;
+      formatted += "\n";
+    });
+  }
+
+  // Legendary Actions
+  if (
+    monster.legendary_actions &&
+    Array.isArray(monster.legendary_actions) &&
+    monster.legendary_actions.length > 0
+  ) {
+    formatted += `**Legendary Actions**:\n`;
+    monster.legendary_actions.forEach((action: any) => {
+      formatted += `- ${action.name}`;
+      if (action.desc) formatted += `: ${action.desc}`;
+      formatted += "\n";
+    });
+  }
+
+  // Damage vulnerabilities, resistances, immunities, condition immunities
+  if (
+    monster.damage_vulnerabilities &&
+    monster.damage_vulnerabilities.length > 0
+  ) {
+    formatted += `**Damage Vulnerabilities**: ${monster.damage_vulnerabilities.join(
+      ", "
+    )}\n`;
+  }
+  if (monster.damage_resistances && monster.damage_resistances.length > 0) {
+    formatted += `**Damage Resistances**: ${monster.damage_resistances.join(
+      ", "
+    )}\n`;
+  }
+  if (monster.damage_immunities && monster.damage_immunities.length > 0) {
+    formatted += `**Damage Immunities**: ${monster.damage_immunities.join(
+      ", "
+    )}\n`;
+  }
+  if (monster.condition_immunities && monster.condition_immunities.length > 0) {
+    const conds = monster.condition_immunities
+      .map((c: any) => c.name || c)
+      .join(", ");
+    formatted += `**Condition Immunities**: ${conds}\n`;
   }
 
   return formatted;
