@@ -1,4 +1,4 @@
-import { OpenAI } from "openai";
+import OpenAI from "openai";
 import { Character, useDnDStore, Message } from "@/stores/useStore";
 import {
   toolRegistry,
@@ -19,12 +19,47 @@ const client = new OpenAI({
   dangerouslyAllowBrowser: true,
 });
 
-// Add these type definitions at the top of the file, after the imports
-type StatChange = {
-  field: string;
-  old: number | string;
-  new: number | string;
-};
+// Type definitions for equipment data
+interface EquipmentItem {
+  name: string;
+  equipment_category?: {
+    index: string;
+  };
+}
+
+interface EquipmentChoice {
+  equipment?: EquipmentItem;
+  equipment_option?: {
+    choose: Array<{
+      item?: EquipmentItem;
+      equipment?: EquipmentItem;
+    }>;
+  };
+}
+
+interface ClassData {
+  starting_equipment?: EquipmentChoice[];
+  starting_equipment_options?: any[]; // Keep this flexible for now
+  hit_die?: number;
+}
+
+interface DndApiEquipment {
+  name: string;
+  equipment_category?: {
+    index: string;
+  };
+  gear_category?: {
+    index: string;
+  };
+  // Add other properties as needed
+}
+
+interface CanonicalData {
+  classes?: ClassData[];
+  race?: {
+    speed?: number;
+  };
+}
 
 /**
  * Generates character details using a hybrid approach:
@@ -292,12 +327,12 @@ Return ONLY a JSON object with these creative fields. Example:
 
       // Speed (from race data)
       if (
-        (enhancedCharacter.canonicalData as any).race &&
-        (enhancedCharacter.canonicalData as any).race.speed
+        (enhancedCharacter.canonicalData as CanonicalData).race &&
+        (enhancedCharacter.canonicalData as CanonicalData).race!.speed
       ) {
         enhancedCharacter.speed = (
-          enhancedCharacter.canonicalData as any
-        ).race.speed;
+          enhancedCharacter.canonicalData as CanonicalData
+        ).race!.speed!;
       }
 
       // Armor Class (base calculation, does not include armor)
@@ -305,11 +340,11 @@ Return ONLY a JSON object with these creative fields. Example:
 
       // Hit Points
       if (
-        (enhancedCharacter.canonicalData as any).classes &&
-        (enhancedCharacter.canonicalData as any).classes.length > 0
+        (enhancedCharacter.canonicalData as CanonicalData).classes &&
+        (enhancedCharacter.canonicalData as CanonicalData).classes!.length > 0
       ) {
-        const mainClassData = (enhancedCharacter.canonicalData as any)
-          .classes[0];
+        const mainClassData = (enhancedCharacter.canonicalData as CanonicalData)
+          .classes![0];
         if (mainClassData && mainClassData.hit_die) {
           // Level 1 HP
           let totalHp = mainClassData.hit_die + constitutionModifier;
@@ -324,6 +359,97 @@ Return ONLY a JSON object with these creative fields. Example:
           }
           enhancedCharacter.hitPoints = Math.max(1, totalHp);
           enhancedCharacter.maxHitPoints = Math.max(1, totalHp);
+        }
+      }
+    }
+
+    // 6. Equip Starting Equipment from Class Data
+    if (
+      enhancedCharacter.canonicalData &&
+      (enhancedCharacter.canonicalData as any).classes &&
+      (enhancedCharacter.canonicalData as any).classes.length > 0
+    ) {
+      const mainClassData = (enhancedCharacter.canonicalData as any).classes[0];
+      if (mainClassData) {
+        const equipmentToFetch: { index: string; quantity: number }[] = [];
+
+        // Process guaranteed equipment from starting_equipment
+        if (mainClassData.starting_equipment) {
+          mainClassData.starting_equipment.forEach((item: any) => {
+            if (item.equipment) {
+              equipmentToFetch.push({
+                index: item.equipment.index,
+                quantity: item.quantity,
+              });
+            }
+          });
+        }
+
+        // Process equipment options, choosing the first valid option
+        if (mainClassData.starting_equipment_options) {
+          mainClassData.starting_equipment_options.forEach((option: any) => {
+            const choice = option.from?.options?.[0];
+            if (choice?.option_type === "counted_reference" && choice.of) {
+              equipmentToFetch.push({
+                index: choice.of.index,
+                quantity: choice.count,
+              });
+            }
+          });
+        }
+
+        // Fetch details for all equipment to determine their category
+        if (equipmentToFetch.length > 0) {
+          const equipmentDetailsPromises = equipmentToFetch.map((item) =>
+            toolRegistry.executeTool("getEquipmentDetails", {
+              itemName: item.index,
+            })
+          );
+          const equipmentResults = await Promise.allSettled(
+            equipmentDetailsPromises
+          );
+
+          // Reset equipment and start with "Unarmed Strike"
+          enhancedCharacter.equipment = {
+            weapons: ["Unarmed Strike"],
+            armor: [],
+            tools: [],
+            magicItems: [],
+            items: [],
+          };
+
+          equipmentResults.forEach((result, i) => {
+            if (result.status === "fulfilled" && result.value) {
+              const equipmentData = result.value as DndApiEquipment & {
+                error?: boolean;
+              };
+              if (equipmentData.error) {
+                return;
+              }
+
+              const { quantity } = equipmentToFetch[i];
+              const itemName = equipmentData.name;
+              let categoryKey: keyof Character["equipment"] = "items";
+              const apiCategory = equipmentData.equipment_category?.index;
+              if (apiCategory === "weapon") {
+                categoryKey = "weapons";
+              } else if (apiCategory === "armor") {
+                categoryKey = "armor";
+              } else if (
+                apiCategory === "tools" ||
+                equipmentData.gear_category?.index === "tools"
+              ) {
+                categoryKey = "tools";
+              }
+              for (let j = 0; j < quantity; j++) {
+                enhancedCharacter.equipment[categoryKey].push(itemName);
+              }
+            }
+          });
+        } else {
+          console.log(
+            "DEBUG: No equipment to fetch. `equipmentToFetch` array is empty."
+          );
         }
       }
     }
