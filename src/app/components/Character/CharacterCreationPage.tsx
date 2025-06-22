@@ -222,7 +222,7 @@ const EquipmentInput = ({
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && handleAdd()}
       />
-      <button onClick={handleAdd} className="btn btn-primary ml-2">
+      <button onClick={handleAdd} className="btn ml-2">
         Add
       </button>
     </div>
@@ -233,14 +233,12 @@ const EquipmentCategory = ({
   title,
   items,
   category,
-  badgeColor,
   onRemove,
   onAdd,
 }: {
   title: string;
   items: string[];
   category: keyof Character["equipment"];
-  badgeColor: string;
   onRemove: (category: keyof Character["equipment"], item: string) => void;
   onAdd: (
     category: keyof Character["equipment"],
@@ -255,12 +253,12 @@ const EquipmentCategory = ({
         {items.map((item, index) => (
           <span
             key={`${category}-${item}-${index}`}
-            className={`badge badge-lg ${badgeColor} flex items-center`}
+            className="badge badge-neutral-content gap-2"
           >
             {item}
             <button
               onClick={() => onRemove(category, item)}
-              className="ml-2 text-white hover:text-gray-300"
+              className="btn btn-xs btn-ghost"
             >
               &times;
             </button>
@@ -1332,7 +1330,6 @@ const CharacterCreationPage = () => {
               title="Weapons"
               items={character.equipment?.weapons || []}
               category="weapons"
-              badgeColor="badge-primary"
               onRemove={removeEquipment}
               onAdd={addEquipment}
             />
@@ -1340,7 +1337,6 @@ const CharacterCreationPage = () => {
               title="Armor"
               items={character.equipment?.armor || []}
               category="armor"
-              badgeColor="badge-secondary"
               onRemove={removeEquipment}
               onAdd={addEquipment}
             />
@@ -1348,7 +1344,6 @@ const CharacterCreationPage = () => {
               title="Tools"
               items={character.equipment?.tools || []}
               category="tools"
-              badgeColor="badge-accent"
               onRemove={removeEquipment}
               onAdd={addEquipment}
             />
@@ -1356,7 +1351,6 @@ const CharacterCreationPage = () => {
               title="Magic Items"
               items={character.equipment?.magicItems || []}
               category="magicItems"
-              badgeColor="badge-info"
               onRemove={removeEquipment}
               onAdd={addEquipment}
             />
@@ -1365,7 +1359,6 @@ const CharacterCreationPage = () => {
                 title="Other Items"
                 items={character.equipment?.items || []}
                 category="items"
-                badgeColor="badge-warning"
                 onRemove={removeEquipment}
                 onAdd={addEquipment}
               />

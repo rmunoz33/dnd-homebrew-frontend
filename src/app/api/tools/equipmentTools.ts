@@ -40,9 +40,15 @@ const getEquipmentDetails: Tool = {
     }
 
     try {
-      const itemInfo = equipmentList.find(
-        (e) => e.name.toLowerCase() === itemName.toLowerCase()
+      let itemInfo = equipmentList.find(
+        (e) => e.index === itemName.toLowerCase()
       );
+
+      if (!itemInfo) {
+        itemInfo = equipmentList.find(
+          (e) => e.name.toLowerCase() === itemName.toLowerCase()
+        );
+      }
 
       if (!itemInfo) {
         return {
