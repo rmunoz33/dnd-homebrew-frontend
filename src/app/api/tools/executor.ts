@@ -11,6 +11,7 @@ interface ToolExecutionResult {
   result?: unknown;
   toolName?: string;
   error?: string;
+  allResults?: Array<{ toolName: string; result?: unknown; error?: string }>;
 }
 
 /**
@@ -42,7 +43,7 @@ export async function executeToolsFromResponse(
 ): Promise<ToolExecutionResult> {
   const toolSchema = generateToolSchemaPrompt();
 
-  const systemPrompt = `You are an expert D&D assistant. Given the following user input and AI response, decide if a tool should be used. Here are the available tools:\n\n${toolSchema}\n\nReturn a JSON object in this format:\n{ "tool": "getSpellDetails", "args": { "spellName": "Fireball" } }\nor\n{ "tool": "getMonsterStats", "args": { "monsterName": "Owlbear" } }\nor\n{ "tool": null }`;
+  const systemPrompt = `You are an expert D&D assistant. Given the following user input and AI response, decide if any tools should be used. Here are the available tools:\n\n${toolSchema}\n\nReturn a JSON object in this format:\n{ "tools": [{"tool": "getSpellDetails", "args": {"spellName": "Fireball"}}, {"tool": "getMonsterStats", "args": {"monsterName": "Adult Red Dragon"}}] }\nor\n{ "tools": [{"tool": "getSpellDetails", "args": {"spellName": "Fireball"}}] }\nor\n{ "tools": [] } if no tools are needed.\n\nImportant naming conventions:\n- Dragons: Use "Adult Red Dragon", "Young Blue Dragon", "Ancient Gold Dragon", etc. (not "Dragon, Red")\n- Monsters: Use exact names like "Goblin", "Owlbear", "Zombie", "Troll", "Roc"\n- Spells: Use exact names like "Fireball", "Cone of Cold", "Ice Storm", "Cure Wounds", "Mage Armor"\n\nSpell mapping examples:\n- "shoot fire" → "Fireball"\n- "shoot ice" → "Cone of Cold"\n- "heal" → "Cure Wounds"\n- "make armor" → "Mage Armor"\n- "turn invisible" → "Invisibility"`;
 
   const userPrompt = `User input: "${userInput}"
 AI response: "${aiResponse}"`;
@@ -55,7 +56,7 @@ AI response: "${aiResponse}"`;
         { role: "user", content: userPrompt },
       ],
       temperature: 0.1,
-      max_tokens: 200,
+      max_tokens: 300,
       response_format: { type: "json_object" },
     });
 
@@ -67,7 +68,9 @@ AI response: "${aiResponse}"`;
     // Log the raw LLM response for debugging
     console.log("Raw LLM tool selection response:", content);
 
-    let parsed: { tool: string | null; args?: Record<string, unknown> };
+    let parsed: {
+      tools: Array<{ tool: string; args?: Record<string, unknown> }>;
+    };
     try {
       parsed = JSON.parse(content);
     } catch (err) {
@@ -77,29 +80,58 @@ AI response: "${aiResponse}"`;
         error: "Failed to parse LLM tool selection response.",
       };
     }
-    if (!parsed.tool) {
+
+    if (!parsed.tools || parsed.tools.length === 0) {
       return { toolUsed: false };
     }
-    if (!toolRegistry.hasTool(parsed.tool)) {
-      return {
-        toolUsed: false,
-        error: `Tool '${parsed.tool}' is not registered.`,
-      };
+
+    // Execute all selected tools
+    const results: Array<{
+      toolName: string;
+      result?: unknown;
+      error?: string;
+    }> = [];
+
+    for (const toolSelection of parsed.tools) {
+      if (!toolRegistry.hasTool(toolSelection.tool)) {
+        results.push({
+          toolName: toolSelection.tool,
+          error: `Tool '${toolSelection.tool}' is not registered.`,
+        });
+        continue;
+      }
+
+      try {
+        const result = await toolRegistry.executeTool(
+          toolSelection.tool,
+          toolSelection.args || {}
+        );
+        results.push({
+          toolName: toolSelection.tool,
+          result,
+        });
+      } catch (error) {
+        results.push({
+          toolName: toolSelection.tool,
+          error: `Failed to execute tool '${toolSelection.tool}': ${error}`,
+        });
+      }
     }
-    try {
-      const result = await toolRegistry.executeTool(
-        parsed.tool,
-        parsed.args || {}
-      );
+
+    // Return the first successful result (for backward compatibility)
+    const successfulResults = results.filter((r) => !r.error);
+    if (successfulResults.length > 0) {
       return {
         toolUsed: true,
-        result,
-        toolName: parsed.tool,
+        result: successfulResults[0].result,
+        toolName: successfulResults[0].toolName,
+        // Store all results for multi-tool formatting
+        allResults: results,
       };
-    } catch (error) {
+    } else {
       return {
         toolUsed: true,
-        error: `Failed to execute tool '${parsed.tool}': ${error}`,
+        error: `All tools failed: ${results.map((r) => r.error).join(", ")}`,
       };
     }
   } catch (error) {

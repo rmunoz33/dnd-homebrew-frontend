@@ -13,18 +13,37 @@ export async function POST(request: NextRequest) {
     const toolResult = await executeToolsFromResponse(aiResponse, userInput);
 
     if (toolResult.toolUsed) {
-      const formattedResult = formatToolResult(
-        toolResult.toolName!,
-        toolResult.result
-      );
+      let formattedResult = "";
+
+      // Handle multiple tool results
+      if (toolResult.allResults && toolResult.allResults.length > 1) {
+        formattedResult = "\n\n**Multiple Tool Results**:\n";
+        toolResult.allResults.forEach((result, index) => {
+          if (result.error) {
+            formattedResult += `\n**${result.toolName}**: Error - ${result.error}\n`;
+          } else if (result.result) {
+            formattedResult += formatToolResult(result.toolName, result.result);
+          }
+        });
+      } else {
+        // Single tool result (backward compatibility)
+        formattedResult = formatToolResult(
+          toolResult.toolName!,
+          toolResult.result
+        );
+      }
 
       return NextResponse.json({
         success: true,
         toolUsed: true,
         toolName: toolResult.toolName,
         result: toolResult.result,
+        allResults: toolResult.allResults,
         formattedResult,
-        message: `Successfully used ${toolResult.toolName} tool`,
+        message:
+          toolResult.allResults && toolResult.allResults.length > 1
+            ? `Successfully used ${toolResult.allResults.length} tools`
+            : `Successfully used ${toolResult.toolName} tool`,
       });
     } else {
       return NextResponse.json({
