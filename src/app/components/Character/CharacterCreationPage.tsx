@@ -190,6 +190,90 @@ const ClearableInput: React.FC<ClearableInputProps> = ({
   );
 };
 
+// Reusable component for equipment category sections
+const EquipmentInput = ({
+  category,
+  placeholder,
+  onAdd,
+}: {
+  category: keyof Character["equipment"];
+  placeholder: string;
+  onAdd: (
+    category: keyof Character["equipment"],
+    value: string,
+    setInput: (value: string) => void
+  ) => void;
+}) => {
+  const [inputValue, setInputValue] = useState("");
+
+  const handleAdd = () => {
+    if (inputValue.trim()) {
+      onAdd(category, inputValue.trim(), setInputValue);
+    }
+  };
+
+  return (
+    <div className="flex">
+      <input
+        type="text"
+        placeholder={placeholder}
+        className="input input-bordered w-full"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+      />
+      <button onClick={handleAdd} className="btn ml-2">
+        Add
+      </button>
+    </div>
+  );
+};
+
+const EquipmentCategory = ({
+  title,
+  items,
+  category,
+  onRemove,
+  onAdd,
+}: {
+  title: string;
+  items: string[];
+  category: keyof Character["equipment"];
+  onRemove: (category: keyof Character["equipment"], item: string) => void;
+  onAdd: (
+    category: keyof Character["equipment"],
+    value: string,
+    setInput: (value: string) => void
+  ) => void;
+}) => {
+  return (
+    <div className="col-span-1">
+      <h3 className="text-white mb-2">{title}</h3>
+      <div className="flex flex-wrap gap-2 mb-2 min-h-[40px]">
+        {items.map((item, index) => (
+          <span
+            key={`${category}-${item}-${index}`}
+            className="badge badge-neutral-content gap-2"
+          >
+            {item}
+            <button
+              onClick={() => onRemove(category, item)}
+              className="btn btn-xs btn-ghost"
+            >
+              &times;
+            </button>
+          </span>
+        ))}
+      </div>
+      <EquipmentInput
+        category={category}
+        placeholder={`Add ${title.slice(0, -1).toLowerCase()}`}
+        onAdd={onAdd}
+      />
+    </div>
+  );
+};
+
 const CharacterCreationPage = () => {
   const {
     character,
@@ -339,7 +423,7 @@ const CharacterCreationPage = () => {
     setIsRolling(true);
     try {
       const suggestions = await generateCharacterDetails(character);
-      const parsedSuggestions = JSON.parse(suggestions as string) as Character;
+      const parsedSuggestions = suggestions as Character;
 
       // Ensure specialAbilities is initialized if missing from AI response
       if (!parsedSuggestions.specialAbilities) {
@@ -1242,173 +1326,41 @@ const CharacterCreationPage = () => {
           </h2>
 
           <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h3 className="text-white mb-2">Weapons</h3>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {(character.equipment?.weapons || []).map((weapon) => (
-                  <span
-                    key={weapon}
-                    className="badge badge-neutral-content gap-2"
-                  >
-                    {weapon}
-                    <button
-                      onClick={() => removeEquipment("weapons", weapon)}
-                      className="btn btn-xs btn-ghost"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Add weapon"
-                className="input input-bordered w-full"
-                value={filters.weapon}
-                onChange={(e) => setFilter("weapon", e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    addEquipment("weapons", filters.weapon, () =>
-                      setFilter("weapon", "")
-                    );
-                  }
-                }}
-              />
-            </div>
-
-            <div>
-              <h3 className="text-white mb-2">Armor</h3>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {(character.equipment?.armor || []).map((armor) => (
-                  <span
-                    key={armor}
-                    className="badge badge-neutral-content gap-2"
-                  >
-                    {armor}
-                    <button
-                      onClick={() => removeEquipment("armor", armor)}
-                      className="btn btn-xs btn-ghost"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Add armor"
-                className="input input-bordered w-full"
-                value={filters.armor}
-                onChange={(e) => setFilter("armor", e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    addEquipment("armor", filters.armor, () =>
-                      setFilter("armor", "")
-                    );
-                  }
-                }}
-              />
-            </div>
-
-            <div>
-              <h3 className="text-white mb-2">Tools</h3>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {(character.equipment?.tools || []).map((tool) => (
-                  <span
-                    key={tool}
-                    className="badge badge-neutral-content gap-2"
-                  >
-                    {tool}
-                    <button
-                      onClick={() => removeEquipment("tools", tool)}
-                      className="btn btn-xs btn-ghost"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Add tool"
-                className="input input-bordered w-full"
-                value={filters.tool}
-                onChange={(e) => setFilter("tool", e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    addEquipment("tools", filters.tool, () =>
-                      setFilter("tool", "")
-                    );
-                  }
-                }}
-              />
-            </div>
-
-            <div>
-              <h3 className="text-white mb-2">Magic Items</h3>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {(character.equipment?.magicItems || []).map((item) => (
-                  <span
-                    key={item}
-                    className="badge badge-neutral-content gap-2"
-                  >
-                    {item}
-                    <button
-                      onClick={() => removeEquipment("magicItems", item)}
-                      className="btn btn-xs btn-ghost"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Add magic item"
-                className="input input-bordered w-full"
-                value={filters.magicItem}
-                onChange={(e) => setFilter("magicItem", e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    addEquipment("magicItems", filters.magicItem, () =>
-                      setFilter("magicItem", "")
-                    );
-                  }
-                }}
-              />
-            </div>
-
+            <EquipmentCategory
+              title="Weapons"
+              items={character.equipment?.weapons || []}
+              category="weapons"
+              onRemove={removeEquipment}
+              onAdd={addEquipment}
+            />
+            <EquipmentCategory
+              title="Armor"
+              items={character.equipment?.armor || []}
+              category="armor"
+              onRemove={removeEquipment}
+              onAdd={addEquipment}
+            />
+            <EquipmentCategory
+              title="Tools"
+              items={character.equipment?.tools || []}
+              category="tools"
+              onRemove={removeEquipment}
+              onAdd={addEquipment}
+            />
+            <EquipmentCategory
+              title="Magic Items"
+              items={character.equipment?.magicItems || []}
+              category="magicItems"
+              onRemove={removeEquipment}
+              onAdd={addEquipment}
+            />
             <div className="md:col-span-2">
-              <h3 className="text-white mb-2">Other Items</h3>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {(character.equipment?.items || []).map((item) => (
-                  <span
-                    key={item}
-                    className="badge badge-neutral-content gap-2"
-                  >
-                    {item}
-                    <button
-                      onClick={() => removeEquipment("items", item)}
-                      className="btn btn-xs btn-ghost"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Add item"
-                className="input input-bordered w-full"
-                value={filters.item}
-                onChange={(e) => setFilter("item", e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    addEquipment("items", filters.item, () =>
-                      setFilter("item", "")
-                    );
-                  }
-                }}
+              <EquipmentCategory
+                title="Other Items"
+                items={character.equipment?.items || []}
+                category="items"
+                onRemove={removeEquipment}
+                onAdd={addEquipment}
               />
             </div>
           </div>

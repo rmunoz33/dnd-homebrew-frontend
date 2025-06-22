@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Send } from "lucide-react";
-import { useDnDStore, Message } from "@/stores/useStore";
+import { useDnDStore, Message, ApiChanges } from "@/stores/useStore";
 import {
   generateChatCompletion,
   updateCharacterStatsAPI,
@@ -96,6 +96,7 @@ const GameChat = () => {
       if (!success) {
         throw new Error("Failed to get response");
       }
+      await updateCharacterStats();
     } catch (error) {
       console.error("Error sending message:", error);
       updateLastMessage("Sorry, I encountered an error. Please try again.");
@@ -105,34 +106,60 @@ const GameChat = () => {
   };
 
   const updateCharacterStats = async () => {
-    const changes = await updateCharacterStatsAPI();
+    console.log("Checking for character stat updates...");
+    const changes = (await updateCharacterStatsAPI()) as ApiChanges | null;
+    console.log("Received changes from API:", changes);
+
+    const showToast = (message: string, isPositive: boolean) => {
+      const toast = document.createElement("div");
+      toast.className = "toast toast-end";
+      const alert = document.createElement("div");
+      alert.className = `alert ${isPositive ? "alert-success" : "alert-error"}`;
+      alert.textContent = message;
+      toast.appendChild(alert);
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.remove();
+      }, 5000);
+    };
+
     if (changes) {
-      changes.forEach((change) => {
-        const message =
-          change.old === "Added" || change.old === "Removed"
-            ? `${change.field}: ${change.old} ${change.new}`
-            : `${change.field} changed from ${change.old} to ${change.new}`;
-        const toast = document.createElement("div");
-        toast.className = "toast toast-end";
-        const alert = document.createElement("div");
-        let isPositive = false;
-        if (change.old === "Added") {
-          isPositive = true;
-        } else if (change.old === "Removed") {
-          isPositive = false;
-        } else {
-          isPositive = Number(change.new) > Number(change.old);
-        }
-        alert.className = `alert ${
-          isPositive ? "alert-success" : "alert-error"
-        }`;
-        alert.textContent = message;
-        toast.appendChild(alert);
-        document.body.appendChild(toast);
-        setTimeout(() => {
-          toast.remove();
-        }, 5000);
-      });
+      useDnDStore.getState().applyCharacterChanges(changes);
+
+      if (changes.type === "stat_changes" && changes.changes) {
+        changes.changes.forEach((change) => {
+          if (change.type === "item_remove") {
+            const message = `Removed: ${change.item}`;
+            showToast(message, false);
+            return;
+          }
+          if (change.type === "item_add") {
+            const message = `Acquired: ${change.item}`;
+            showToast(message, true);
+            return;
+          }
+          if (change.type === "stat") {
+            const formattedStat = change.stat
+              .split(".")
+              .map(
+                (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
+              )
+              .join(" ");
+            const message = `${formattedStat} ${change.change > 0 ? "+" : ""}${
+              change.change
+            }`;
+            showToast(message, change.change > 0);
+          }
+        });
+      }
+      if (changes.type === "tool_results" && changes.results?.allResults) {
+        changes.results.allResults.forEach((result) => {
+          if (result.result && result.result.name) {
+            const message = `Acquired: ${result.result.name}`;
+            showToast(message, true);
+          }
+        });
+      }
     }
   };
 
@@ -239,7 +266,7 @@ const GameChat = () => {
               <button
                 onClick={(e) => {
                   e.preventDefault();
-                  handleSendMessage().then(() => updateCharacterStats());
+                  handleSendMessage();
                 }}
                 disabled={!inputMessage.trim() || isLoading}
                 className={`btn btn-circle btn-neutral-content h-10 w-10 sm:h-12 sm:w-12 min-h-0 ${

@@ -8,6 +8,49 @@ export interface Message {
   timestamp: Date;
 }
 
+// Types for applyCharacterChanges
+export interface StatChange {
+  type: "stat";
+  stat: string;
+  change: number;
+}
+
+export interface ItemRemoveChange {
+  type: "item_remove";
+  item: string;
+  category: keyof Character["equipment"];
+}
+
+export interface ItemAddChange {
+  type: "item_add";
+  item: string;
+  category: keyof Character["equipment"];
+}
+
+export type Change = StatChange | ItemRemoveChange | ItemAddChange;
+
+export interface ToolResult {
+  toolName: string;
+  result: {
+    name?: string;
+    equipment_category?: { index: string };
+  };
+}
+
+export interface StatChanges {
+  type: "stat_changes";
+  changes: Change[];
+}
+
+export interface ToolChanges {
+  type: "tool_results";
+  results?: {
+    allResults: ToolResult[];
+  };
+}
+
+export type ApiChanges = StatChanges | ToolChanges;
+
 interface DnDStore {
   isLoggedIn: boolean;
   setIsLoggedIn: (isLoggedIn: boolean) => void;
@@ -40,6 +83,7 @@ interface DnDStore {
   };
   setFilter: (key: keyof DnDStore["filters"], value: string) => void;
   resetFilters: () => void;
+  applyCharacterChanges: (changes: ApiChanges) => void;
 }
 
 export interface Character {
@@ -55,6 +99,7 @@ export interface Character {
   alignment: string;
   experience: number;
   hitPoints: number;
+  maxHitPoints: number;
   armorClass: number;
   initiative: number;
   speed: number;
@@ -97,6 +142,7 @@ export const initialCharacter: Character = {
   alignment: "",
   experience: 1,
   hitPoints: 1,
+  maxHitPoints: 1,
   armorClass: 1,
   initiative: 1,
   speed: 1,
@@ -142,9 +188,6 @@ export const initialFilters = {
 };
 
 type PersistedMessage = Omit<Message, "timestamp"> & { timestamp: string };
-type PersistedState = Omit<DnDStore, "messages"> & {
-  messages: PersistedMessage[];
-};
 
 export const useDnDStore = create<DnDStore>()(
   persist(
@@ -181,6 +224,90 @@ export const useDnDStore = create<DnDStore>()(
           filters: { ...state.filters, [key]: value },
         })),
       resetFilters: () => set({ filters: initialFilters }),
+      applyCharacterChanges: (changeResult: ApiChanges) =>
+        set((state) => {
+          const { character } = state;
+          const newCharacter = { ...character };
+
+          console.log("Applying character changes:", changeResult);
+
+          if (changeResult.type === "stat_changes" && changeResult.changes) {
+            changeResult.changes.forEach((change: Change) => {
+              if (change.type === "stat") {
+                const path = change.stat.split(".");
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                let current: Record<string, any> = newCharacter;
+
+                // Traverse the path to the second-to-last element
+                for (let i = 0; i < path.length - 1; i++) {
+                  current = current[path[i]];
+                  if (typeof current !== "object" || current === null) {
+                    return; // Invalid path, skip this change
+                  }
+                }
+
+                const finalKey = path[path.length - 1];
+                if (typeof current[finalKey] === "number") {
+                  current[finalKey] += change.change;
+                  if (finalKey === "hitPoints") {
+                    current.hitPoints = Math.min(
+                      current.hitPoints,
+                      (newCharacter as Character).maxHitPoints
+                    );
+                  }
+                }
+              } else if (change.type === "item_remove") {
+                const category = change.category;
+                if (newCharacter.equipment[category]) {
+                  newCharacter.equipment[category] = newCharacter.equipment[
+                    category
+                  ].filter(
+                    (item: string) =>
+                      item.toLowerCase() !== change.item.toLowerCase()
+                  );
+                }
+              } else if (change.type === "item_add") {
+                const category = change.category;
+                if (!newCharacter.equipment[category]) {
+                  newCharacter.equipment[category] = [];
+                }
+                newCharacter.equipment[category].push(change.item);
+              }
+            });
+          } else if (
+            changeResult.type === "tool_results" &&
+            changeResult.results?.allResults
+          ) {
+            changeResult.results.allResults.forEach((result: ToolResult) => {
+              if (result.result) {
+                switch (result.toolName) {
+                  case "getEquipmentDetails":
+                  case "getMagicItemDetails":
+                    if (result.result.name) {
+                      const category =
+                        result.result.equipment_category?.index || "items";
+                      if (
+                        !newCharacter.equipment[
+                          category as keyof Character["equipment"]
+                        ]
+                      ) {
+                        newCharacter.equipment[
+                          category as keyof Character["equipment"]
+                        ] = [];
+                      }
+                      newCharacter.equipment[
+                        category as keyof Character["equipment"]
+                      ].push(result.result.name);
+                    }
+                    break;
+                  // Add cases for other tools like getConditionDetails if needed
+                }
+              }
+            });
+          }
+
+          return { character: newCharacter };
+        }),
     }),
     {
       name: "dnd-store",
@@ -193,7 +320,9 @@ export const useDnDStore = create<DnDStore>()(
         })),
       }),
       merge: (persistedState: unknown, currentState: DnDStore) => {
-        const typedPersistedState = persistedState as PersistedState;
+        const typedPersistedState = persistedState as Partial<DnDStore> & {
+          messages?: PersistedMessage[];
+        };
         return {
           ...currentState,
           ...typedPersistedState,
