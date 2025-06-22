@@ -56,6 +56,7 @@ export interface Character {
   alignment: string;
   experience: number;
   hitPoints: number;
+  maxHitPoints: number;
   armorClass: number;
   initiative: number;
   speed: number;
@@ -98,6 +99,7 @@ export const initialCharacter: Character = {
   alignment: "",
   experience: 1,
   hitPoints: 1,
+  maxHitPoints: 1,
   armorClass: 1,
   initiative: 1,
   speed: 1,
@@ -206,6 +208,12 @@ export const useDnDStore = create<DnDStore>()(
                 const finalKey = path[path.length - 1];
                 if (typeof current[finalKey] === "number") {
                   current[finalKey] += change.change;
+                  if (finalKey === "hitPoints") {
+                    current.hitPoints = Math.min(
+                      current.hitPoints,
+                      (newCharacter as Character).maxHitPoints
+                    );
+                  }
                 }
               } else if (
                 change.type === "item_remove" &&

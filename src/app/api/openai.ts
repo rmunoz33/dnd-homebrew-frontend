@@ -323,6 +323,7 @@ Return ONLY a JSON object with these creative fields. Example:
               (averageHitDie + constitutionModifier);
           }
           enhancedCharacter.hitPoints = Math.max(1, totalHp);
+          enhancedCharacter.maxHitPoints = Math.max(1, totalHp);
         }
       }
     }

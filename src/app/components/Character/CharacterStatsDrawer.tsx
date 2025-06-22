@@ -105,7 +105,9 @@ const CharacterStatsDrawer = ({
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center">
                   <span className="text-red-400 mr-1">❤</span>
-                  <span>Hit Points: {character.hitPoints}</span>
+                  <span>
+                    Hit Points: {character.hitPoints} / {character.maxHitPoints}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-300 mr-1">🛡</span>
