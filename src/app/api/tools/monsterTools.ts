@@ -29,9 +29,15 @@ const getMonsterStats: Tool = {
     }
 
     try {
-      // Call the 5e-bits API
+      // Convert monster name to API index format (lowercase, hyphenated)
+      const monsterIndex = monsterName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+      // Call the correct D&D 5e API
       const response = await fetch(
-        `https://api.5e-bits.com/monsters/${encodeURIComponent(monsterName)}`
+        `https://www.dnd5eapi.co/api/2014/monsters/${monsterIndex}`
       );
 
       if (!response.ok) {

@@ -12,6 +12,11 @@ import {
   characterAlignments,
   characterClasses,
 } from "@/app/components/Character/characterValueOptions";
+import {
+  toolRegistry,
+  executeToolsFromResponse,
+  formatToolResult,
+} from "./tools";
 
 const client = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY!,
@@ -257,9 +262,18 @@ export const updateCharacterStatsAPI = async () => {
 
 export const generateCampaignOutline = async (character: Character) => {
   const startingLevel = character.level || 1;
+
+  // Get tool descriptions for campaign creation
+  const toolDescriptions = toolRegistry.generateToolDescriptions();
+
   const prompt = `As a D&D campaign designer, create a detailed campaign outline for a solo adventure featuring this character:
 
 ${JSON.stringify(character, null, 2)}
+
+AVAILABLE D&D TOOLS:
+${toolDescriptions}
+
+Use these tools to get accurate monster stat blocks, class features, and equipment information when creating NPCs and enemies for the campaign.
 
 Follow this structure:
 
@@ -297,6 +311,7 @@ Act 3 (Climax and Resolution):
 
 4. Stat Blocks
 - For each major NPC and enemy, provide a D&D 5e-style stat block (level-appropriate, including AC, HP, abilities, attacks, and special traits)
+- Use the available tools to get accurate monster information when needed
 
 5. Major Locations
 - Important settings and their significance
@@ -329,7 +344,7 @@ Format the response as a detailed markdown document that can be used as a campai
         {
           role: "system",
           content:
-            "You are an expert D&D campaign designer who creates engaging, character-driven adventures.",
+            "You are an expert D&D campaign designer who creates engaging, character-driven adventures. You have access to comprehensive D&D data through the available tools.",
         },
         {
           role: "user",
@@ -356,6 +371,9 @@ export const generateChatCompletion = async () => {
       campaignOutline,
     } = useDnDStore.getState();
 
+    // Get tool descriptions for the AI
+    const toolDescriptions = toolRegistry.generateToolDescriptions();
+
     const systemMessage = {
       role: "system" as const,
       content: `You are a world-class Dungeon Master in a D&D game. The player's character has the following details:
@@ -366,6 +384,11 @@ ${
   campaignOutline ||
   "No campaign outline available. Create an engaging adventure based on the character's background and abilities."
 }
+
+AVAILABLE D&D TOOLS:
+${toolDescriptions}
+
+When the player asks about D&D mechanics, monsters, spells, or equipment, use the appropriate tool to get accurate information. If you need specific D&D data, mention which tool you would use and what information you need.
 
 Respond in character as a DM, guiding the player through their adventure. Keep responses concise but engaging, and maintain the medieval fantasy atmosphere. Balance world-building, story-telling, and game mechanics.
 
@@ -407,6 +430,27 @@ Always give your response in markdown format.`,
         fullContent += content;
         updateLastMessage(fullContent);
       }
+    }
+
+    // After getting the AI response, check if we need to execute any tools
+    const toolResult = await executeToolsFromResponse(
+      fullContent,
+      inputMessage
+    );
+
+    if (toolResult.toolUsed && toolResult.result && toolResult.toolName) {
+      // Format the tool result and append it to the response
+      const formattedResult = formatToolResult(
+        toolResult.toolName,
+        toolResult.result
+      );
+      const finalContent = fullContent + formattedResult;
+      updateLastMessage(finalContent);
+    } else if (toolResult.toolUsed && toolResult.error) {
+      // Handle tool execution error
+      const errorMessage = `\n\n**Tool Error**: ${toolResult.error}`;
+      const finalContent = fullContent + errorMessage;
+      updateLastMessage(finalContent);
     }
 
     return true;
