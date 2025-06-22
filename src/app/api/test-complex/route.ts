@@ -6,10 +6,10 @@ export async function POST(request: NextRequest) {
   try {
     const { userInput } = await request.json();
 
-    console.log("Testing tools with AI intent detection:");
+    console.log("Testing complex multi-tool scenario:");
     console.log("User Input:", userInput);
 
-    // Create a comprehensive prompt for the LLM
+    // Create a comprehensive prompt for complex scenarios
     const prompt = `You are a helpful D&D assistant. The user has asked: "${userInput}"
 
 Available tools:
@@ -40,19 +40,10 @@ For backgrounds, use exact background names like "Acolyte", "Criminal", "Folk He
 For subclasses, use exact subclass names like "Evocation", "Thief", "Life Domain".
 For magic items, use exact item names like "Sword of Sharpness", "Ring of Protection".
 
-Examples:
-- "I want to buy a sword" → {"tool": "getEquipmentDetails", "args": {"itemName": "Longsword"}}
-- "Tell me about wizards" → {"tool": "getClassDetails", "args": {"className": "Wizard"}}
-- "What can elves do?" → {"tool": "getRaceDetails", "args": {"raceName": "Elf"}}
-- "I need healing" → {"tool": "getSpellDetails", "args": {"spellName": "Cure Wounds"}}
-- "What's a goblin?" → {"tool": "getMonsterStats", "args": {"monsterName": "Goblin"}}
-- "What does poisoned do?" → {"tool": "getConditionDetails", "args": {"conditionName": "Poisoned"}}
-- "How does stealth work?" → {"tool": "getSkillDetails", "args": {"skillName": "Stealth"}}
-- "Tell me about the Lucky feat" → {"tool": "getFeatDetails", "args": {"featName": "Lucky"}}
-- "What's the Acolyte background?" → {"tool": "getBackgroundDetails", "args": {"backgroundName": "Acolyte"}}
-- "Tell me about Evocation wizards" → {"tool": "getSubclassDetails", "args": {"subclassName": "Evocation"}}
-- "What's a Ring of Protection?" → {"tool": "getMagicItemDetails", "args": {"itemName": "Ring of Protection"}}
-- "I want armor and a weapon" → {"tools": [{"tool": "getEquipmentDetails", "args": {"itemName": "Plate Armor"}}, {"tool": "getEquipmentDetails", "args": {"itemName": "Longsword"}}]}
+Complex examples:
+- "I want to create a wizard character with the Evocation school and Acolyte background" → {"tools": [{"tool": "getClassDetails", "args": {"className": "Wizard"}}, {"tool": "getSubclassDetails", "args": {"subclassName": "Evocation"}}, {"tool": "getBackgroundDetails", "args": {"backgroundName": "Acolyte"}}]}
+- "I need a longsword, plate armor, and a Ring of Protection for my fighter" → {"tools": [{"tool": "getEquipmentDetails", "args": {"itemName": "Longsword"}}, {"tool": "getEquipmentDetails", "args": {"itemName": "Plate Armor"}}, {"tool": "getMagicItemDetails", "args": {"itemName": "Ring of Protection"}}]}
+- "What's the difference between a goblin and an orc, and what spells can I use against them?" → {"tools": [{"tool": "getMonsterStats", "args": {"monsterName": "Goblin"}}, {"tool": "getMonsterStats", "args": {"monsterName": "Orc"}}, {"tool": "getSpellDetails", "args": {"spellName": "Fireball"}}]}
 
 Respond with only the JSON object:`;
 
@@ -107,7 +98,7 @@ Respond with only the JSON object:`;
       rawLlmResponse: llmResponse,
     });
   } catch (error) {
-    console.error("Error in test-tools:", error);
+    console.error("Error in test-complex:", error);
     return NextResponse.json(
       {
         error: "Failed to process request",
@@ -119,8 +110,16 @@ Respond with only the JSON object:`;
 }
 
 export async function GET() {
-  return NextResponse.json(
-    { error: "Use POST method with userInput in the request body" },
-    { status: 405 }
-  );
+  return NextResponse.json({
+    message: "Complex multi-tool test endpoint",
+    examples: [
+      "I want to create a wizard character with the Evocation school and Acolyte background",
+      "I need a longsword, plate armor, and a Ring of Protection for my fighter",
+      "What's the difference between a goblin and an orc, and what spells can I use against them?",
+      "Tell me about elves, their racial traits, and what classes work well with them",
+      "I want to build a stealthy rogue with the Thief subclass and Criminal background",
+      "What equipment do I need for a cleric, and what's the Life Domain like?",
+      "I found a magic sword and want to know about both the weapon and the magic item properties",
+    ],
+  });
 }

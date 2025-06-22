@@ -162,6 +162,14 @@ export function formatToolResult(toolName: string, result: unknown): string {
       return formatConditionResult(result);
     case "getSkillDetails":
       return formatSkillResult(result);
+    case "getFeatDetails":
+      return formatFeatResult(result);
+    case "getBackgroundDetails":
+      return formatBackgroundResult(result);
+    case "getSubclassDetails":
+      return formatSubclassResult(result);
+    case "getMagicItemDetails":
+      return formatMagicItemResult(result);
     default:
       return `\n\n**Tool Result**: ${JSON.stringify(result, null, 2)}`;
   }
@@ -582,6 +590,144 @@ function formatSkillResult(result: unknown): string {
   }
   if (skill.ability_score && skill.ability_score.name) {
     formatted += `**Ability Score**: ${skill.ability_score.name}\n`;
+  }
+
+  return formatted;
+}
+
+/**
+ * Formats feat data for readable display
+ */
+function formatFeatResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Feat Data**: Unable to format result`;
+  }
+  const feat = result as Record<string, any>;
+  let formatted = "\n\n**Feat Information**:\n";
+
+  if (feat.name) formatted += `**Name**: ${feat.name}\n`;
+  if (feat.prerequisites && Array.isArray(feat.prerequisites)) {
+    formatted += `**Prerequisites**:\n`;
+    feat.prerequisites.forEach((prereq: any) => {
+      if (prereq.ability_score) {
+        formatted += `  - ${prereq.ability_score.name}: ${prereq.minimum_score}\n`;
+      }
+    });
+  }
+  if (feat.desc && Array.isArray(feat.desc)) {
+    formatted += `**Description**:\n${feat.desc.join("\n")}\n`;
+  }
+
+  return formatted;
+}
+
+/**
+ * Formats background data for readable display
+ */
+function formatBackgroundResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Background Data**: Unable to format result`;
+  }
+  const background = result as Record<string, any>;
+  let formatted = "\n\n**Background Information**:\n";
+
+  if (background.name) formatted += `**Name**: ${background.name}\n`;
+  if (
+    background.starting_proficiencies &&
+    Array.isArray(background.starting_proficiencies)
+  ) {
+    formatted += `**Starting Proficiencies**: ${background.starting_proficiencies
+      .map((p: any) => p.name)
+      .join(", ")}\n`;
+  }
+  if (background.language_options) {
+    formatted += `**Language Options**: ${background.language_options.choose} from ${background.language_options.from.count} options\n`;
+  }
+  if (
+    background.starting_equipment &&
+    Array.isArray(background.starting_equipment)
+  ) {
+    formatted += `**Starting Equipment**:\n`;
+    background.starting_equipment.forEach((item: any) => {
+      formatted += `  - ${item.equipment?.name || item}\n`;
+    });
+  }
+  if (background.feature && background.feature.name) {
+    formatted += `**Feature**: ${background.feature.name}\n`;
+    if (background.feature.desc && Array.isArray(background.feature.desc)) {
+      formatted += `**Feature Description**:\n${background.feature.desc.join(
+        "\n"
+      )}\n`;
+    }
+  }
+  if (background.personality_traits && background.personality_traits.choose) {
+    formatted += `**Personality Traits**: Choose ${background.personality_traits.choose} from ${background.personality_traits.from.count} options\n`;
+  }
+  if (background.ideals && background.ideals.choose) {
+    formatted += `**Ideals**: Choose ${background.ideals.choose} from ${background.ideals.from.count} options\n`;
+  }
+  if (background.bonds && background.bonds.choose) {
+    formatted += `**Bonds**: Choose ${background.bonds.choose} from ${background.bonds.from.count} options\n`;
+  }
+  if (background.flaws && background.flaws.choose) {
+    formatted += `**Flaws**: Choose ${background.flaws.choose} from ${background.flaws.from.count} options\n`;
+  }
+
+  return formatted;
+}
+
+/**
+ * Formats subclass data for readable display
+ */
+function formatSubclassResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Subclass Data**: Unable to format result`;
+  }
+  const subclass = result as Record<string, any>;
+  let formatted = "\n\n**Subclass Information**:\n";
+
+  if (subclass.name) formatted += `**Name**: ${subclass.name}\n`;
+  if (subclass.class && subclass.class.name)
+    formatted += `**Class**: ${subclass.class.name}\n`;
+  if (subclass.subclass_flavor)
+    formatted += `**Flavor**: ${subclass.subclass_flavor}\n`;
+  if (subclass.desc && Array.isArray(subclass.desc)) {
+    formatted += `**Description**:\n${subclass.desc.join("\n")}\n`;
+  }
+  if (subclass.spells && Array.isArray(subclass.spells)) {
+    formatted += `**Spells**:\n`;
+    subclass.spells.forEach((spell: any) => {
+      formatted += `  - ${spell.spell.name} (Level ${spell.spell.level})\n`;
+    });
+  }
+  if (subclass.subclass_levels) formatted += `**Subclass Levels**: Available\n`;
+
+  return formatted;
+}
+
+/**
+ * Formats magic item data for readable display
+ */
+function formatMagicItemResult(result: unknown): string {
+  if (typeof result !== "object" || result === null) {
+    return `\n\n**Magic Item Data**: Unable to format result`;
+  }
+  const item = result as Record<string, any>;
+  let formatted = "\n\n**Magic Item Information**:\n";
+
+  if (item.name) formatted += `**Name**: ${item.name}\n`;
+  if (item.equipment_category && item.equipment_category.name)
+    formatted += `**Category**: ${item.equipment_category.name}\n`;
+  if (item.rarity && item.rarity.name)
+    formatted += `**Rarity**: ${item.rarity.name}\n`;
+  if (item.requires_attunement) formatted += `**Requires Attunement**: Yes\n`;
+  if (item.desc && Array.isArray(item.desc)) {
+    formatted += `**Description**:\n${item.desc.join("\n")}\n`;
+  }
+  if (item.variants && Array.isArray(item.variants)) {
+    formatted += `**Variants**: ${item.variants
+      .map((v: any) => v.name)
+      .join(", ")}\n`;
   }
 
   return formatted;
