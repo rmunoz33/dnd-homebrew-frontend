@@ -25,7 +25,29 @@ class ToolRegistry {
 
   generateToolDescriptions(): string {
     return Array.from(this.tools.values())
-      .map((tool) => `- ${tool.name}: ${tool.description}`)
+      .map((tool) => {
+        const params = tool.parameters
+          .map((p) => `${p.name} (${p.type})${p.required ? " - required" : ""}`)
+          .join(", ");
+        return `- ${tool.name}: ${tool.description}\n  Parameters: ${params}`;
+      })
+      .join("\n");
+  }
+
+  generateToolSchemaPrompt(): string {
+    const tools = this.getAllTools();
+    return tools
+      .map((tool) => {
+        const params = tool.parameters
+          .map(
+            (p) =>
+              `${p.name}: ${p.type} - ${p.description} [${
+                p.required ? "required" : "optional"
+              }]`
+          )
+          .join(", ");
+        return `- ${tool.name}: ${tool.description} Arguments: { ${params} }`;
+      })
       .join("\n");
   }
 
@@ -43,6 +65,14 @@ class ToolRegistry {
 
   hasTool(name: string): boolean {
     return this.tools.has(name);
+  }
+
+  getToolCount(): number {
+    return this.tools.size;
+  }
+
+  getToolNames(): string[] {
+    return Array.from(this.tools.keys());
   }
 }
 

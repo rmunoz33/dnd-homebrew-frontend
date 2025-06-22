@@ -263,17 +263,32 @@ export const updateCharacterStatsAPI = async () => {
 export const generateCampaignOutline = async (character: Character) => {
   const startingLevel = character.level || 1;
 
-  // Get tool descriptions for campaign creation
+  // Get comprehensive tool descriptions for campaign creation
   const toolDescriptions = toolRegistry.generateToolDescriptions();
+  const toolSchema = toolRegistry.generateToolSchemaPrompt();
 
   const prompt = `As a D&D campaign designer, create a detailed campaign outline for a solo adventure featuring this character:
 
 ${JSON.stringify(character, null, 2)}
 
-AVAILABLE D&D TOOLS:
+AVAILABLE D&D TOOLS (${toolRegistry.getToolCount()} tools):
 ${toolDescriptions}
 
-Use these tools to get accurate monster stat blocks, class features, and equipment information when creating NPCs and enemies for the campaign.
+TOOL SCHEMA FOR REFERENCE:
+${toolSchema}
+
+Use these tools to get accurate information when creating NPCs, enemies, equipment, and campaign elements. You have access to:
+- Monster stat blocks and abilities
+- Spell details and effects
+- Equipment and magic item properties
+- Class features and abilities
+- Racial traits and features
+- Background details and features
+- Feat descriptions and prerequisites
+- Subclass specializations
+- Game rules and mechanics
+- Damage types and effects
+- Languages and cultural information
 
 Follow this structure:
 
@@ -312,6 +327,7 @@ Act 3 (Climax and Resolution):
 4. Stat Blocks
 - For each major NPC and enemy, provide a D&D 5e-style stat block (level-appropriate, including AC, HP, abilities, attacks, and special traits)
 - Use the available tools to get accurate monster information when needed
+- Consider the character's class and abilities when designing challenges
 
 5. Major Locations
 - Important settings and their significance
@@ -371,8 +387,9 @@ export const generateChatCompletion = async () => {
       campaignOutline,
     } = useDnDStore.getState();
 
-    // Get tool descriptions for the AI
+    // Get comprehensive tool descriptions for the AI
     const toolDescriptions = toolRegistry.generateToolDescriptions();
+    const toolSchema = toolRegistry.generateToolSchemaPrompt();
 
     const systemMessage = {
       role: "system" as const,
@@ -385,10 +402,20 @@ ${
   "No campaign outline available. Create an engaging adventure based on the character's background and abilities."
 }
 
-AVAILABLE D&D TOOLS:
+AVAILABLE D&D TOOLS (${toolRegistry.getToolCount()} tools):
 ${toolDescriptions}
 
-When the player asks about D&D mechanics, monsters, spells, or equipment, use the appropriate tool to get accurate information. If you need specific D&D data, mention which tool you would use and what information you need.
+TOOL SCHEMA FOR REFERENCE:
+${toolSchema}
+
+IMPORTANT TOOL USAGE GUIDELINES:
+- When the player asks about D&D mechanics, monsters, spells, equipment, classes, races, or any game content, use the appropriate tool to get accurate information
+- You have access to comprehensive D&D 5e data including: monsters, spells, equipment, classes, races, conditions, skills, feats, backgrounds, subclasses, magic items, rules, traits, languages, and damage types
+- If you need specific D&D data, mention which tool you would use and what information you need
+- For natural language queries like "I wanna shoot fire at that big bird monster", use tools to get spell details (Fireball) and monster stats (Owlbear)
+- For character creation questions, use class, race, background, and feat tools
+- For combat questions, use monster, spell, equipment, and damage type tools
+- For rules questions, use the rules tool
 
 Respond in character as a DM, guiding the player through their adventure. Keep responses concise but engaging, and maintain the medieval fantasy atmosphere. Balance world-building, story-telling, and game mechanics.
 
@@ -438,8 +465,28 @@ Always give your response in markdown format.`,
       inputMessage
     );
 
-    if (toolResult.toolUsed && toolResult.result && toolResult.toolName) {
-      // Format the tool result and append it to the response
+    if (
+      toolResult.toolUsed &&
+      toolResult.allResults &&
+      toolResult.allResults.length > 0
+    ) {
+      // Handle multiple tool results
+      let formattedResults = "\n\n**D&D Information**:\n";
+      toolResult.allResults.forEach((result) => {
+        if (result.error) {
+          formattedResults += `\n**${result.toolName}**: Error - ${result.error}\n`;
+        } else if (result.result) {
+          formattedResults += formatToolResult(result.toolName, result.result);
+        }
+      });
+      const finalContent = fullContent + formattedResults;
+      updateLastMessage(finalContent);
+    } else if (
+      toolResult.toolUsed &&
+      toolResult.result &&
+      toolResult.toolName
+    ) {
+      // Handle single tool result (backward compatibility)
       const formattedResult = formatToolResult(
         toolResult.toolName,
         toolResult.result
