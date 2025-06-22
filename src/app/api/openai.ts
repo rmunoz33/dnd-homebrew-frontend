@@ -511,32 +511,43 @@ Act 3 (Climax and Resolution):
 - Their motivations and relationships to the character
 - How they can help or hinder the character's goals
 
-4. Stat Blocks
+4. The Final Confrontation: The Big Baddie
+- The main antagonist of the campaign
+- Their backstory, motivations, and ultimate goal
+- Description of their lair or stronghold
+- A detailed D&D 5e-style stat block for the final boss battle
+
+5. Stat Blocks
 - For each major NPC and enemy, provide a D&D 5e-style stat block (level-appropriate, including AC, HP, abilities, attacks, and special traits)
 - Use the available tools to get accurate monster information when needed
 - Consider the character's class and abilities when designing challenges
 
-5. Major Locations
+6. Major Locations
 - Important settings and their significance
 - Key landmarks and points of interest
 - How they connect to the character's journey
 
-6. Side Quests and Optional Content
+7. Side Quests and Optional Content
 - Potential side adventures
 - Character development opportunities
 - Additional rewards and challenges
 
-7. Character Integration
+8. Character Integration
 - How the character's background ties into the main plot
 - Personal stakes and motivations
 - Opportunities for character growth
 - Ways to incorporate the character's class and abilities
 
-8. Pacing and Progression
+9. Pacing and Progression
 - Expected level progression
 - Key milestones and achievements
 - Balance of combat, exploration, and social interaction
 - Opportunities for character development
+
+10. Campaign Conclusion & Epilogue
+- A clear description of what happens after the Big Baddie is defeated.
+- A concluding narrative that lets the player know the main adventure is over.
+- Suggestions for what the character might do in the future, post-campaign.
 
 Format the response as a detailed markdown document that can be used as a campaign guide.`;
 
