@@ -8,13 +8,15 @@ import {
 } from "@/app/api/openai";
 import { useState, useEffect } from "react";
 import {
-  characterSpecies,
-  characterSubspecies,
-  characterAlignments,
-  characterBackgrounds,
-  characterClasses,
-  characterSubclasses,
-} from "./characterValueOptions";
+  useRaces,
+  useSubraces,
+  useClasses,
+  useSubclasses,
+  useBackgrounds,
+  useAlignments,
+  useFilteredData,
+  usePreloadData,
+} from "@/hooks/useDndData";
 import React, { useRef } from "react";
 
 interface NumberInputProps {
@@ -309,56 +311,59 @@ const CharacterCreationPage = () => {
   const [classFocusedIndex, setClassFocusedIndex] = useState<number>(-1);
   const [subclassFocusedIndex, setSubclassFocusedIndex] = useState<number>(-1);
 
-  const filteredSpecies = characterSpecies.filter((species) =>
-    species.toLowerCase().includes(filters.species.toLowerCase())
+  // API Data hooks
+  const isPreloaded = usePreloadData();
+  const { data: races, loading: racesLoading, error: racesError } = useRaces();
+  const {
+    data: subraces,
+    loading: subracesLoading,
+    error: subracesError,
+  } = useSubraces(
+    character.species
+      ? character.species.toLowerCase().replace(/\s+/g, "-")
+      : undefined
   );
-
-  const availableSubspecies = filters.species
-    ? characterSubspecies[
-        filters.species as keyof typeof characterSubspecies
-      ] || []
-    : [];
-
-  const filteredSubspecies = availableSubspecies.filter((subspecies) =>
-    subspecies.toLowerCase().includes(filters.subspecies.toLowerCase())
+  const {
+    data: classes,
+    loading: classesLoading,
+    error: classesError,
+  } = useClasses();
+  const {
+    data: subclasses,
+    loading: subclassesLoading,
+    error: subclassesError,
+  } = useSubclasses(
+    character.classes.map((c) => c.toLowerCase().replace(/\s+/g, "-"))
   );
+  const {
+    data: backgrounds,
+    loading: backgroundsLoading,
+    error: backgroundsError,
+  } = useBackgrounds();
+  const {
+    data: alignments,
+    loading: alignmentsLoading,
+    error: alignmentsError,
+  } = useAlignments();
 
-  const filteredAlignments = characterAlignments.filter((alignment) =>
-    alignment.toLowerCase().includes(filters.alignment.toLowerCase())
+  // Filtered data
+  const filteredSpecies = useFilteredData(races, filters.species);
+  const filteredSubspecies = useFilteredData(subraces, filters.subspecies);
+  const filteredAlignments = useFilteredData(alignments, filters.alignment);
+  const filteredBackgrounds = useFilteredData(backgrounds, filters.background);
+  const filteredClasses = useFilteredData(
+    classes.filter((c) => !character.classes.includes(c.name)),
+    filters.class
   );
+  const filteredSubclasses = useFilteredData(subclasses, filters.subclass);
 
-  const filteredBackgrounds = characterBackgrounds.filter((background) =>
-    background.toLowerCase().includes(filters.background.toLowerCase())
-  );
-
-  const filteredClasses = characterClasses.filter(
-    (className) =>
-      className.toLowerCase().includes(filters.class.toLowerCase()) &&
-      !character.classes.includes(className)
-  );
-
-  const filteredSubclasses =
-    character.classes.length > 0
-      ? character.classes.flatMap((className) =>
-          (
-            characterSubclasses[
-              className as keyof typeof characterSubclasses
-            ] || []
-          ).filter((subclass) =>
-            subclass.toLowerCase().includes(filters.subclass.toLowerCase())
-          )
-        )
-      : [];
+  // Check if selected species has subraces available
+  const hasSubraces = subraces.length > 0;
 
   // When species changes, reset subspecies if needed
   useEffect(() => {
-    const hasSubspecies =
-      characterSubspecies[
-        character.species as keyof typeof characterSubspecies
-      ];
-
-    // Only reset subspecies if the species doesn't have subspecies
-    if (!hasSubspecies) {
+    // Only reset subspecies if the species doesn't have subraces
+    if (!hasSubraces) {
       handleInputChange("subspecies", "");
       setFilter("subspecies", "");
     }
@@ -366,7 +371,7 @@ const CharacterCreationPage = () => {
     setSubspeciesFocusedIndex(-1);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [character.species]);
+  }, [character.species, hasSubraces]);
 
   // Ensure specialAbilities is always initialized
   useEffect(() => {
@@ -387,10 +392,7 @@ const CharacterCreationPage = () => {
 
   const isCharacterDetailsComplete = () => {
     const hasRequiredSubspecies =
-      !characterSubspecies[
-        character.species as keyof typeof characterSubspecies
-      ] || character.subspecies.trim() !== "";
-
+      !hasSubraces || character.subspecies.trim() !== "";
     const hasRequiredSubclass =
       (character.level ?? 1) < 3 || character.subClass.trim() !== "";
 
@@ -524,18 +526,13 @@ const CharacterCreationPage = () => {
         e.preventDefault();
         if (speciesFocusedIndex >= 0) {
           const selectedSpecies = filteredSpecies[speciesFocusedIndex];
-          handleInputChange("species", selectedSpecies);
-          setFilter("species", selectedSpecies);
+          handleInputChange("species", selectedSpecies.name);
+          setFilter("species", selectedSpecies.name);
           setIsSpeciesDropdownOpen(false);
           setSpeciesFocusedIndex(-1);
-          if (
-            !characterSubspecies[
-              selectedSpecies as keyof typeof characterSubspecies
-            ]
-          ) {
-            handleInputChange("subspecies", "");
-            setFilter("subspecies", "");
-          }
+          // Reset subspecies when species changes
+          handleInputChange("subspecies", "");
+          setFilter("subspecies", "");
         }
         break;
       case "Escape":
@@ -565,8 +562,8 @@ const CharacterCreationPage = () => {
         e.preventDefault();
         if (subspeciesFocusedIndex >= 0) {
           const selectedSubspecies = filteredSubspecies[subspeciesFocusedIndex];
-          handleInputChange("subspecies", selectedSubspecies);
-          setFilter("subspecies", selectedSubspecies);
+          handleInputChange("subspecies", selectedSubspecies.name);
+          setFilter("subspecies", selectedSubspecies.name);
           setIsSubspeciesDropdownOpen(false);
           setSubspeciesFocusedIndex(-1);
         }
@@ -596,8 +593,8 @@ const CharacterCreationPage = () => {
         e.preventDefault();
         if (alignmentFocusedIndex >= 0) {
           const selectedAlignment = filteredAlignments[alignmentFocusedIndex];
-          handleInputChange("alignment", selectedAlignment);
-          setFilter("alignment", selectedAlignment);
+          handleInputChange("alignment", selectedAlignment.name);
+          setFilter("alignment", selectedAlignment.name);
           setIsAlignmentDropdownOpen(false);
           setAlignmentFocusedIndex(-1);
         }
@@ -630,8 +627,8 @@ const CharacterCreationPage = () => {
         if (backgroundFocusedIndex >= 0) {
           const selectedBackground =
             filteredBackgrounds[backgroundFocusedIndex];
-          handleInputChange("background", selectedBackground);
-          setFilter("background", selectedBackground);
+          handleInputChange("background", selectedBackground.name);
+          setFilter("background", selectedBackground.name);
           setIsBackgroundDropdownOpen(false);
           setBackgroundFocusedIndex(-1);
         }
@@ -662,7 +659,10 @@ const CharacterCreationPage = () => {
         if (classFocusedIndex >= 0) {
           const selectedClass = filteredClasses[classFocusedIndex];
           if (character.classes.length < 3) {
-            handleInputChange("classes", [...character.classes, selectedClass]);
+            handleInputChange("classes", [
+              ...character.classes,
+              selectedClass.name,
+            ]);
           }
           setFilter("class", "");
           setIsClassDropdownOpen(false);
@@ -701,8 +701,8 @@ const CharacterCreationPage = () => {
         e.preventDefault();
         if (subclassFocusedIndex >= 0) {
           const selectedSubclass = filteredSubclasses[subclassFocusedIndex];
-          handleInputChange("subClass", selectedSubclass);
-          setFilter("subclass", selectedSubclass);
+          handleInputChange("subClass", selectedSubclass.name);
+          setFilter("subclass", selectedSubclass.name);
           setIsSubclassDropdownOpen(false);
           setSubclassFocusedIndex(-1);
         }
@@ -885,7 +885,7 @@ const CharacterCreationPage = () => {
                   handleInputChange("subspecies", "");
                   setFilter("subspecies", "");
                   setIsSubspeciesDropdownOpen(false);
-                } else if (characterSpecies.includes(newValue)) {
+                } else if (races.some((r) => r.name === newValue)) {
                   handleInputChange("species", newValue);
                 }
                 setIsSpeciesDropdownOpen(true);
@@ -902,7 +902,7 @@ const CharacterCreationPage = () => {
               placeholder="Species *"
               onFocus={() => setIsSpeciesDropdownOpen(true)}
               onBlur={() => {
-                if (!characterSpecies.includes(filters.species)) {
+                if (!races.some((r) => r.name === filters.species)) {
                   setFilter("species", "");
                   handleInputChange("species", "");
                   handleInputChange("subspecies", "");
@@ -921,20 +921,20 @@ const CharacterCreationPage = () => {
               >
                 {filteredSpecies.map((species, index) => (
                   <li
-                    key={species}
+                    key={species.index}
                     className={`px-4 py-2 cursor-pointer ${
                       index === speciesFocusedIndex
                         ? "bg-base-300"
                         : "hover:bg-base-300"
                     }`}
                     onClick={() => {
-                      handleInputChange("species", species);
-                      setFilter("species", species);
+                      handleInputChange("species", species.name);
+                      setFilter("species", species.name);
                       setIsSpeciesDropdownOpen(false);
                       setSpeciesFocusedIndex(-1);
                     }}
                   >
-                    {species}
+                    {species.name}
                   </li>
                 ))}
               </ul>
@@ -954,53 +954,42 @@ const CharacterCreationPage = () => {
                 handleInputChange("subspecies", "");
                 setIsSubspeciesDropdownOpen(false);
               }}
-              placeholder={
-                characterSubspecies[
-                  character.species as keyof typeof characterSubspecies
-                ]
-                  ? "Subspecies *"
-                  : "Subspecies"
-              }
+              placeholder={hasSubraces ? "Subspecies *" : "Subspecies"}
               onFocus={() => {
-                if (character.species && availableSubspecies.length > 0) {
+                if (character.species && hasSubraces) {
                   setIsSubspeciesDropdownOpen(true);
                 }
               }}
               onBlur={() => {
-                if (!availableSubspecies.includes(filters.subspecies)) {
+                if (!subraces.some((s) => s.name === filters.subspecies)) {
                   setFilter("subspecies", "");
                   handleInputChange("subspecies", "");
                 }
               }}
               onKeyDown={handleSubspeciesKeyDown}
-              disabled={
-                !character.species ||
-                !characterSubspecies[
-                  character.species as keyof typeof characterSubspecies
-                ]
-              }
+              disabled={!character.species || !hasSubraces}
             />
-            {isSubspeciesDropdownOpen && availableSubspecies.length > 0 && (
+            {isSubspeciesDropdownOpen && filteredSubspecies.length > 0 && (
               <ul
                 ref={subspeciesDropdownRef}
                 className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
               >
-                {availableSubspecies.map((subspecies, index) => (
+                {filteredSubspecies.map((subspecies, index) => (
                   <li
-                    key={subspecies}
+                    key={subspecies.index}
                     className={`px-4 py-2 cursor-pointer ${
                       index === subspeciesFocusedIndex
                         ? "bg-base-300"
                         : "hover:bg-base-300"
                     }`}
                     onClick={() => {
-                      handleInputChange("subspecies", subspecies);
-                      setFilter("subspecies", subspecies);
+                      handleInputChange("subspecies", subspecies.name);
+                      setFilter("subspecies", subspecies.name);
                       setIsSubspeciesDropdownOpen(false);
                       setSubspeciesFocusedIndex(-1);
                     }}
                   >
-                    {subspecies}
+                    {subspecies.name}
                   </li>
                 ))}
               </ul>
@@ -1023,7 +1012,7 @@ const CharacterCreationPage = () => {
               onFocus={() => setIsAlignmentDropdownOpen(true)}
               onKeyDown={handleAlignmentKeyDown}
               onBlur={() => {
-                if (!characterAlignments.includes(filters.alignment)) {
+                if (!alignments.some((a) => a.name === filters.alignment)) {
                   setFilter("alignment", "");
                   handleInputChange("alignment", "");
                 }
@@ -1036,20 +1025,20 @@ const CharacterCreationPage = () => {
               >
                 {filteredAlignments.map((alignment, index) => (
                   <li
-                    key={alignment}
+                    key={alignment.index}
                     className={`px-4 py-2 cursor-pointer ${
                       index === alignmentFocusedIndex
                         ? "bg-base-300"
                         : "hover:bg-base-300"
                     }`}
                     onClick={() => {
-                      handleInputChange("alignment", alignment);
-                      setFilter("alignment", alignment);
+                      handleInputChange("alignment", alignment.name);
+                      setFilter("alignment", alignment.name);
                       setIsAlignmentDropdownOpen(false);
                       setAlignmentFocusedIndex(-1);
                     }}
                   >
-                    {alignment}
+                    {alignment.name}
                   </li>
                 ))}
               </ul>
@@ -1072,7 +1061,7 @@ const CharacterCreationPage = () => {
               onFocus={() => setIsBackgroundDropdownOpen(true)}
               onKeyDown={handleBackgroundKeyDown}
               onBlur={() => {
-                if (!characterBackgrounds.includes(filters.background)) {
+                if (!backgrounds.some((b) => b.name === filters.background)) {
                   setFilter("background", "");
                   handleInputChange("background", "");
                 }
@@ -1085,20 +1074,20 @@ const CharacterCreationPage = () => {
               >
                 {filteredBackgrounds.map((background, index) => (
                   <li
-                    key={background}
+                    key={background.index}
                     className={`px-4 py-2 cursor-pointer ${
                       index === backgroundFocusedIndex
                         ? "bg-base-300"
                         : "hover:bg-base-300"
                     }`}
                     onClick={() => {
-                      handleInputChange("background", background);
-                      setFilter("background", background);
+                      handleInputChange("background", background.name);
+                      setFilter("background", background.name);
                       setIsBackgroundDropdownOpen(false);
                       setBackgroundFocusedIndex(-1);
                     }}
                   >
-                    {background}
+                    {background.name}
                   </li>
                 ))}
               </ul>
@@ -1165,7 +1154,7 @@ const CharacterCreationPage = () => {
               >
                 {filteredClasses.map((className, index) => (
                   <li
-                    key={className}
+                    key={className.index}
                     className={`px-4 py-2 cursor-pointer ${
                       index === classFocusedIndex
                         ? "bg-base-300"
@@ -1175,7 +1164,7 @@ const CharacterCreationPage = () => {
                       if (character.classes.length < 3) {
                         const updatedClasses = [
                           ...character.classes,
-                          className,
+                          className.name,
                         ];
                         handleInputChange("classes", updatedClasses);
                         setFilter("class", "");
@@ -1184,7 +1173,7 @@ const CharacterCreationPage = () => {
                       }
                     }}
                   >
-                    {className}
+                    {className.name}
                   </li>
                 ))}
               </ul>
@@ -1198,7 +1187,9 @@ const CharacterCreationPage = () => {
                 setFilter("subclass", newValue);
                 if (!newValue) {
                   handleInputChange("subClass", "");
-                } else if (filteredSubclasses.includes(newValue)) {
+                } else if (
+                  filteredSubclasses.some((s) => s.name === newValue)
+                ) {
                   handleInputChange("subClass", newValue);
                 }
                 setIsSubclassDropdownOpen(true);
@@ -1225,7 +1216,9 @@ const CharacterCreationPage = () => {
                     setIsSubclassDropdownOpen(false);
                   }, 200);
                 }
-                if (!filteredSubclasses.includes(filters.subclass)) {
+                if (
+                  !filteredSubclasses.some((s) => s.name === filters.subclass)
+                ) {
                   setFilter("subclass", "");
                   handleInputChange("subClass", "");
                 }
@@ -1242,20 +1235,20 @@ const CharacterCreationPage = () => {
               >
                 {filteredSubclasses.map((subclass, index) => (
                   <li
-                    key={subclass}
+                    key={subclass.index}
                     className={`px-4 py-2 cursor-pointer ${
                       index === subclassFocusedIndex
                         ? "bg-base-300"
                         : "hover:bg-base-300"
                     }`}
                     onClick={() => {
-                      handleInputChange("subClass", subclass);
-                      setFilter("subclass", subclass);
+                      handleInputChange("subClass", subclass.name);
+                      setFilter("subclass", subclass.name);
                       setIsSubclassDropdownOpen(false);
                       setSubclassFocusedIndex(-1);
                     }}
                   >
-                    {subclass}
+                    {subclass.name}
                   </li>
                 ))}
               </ul>
