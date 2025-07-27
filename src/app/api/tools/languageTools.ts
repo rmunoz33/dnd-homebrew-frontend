@@ -1,5 +1,5 @@
 import { Tool, toolRegistry } from "./registry";
-import { DND_API_BASE_URL, transformApiUrl, getListUrl } from "./config";
+import { DND_API_BASE_URL } from "./config";
 
 const languageCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
@@ -9,9 +9,7 @@ let languageList: { index: string; name: string; url: string }[] = [];
 const fetchLanguageList = async () => {
   if (languageList.length > 0) return;
   try {
-    const response = await fetch(
-      `${DND_API_BASE_URL}${getListUrl("languages")}`
-    );
+    const response = await fetch(`${DND_API_BASE_URL}/api/2014/languages`);
     const data = await response.json();
     languageList = data.results;
   } catch (error) {
@@ -54,9 +52,7 @@ const getLanguageDetails: Tool = {
         };
       }
 
-      const response = await fetch(
-        `${DND_API_BASE_URL}${transformApiUrl(languageInfo.url)}`
-      );
+      const response = await fetch(`${DND_API_BASE_URL}${languageInfo.url}`);
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`);

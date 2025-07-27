@@ -1,5 +1,5 @@
 import { Tool, toolRegistry } from "./registry";
-import { DND_API_BASE_URL, transformApiUrl, getListUrl } from "./config";
+import { DND_API_BASE_URL } from "./config";
 
 const damageTypeCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
@@ -9,9 +9,7 @@ let damageTypeList: { index: string; name: string; url: string }[] = [];
 const fetchDamageTypeList = async () => {
   if (damageTypeList.length > 0) return;
   try {
-    const response = await fetch(
-      `${DND_API_BASE_URL}${getListUrl("damage-types")}`
-    );
+    const response = await fetch(`${DND_API_BASE_URL}/api/2014/damage-types`);
     const data = await response.json();
     damageTypeList = data.results;
   } catch (error) {
@@ -54,9 +52,7 @@ const getDamageTypeDetails: Tool = {
         };
       }
 
-      const response = await fetch(
-        `${DND_API_BASE_URL}${transformApiUrl(damageTypeInfo.url)}`
-      );
+      const response = await fetch(`${DND_API_BASE_URL}${damageTypeInfo.url}`);
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`);
