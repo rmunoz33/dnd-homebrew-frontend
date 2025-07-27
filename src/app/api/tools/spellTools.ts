@@ -9,7 +9,7 @@ let spellList: { index: string; name: string; url: string }[] = [];
 const fetchSpellList = async () => {
   if (spellList.length > 0) return;
   try {
-    const response = await fetch(`${DND_API_BASE_URL}/api/spells`);
+    const response = await fetch(`${DND_API_BASE_URL}/api/2014/spells`);
     const data = await response.json();
     spellList = data.results;
   } catch (error) {

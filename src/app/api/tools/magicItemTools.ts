@@ -9,7 +9,7 @@ let magicItemList: { index: string; name: string; url: string }[] = [];
 const fetchMagicItemList = async () => {
   if (magicItemList.length > 0) return;
   try {
-    const response = await fetch(`${DND_API_BASE_URL}/api/magic-items`);
+    const response = await fetch(`${DND_API_BASE_URL}/api/2014/magic-items`);
     const data = await response.json();
     magicItemList = data.results;
   } catch (error) {

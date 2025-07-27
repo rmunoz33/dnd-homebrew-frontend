@@ -1,5 +1,5 @@
 import { Tool, toolRegistry } from "./registry";
-import { DND_API_BASE_URL } from "./config";
+import { DND_API_BASE_URL, transformApiUrl, getListUrl } from "./config";
 
 const featCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
@@ -9,7 +9,7 @@ let featList: { index: string; name: string; url: string }[] = [];
 const fetchFeatList = async () => {
   if (featList.length > 0) return;
   try {
-    const response = await fetch(`${DND_API_BASE_URL}/api/feats`);
+    const response = await fetch(`${DND_API_BASE_URL}${getListUrl("feats")}`);
     const data = await response.json();
     featList = data.results;
   } catch (error) {
@@ -52,7 +52,9 @@ const getFeatDetails: Tool = {
         };
       }
 
-      const response = await fetch(`${DND_API_BASE_URL}${featInfo.url}`);
+      const response = await fetch(
+        `${DND_API_BASE_URL}${transformApiUrl(featInfo.url)}`
+      );
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`);

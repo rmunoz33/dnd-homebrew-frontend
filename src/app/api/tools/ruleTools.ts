@@ -9,7 +9,7 @@ let ruleList: { index: string; name: string; url: string }[] = [];
 const fetchRuleList = async () => {
   if (ruleList.length > 0) return;
   try {
-    const response = await fetch(`${DND_API_BASE_URL}/api/rules`);
+    const response = await fetch(`${DND_API_BASE_URL}/api/2014/rules`);
     const data = await response.json();
     ruleList = data.results;
   } catch (error) {

@@ -9,7 +9,7 @@ let classList: { index: string; name: string; url: string }[] = [];
 const fetchClassList = async () => {
   if (classList.length > 0) return;
   try {
-    const response = await fetch(`${DND_API_BASE_URL}/api/classes`);
+    const response = await fetch(`${DND_API_BASE_URL}/api/2014/classes`);
     const data = await response.json();
     classList = data.results;
   } catch (error) {

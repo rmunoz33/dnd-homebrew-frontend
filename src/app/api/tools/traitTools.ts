@@ -9,7 +9,7 @@ let traitList: { index: string; name: string; url: string }[] = [];
 const fetchTraitList = async () => {
   if (traitList.length > 0) return;
   try {
-    const response = await fetch(`${DND_API_BASE_URL}/api/traits`);
+    const response = await fetch(`${DND_API_BASE_URL}/api/2014/traits`);
     const data = await response.json();
     traitList = data.results;
   } catch (error) {

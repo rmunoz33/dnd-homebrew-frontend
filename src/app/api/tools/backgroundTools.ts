@@ -9,7 +9,7 @@ let backgroundList: { index: string; name: string; url: string }[] = [];
 const fetchBackgroundList = async () => {
   if (backgroundList.length > 0) return;
   try {
-    const response = await fetch(`${DND_API_BASE_URL}/api/backgrounds`);
+    const response = await fetch(`${DND_API_BASE_URL}/api/2014/backgrounds`);
     const data = await response.json();
     backgroundList = data.results;
   } catch (error) {
