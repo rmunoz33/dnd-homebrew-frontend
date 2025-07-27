@@ -1,4 +1,5 @@
 import { Tool, toolRegistry } from "./registry";
+import { DND_API_BASE_URL } from "./config";
 
 const skillCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
@@ -8,7 +9,7 @@ let skillList: { index: string; name: string; url: string }[] = [];
 const fetchSkillList = async () => {
   if (skillList.length > 0) return;
   try {
-    const response = await fetch("https://www.dnd5eapi.co/api/skills");
+    const response = await fetch(`${DND_API_BASE_URL}/api/skills`);
     const data = await response.json();
     skillList = data.results;
   } catch (error) {
@@ -51,7 +52,7 @@ const getSkillDetails: Tool = {
         };
       }
 
-      const response = await fetch(`https://www.dnd5eapi.co${skillInfo.url}`);
+      const response = await fetch(`${DND_API_BASE_URL}${skillInfo.url}`);
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`);

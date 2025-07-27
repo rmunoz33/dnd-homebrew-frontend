@@ -1,4 +1,5 @@
 import { Tool, toolRegistry } from "./registry";
+import { DND_API_BASE_URL } from "./config";
 
 // Simple in-memory cache for frequently accessed data
 const monsterCache = new Map<string, { data: unknown; timestamp: number }>();
@@ -9,7 +10,7 @@ let monsterList: { index: string; name: string; url: string }[] = [];
 const fetchMonsterList = async () => {
   if (monsterList.length > 0) return;
   try {
-    const response = await fetch("https://www.dnd5eapi.co/api/monsters");
+    const response = await fetch(`${DND_API_BASE_URL}/api/monsters`);
     const data = await response.json();
     monsterList = data.results;
   } catch (error) {
@@ -54,7 +55,7 @@ const getMonsterStats: Tool = {
         };
       }
 
-      const response = await fetch(`https://www.dnd5eapi.co${monsterInfo.url}`);
+      const response = await fetch(`${DND_API_BASE_URL}${monsterInfo.url}`);
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`);
