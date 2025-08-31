@@ -12,15 +12,7 @@ import {
   fetchAlignments
 } from '@/services/api/characterOptions';
 
-// Fallback data for incomplete API coverage
-import {
-  characterSpecies,
-  characterSubspecies,
-  characterBackgrounds,
-  characterClasses,
-  characterSubclasses,
-  characterAlignments
-} from '@/app/components/Character/characterValueOptions';
+// No fallback imports needed - using API data only
 
 interface UseDataResult<T> {
   data: T[];
@@ -42,21 +34,14 @@ export const useRaces = (): UseDataResult<string> => {
         const apiRaces = await fetchRaces();
         const raceNames = apiRaces.map(race => race.name);
         
-        // Merge with hardcoded races that aren't in API yet
-        const missingRaces = characterSpecies.filter(species => 
-          !raceNames.some(apiRace => apiRace.toLowerCase() === species.toLowerCase())
-        );
-        
-        const allRaces = [...raceNames, ...missingRaces];
         // Sort alphabetically
-        allRaces.sort((a, b) => a.localeCompare(b));
-        setRaces(allRaces);
+        raceNames.sort((a, b) => a.localeCompare(b));
+        setRaces(raceNames);
       } catch (err) {
-        console.error('Failed to fetch races, using fallback:', err);
+        console.error('Failed to fetch races:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch races');
-        // Use fallback data (sorted)
-        const sortedFallback = [...characterSpecies].sort((a, b) => a.localeCompare(b));
-        setRaces(sortedFallback);
+        // No fallback - leave empty array
+        setRaces([]);
       } finally {
         setLoading(false);
       }
@@ -81,12 +66,14 @@ export const useClasses = (): UseDataResult<string> => {
       try {
         const apiClasses = await fetchClasses();
         const classNames = apiClasses.map(cls => cls.name);
+        // Sort alphabetically
+        classNames.sort((a, b) => a.localeCompare(b));
         setClasses(classNames);
       } catch (err) {
-        console.error('Failed to fetch classes, using fallback:', err);
+        console.error('Failed to fetch classes:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch classes');
-        // Use fallback data
-        setClasses(characterClasses);
+        // No fallback - leave empty array
+        setClasses([]);
       } finally {
         setLoading(false);
       }
@@ -111,12 +98,14 @@ export const useAlignments = (): UseDataResult<string> => {
       try {
         const apiAlignments = await fetchAlignments();
         const alignmentNames = apiAlignments.map(alignment => alignment.name);
+        // Sort alphabetically
+        alignmentNames.sort((a, b) => a.localeCompare(b));
         setAlignments(alignmentNames);
       } catch (err) {
-        console.error('Failed to fetch alignments, using fallback:', err);
+        console.error('Failed to fetch alignments:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch alignments');
-        // Use fallback data
-        setAlignments(characterAlignments);
+        // No fallback - leave empty array
+        setAlignments([]);
       } finally {
         setLoading(false);
       }
@@ -142,14 +131,14 @@ export const useBackgrounds = (): UseDataResult<string> => {
         const apiBackgrounds = await fetchBackgrounds();
         const backgroundNames = apiBackgrounds.map(bg => bg.name);
         
-        // Since API only has 1 background, merge with hardcoded ones
-        const allBackgrounds = [...new Set([...backgroundNames, ...characterBackgrounds])];
-        setBackgrounds(allBackgrounds);
+        // Sort alphabetically
+        backgroundNames.sort((a, b) => a.localeCompare(b));
+        setBackgrounds(backgroundNames);
       } catch (err) {
-        console.error('Failed to fetch backgrounds, using fallback:', err);
+        console.error('Failed to fetch backgrounds:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch backgrounds');
-        // Use fallback data
-        setBackgrounds(characterBackgrounds);
+        // No fallback - leave empty array
+        setBackgrounds([]);
       } finally {
         setLoading(false);
       }
@@ -191,27 +180,17 @@ export const useSubclasses = (): {
           }
         });
         
-        // Merge with hardcoded subclasses for any missing ones
-        Object.keys(characterSubclasses).forEach(className => {
-          if (!groupedSubclasses[className]) {
-            groupedSubclasses[className] = characterSubclasses[className as keyof typeof characterSubclasses];
-          } else {
-            // Add any missing subclasses from hardcoded data
-            const existingSubclasses = groupedSubclasses[className];
-            const hardcodedSubclasses = characterSubclasses[className as keyof typeof characterSubclasses];
-            const missingSubclasses = hardcodedSubclasses.filter(sub => 
-              !existingSubclasses.some(existing => existing.toLowerCase() === sub.toLowerCase())
-            );
-            groupedSubclasses[className] = [...existingSubclasses, ...missingSubclasses];
-          }
+        // Sort subclasses within each class alphabetically
+        Object.keys(groupedSubclasses).forEach(className => {
+          groupedSubclasses[className].sort((a, b) => a.localeCompare(b));
         });
         
         setSubclasses(groupedSubclasses);
       } catch (err) {
-        console.error('Failed to fetch subclasses, using fallback:', err);
+        console.error('Failed to fetch subclasses:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch subclasses');
-        // Use fallback data
-        setSubclasses(characterSubclasses);
+        // No fallback - leave empty object
+        setSubclasses({});
       } finally {
         setLoading(false);
       }
@@ -232,13 +211,18 @@ export const useSubspecies = (selectedSpecies: string): UseDataResult<string> =>
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!selectedSpecies) {
+    // Clear subspecies immediately when no species is selected
+    if (!selectedSpecies || selectedSpecies.trim() === '') {
       setSubspecies([]);
+      setLoading(false);
+      setError(null);
       return;
     }
 
     const loadSubspecies = async () => {
       setLoading(true);
+      setError(null);
+      
       try {
         // Convert species name to API index format (lowercase, hyphenated)
         const raceIndex = selectedSpecies.toLowerCase().replace(/\s+/g, '-');
@@ -246,18 +230,18 @@ export const useSubspecies = (selectedSpecies: string): UseDataResult<string> =>
         try {
           const raceDetails = await fetchRaceDetails(raceIndex);
           const subraceNames = raceDetails.subraces.map(subrace => subrace.name);
+          // Sort alphabetically
+          subraceNames.sort((a, b) => a.localeCompare(b));
           setSubspecies(subraceNames);
         } catch {
-          // Fall back to hardcoded data if API fails
-          const hardcodedSubspecies = characterSubspecies[selectedSpecies as keyof typeof characterSubspecies] || [];
-          setSubspecies(hardcodedSubspecies);
+          // No fallback - leave empty array
+          setSubspecies([]);
         }
       } catch (err) {
         console.error(`Failed to fetch subspecies for ${selectedSpecies}:`, err);
         setError(err instanceof Error ? err.message : 'Failed to fetch subspecies');
-        // Use fallback data
-        const hardcodedSubspecies = characterSubspecies[selectedSpecies as keyof typeof characterSubspecies] || [];
-        setSubspecies(hardcodedSubspecies);
+        // No fallback - leave empty array
+        setSubspecies([]);
       } finally {
         setLoading(false);
       }

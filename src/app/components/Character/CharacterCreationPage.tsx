@@ -340,8 +340,13 @@ const CharacterCreationPage = () => {
 
   // When species changes, reset subspecies if needed
   useEffect(() => {
-    // Only reset subspecies if the species doesn't have subspecies
-    if (availableSubspecies.length === 0) {
+    // Always clear subspecies when species changes, then let the hook repopulate if needed
+    if (character.subspecies && availableSubspecies.length === 0) {
+      handleInputChange("subspecies", "");
+      setFilter("subspecies", "");
+    }
+    // Also check if current subspecies is valid for the new species
+    else if (character.subspecies && availableSubspecies.length > 0 && !availableSubspecies.includes(character.subspecies)) {
       handleInputChange("subspecies", "");
       setFilter("subspecies", "");
     }
@@ -349,7 +354,7 @@ const CharacterCreationPage = () => {
     setSubspeciesFocusedIndex(-1);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [character.species, availableSubspecies.length]);
+  }, [character.species, availableSubspecies.length, availableSubspecies]);
 
   // Ensure specialAbilities is always initialized
   useEffect(() => {

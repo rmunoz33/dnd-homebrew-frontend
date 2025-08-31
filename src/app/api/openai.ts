@@ -6,13 +6,17 @@ import {
   formatToolResult,
 } from "./tools";
 import {
-  characterSpecies,
-  characterSubspecies,
-  characterBackgrounds,
-  characterAlignments,
-  characterClasses,
-  characterSubclasses,
-} from "../components/Character/characterValueOptions";
+  fetchRaces,
+  fetchClasses,
+  fetchAlignments,
+  fetchBackgrounds,
+  fetchSubclasses,
+  type RaceOption,
+  type ClassOption,
+  type AlignmentOption,
+  type BackgroundOption,
+  type SubclassOption,
+} from "@/services/api/characterOptions";
 
 const client = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY!,
@@ -108,52 +112,58 @@ export const generateCharacterDetails = async (character: Character) => {
   try {
     const filledCharacter = { ...character };
 
-    // If a field is empty, select a random value from the predefined options.
-    if (!filledCharacter.species) {
-      filledCharacter.species =
-        characterSpecies[Math.floor(Math.random() * characterSpecies.length)];
+    // Fetch all options from API
+    const [racesData, classesData, alignmentsData, backgroundsData, subclassesData] = await Promise.all([
+      fetchRaces().catch(() => []),
+      fetchClasses().catch(() => []),
+      fetchAlignments().catch(() => []),
+      fetchBackgrounds().catch(() => []),
+      fetchSubclasses().catch(() => []),
+    ]);
+
+    const races = racesData.map((r: RaceOption) => r.name);
+    const classes = classesData.map((c: ClassOption) => c.name);
+    const alignments = alignmentsData.map((a: AlignmentOption) => a.name);
+    const backgrounds = backgroundsData.map((b: BackgroundOption) => b.name);
+    
+    // Group subclasses by parent class
+    const subclassesByClass: Record<string, string[]> = {};
+    subclassesData.forEach((subclass: SubclassOption) => {
+      if (subclass.class) {
+        const className = subclass.class.name;
+        if (!subclassesByClass[className]) {
+          subclassesByClass[className] = [];
+        }
+        subclassesByClass[className].push(subclass.name);
+      }
+    });
+
+    // If a field is empty, select a random value from the API options
+    if (!filledCharacter.species && races.length > 0) {
+      filledCharacter.species = races[Math.floor(Math.random() * races.length)];
     }
 
-    if (
-      !filledCharacter.subspecies &&
-      characterSubspecies[
-        filledCharacter.species as keyof typeof characterSubspecies
-      ]
-    ) {
-      const subspeciesOptions =
-        characterSubspecies[
-          filledCharacter.species as keyof typeof characterSubspecies
-        ];
-      filledCharacter.subspecies =
-        subspeciesOptions[Math.floor(Math.random() * subspeciesOptions.length)];
+    // Note: Subspecies will be handled by fetching race details if needed
+    // For now, we'll skip subspecies in auto-generation to avoid API complexity
+
+    if (!filledCharacter.background && backgrounds.length > 0) {
+      filledCharacter.background = backgrounds[Math.floor(Math.random() * backgrounds.length)];
     }
 
-    if (!filledCharacter.background) {
-      filledCharacter.background =
-        characterBackgrounds[
-          Math.floor(Math.random() * characterBackgrounds.length)
-        ];
-    }
-
-    if (!filledCharacter.alignment) {
-      filledCharacter.alignment =
-        characterAlignments[
-          Math.floor(Math.random() * characterAlignments.length)
-        ];
+    if (!filledCharacter.alignment && alignments.length > 0) {
+      filledCharacter.alignment = alignments[Math.floor(Math.random() * alignments.length)];
     }
 
     if (!filledCharacter.classes || filledCharacter.classes.length === 0) {
-      filledCharacter.classes = [
-        characterClasses[Math.floor(Math.random() * characterClasses.length)],
-      ];
+      if (classes.length > 0) {
+        filledCharacter.classes = [classes[Math.floor(Math.random() * classes.length)]];
+      }
     }
 
-    const mainClass = filledCharacter
-      .classes[0] as keyof typeof characterSubclasses;
-    if (!filledCharacter.subClass && characterSubclasses[mainClass]) {
-      const subclassOptions = characterSubclasses[mainClass];
-      filledCharacter.subClass =
-        subclassOptions[Math.floor(Math.random() * subclassOptions.length)];
+    const mainClass = filledCharacter.classes[0];
+    if (!filledCharacter.subClass && mainClass && subclassesByClass[mainClass]) {
+      const subclassOptions = subclassesByClass[mainClass];
+      filledCharacter.subClass = subclassOptions[Math.floor(Math.random() * subclassOptions.length)];
     }
 
     // 1. Fetch canonical data for each selected field using the tool system
