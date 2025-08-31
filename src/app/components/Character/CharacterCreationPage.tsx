@@ -7,14 +7,7 @@ import {
   generateCampaignOutline,
 } from "@/app/api/openai";
 import { useState, useEffect } from "react";
-import {
-  characterSpecies,
-  characterSubspecies,
-  characterAlignments,
-  characterBackgrounds,
-  characterClasses,
-  characterSubclasses,
-} from "./characterValueOptions";
+import { useCharacterOptions, useSubspecies } from "@/hooks/useCharacterOptions";
 import React, { useRef } from "react";
 
 interface NumberInputProps {
@@ -287,6 +280,11 @@ const CharacterCreationPage = () => {
     campaignOutline,
     setCampaignOutline,
   } = useDnDStore();
+  
+  // Fetch character options from API
+  const { races, classes, alignments, backgrounds, subclasses, loading: optionsLoading } = useCharacterOptions();
+  const { data: availableSubspecies } = useSubspecies(character.species);
+  
   const [isRolling, setIsRolling] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showResetWarning, setShowResetWarning] = useState(false);
@@ -309,29 +307,23 @@ const CharacterCreationPage = () => {
   const [classFocusedIndex, setClassFocusedIndex] = useState<number>(-1);
   const [subclassFocusedIndex, setSubclassFocusedIndex] = useState<number>(-1);
 
-  const filteredSpecies = characterSpecies.filter((species) =>
+  const filteredSpecies = races.filter((species) =>
     species.toLowerCase().includes(filters.species.toLowerCase())
   );
-
-  const availableSubspecies = filters.species
-    ? characterSubspecies[
-        filters.species as keyof typeof characterSubspecies
-      ] || []
-    : [];
 
   const filteredSubspecies = availableSubspecies.filter((subspecies) =>
     subspecies.toLowerCase().includes(filters.subspecies.toLowerCase())
   );
 
-  const filteredAlignments = characterAlignments.filter((alignment) =>
+  const filteredAlignments = alignments.filter((alignment) =>
     alignment.toLowerCase().includes(filters.alignment.toLowerCase())
   );
 
-  const filteredBackgrounds = characterBackgrounds.filter((background) =>
+  const filteredBackgrounds = backgrounds.filter((background) =>
     background.toLowerCase().includes(filters.background.toLowerCase())
   );
 
-  const filteredClasses = characterClasses.filter(
+  const filteredClasses = classes.filter(
     (className) =>
       className.toLowerCase().includes(filters.class.toLowerCase()) &&
       !character.classes.includes(className)
@@ -340,11 +332,7 @@ const CharacterCreationPage = () => {
   const filteredSubclasses =
     character.classes.length > 0
       ? character.classes.flatMap((className) =>
-          (
-            characterSubclasses[
-              className as keyof typeof characterSubclasses
-            ] || []
-          ).filter((subclass) =>
+          (subclasses[className] || []).filter((subclass) =>
             subclass.toLowerCase().includes(filters.subclass.toLowerCase())
           )
         )
@@ -352,13 +340,8 @@ const CharacterCreationPage = () => {
 
   // When species changes, reset subspecies if needed
   useEffect(() => {
-    const hasSubspecies =
-      characterSubspecies[
-        character.species as keyof typeof characterSubspecies
-      ];
-
     // Only reset subspecies if the species doesn't have subspecies
-    if (!hasSubspecies) {
+    if (availableSubspecies.length === 0) {
       handleInputChange("subspecies", "");
       setFilter("subspecies", "");
     }
@@ -366,7 +349,7 @@ const CharacterCreationPage = () => {
     setSubspeciesFocusedIndex(-1);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [character.species]);
+  }, [character.species, availableSubspecies.length]);
 
   // Ensure specialAbilities is always initialized
   useEffect(() => {
@@ -387,9 +370,7 @@ const CharacterCreationPage = () => {
 
   const isCharacterDetailsComplete = () => {
     const hasRequiredSubspecies =
-      !characterSubspecies[
-        character.species as keyof typeof characterSubspecies
-      ] || character.subspecies.trim() !== "";
+      availableSubspecies.length === 0 || character.subspecies.trim() !== "";
 
     const hasRequiredSubclass =
       (character.level ?? 1) < 3 || character.subClass.trim() !== "";
@@ -528,14 +509,7 @@ const CharacterCreationPage = () => {
           setFilter("species", selectedSpecies);
           setIsSpeciesDropdownOpen(false);
           setSpeciesFocusedIndex(-1);
-          if (
-            !characterSubspecies[
-              selectedSpecies as keyof typeof characterSubspecies
-            ]
-          ) {
-            handleInputChange("subspecies", "");
-            setFilter("subspecies", "");
-          }
+          // Subspecies will be handled by the useSubspecies hook
         }
         break;
       case "Escape":
@@ -827,6 +801,14 @@ const CharacterCreationPage = () => {
           <h1 className={`${medievalFont.className} text-5xl text-red-500`}>
             Create Your Character
           </h1>
+          {optionsLoading && (
+            <div className="text-center text-white mb-2">
+              <div className="flex items-center gap-2 justify-center">
+                <span className="animate-spin text-2xl">🎲</span>
+                <span>Loading character options...</span>
+              </div>
+            </div>
+          )}
           <div className="text-center text-white mb-2 max-w-lg">
             <p>
               Fields left at default values will be generated when you click{" "}
@@ -885,7 +867,7 @@ const CharacterCreationPage = () => {
                   handleInputChange("subspecies", "");
                   setFilter("subspecies", "");
                   setIsSubspeciesDropdownOpen(false);
-                } else if (characterSpecies.includes(newValue)) {
+                } else if (races.includes(newValue)) {
                   handleInputChange("species", newValue);
                 }
                 setIsSpeciesDropdownOpen(true);
@@ -902,7 +884,7 @@ const CharacterCreationPage = () => {
               placeholder="Species *"
               onFocus={() => setIsSpeciesDropdownOpen(true)}
               onBlur={() => {
-                if (!characterSpecies.includes(filters.species)) {
+                if (!races.includes(filters.species)) {
                   setFilter("species", "");
                   handleInputChange("species", "");
                   handleInputChange("subspecies", "");
@@ -955,9 +937,7 @@ const CharacterCreationPage = () => {
                 setIsSubspeciesDropdownOpen(false);
               }}
               placeholder={
-                characterSubspecies[
-                  character.species as keyof typeof characterSubspecies
-                ]
+                availableSubspecies.length > 0
                   ? "Subspecies *"
                   : "Subspecies"
               }
@@ -974,10 +954,7 @@ const CharacterCreationPage = () => {
               }}
               onKeyDown={handleSubspeciesKeyDown}
               disabled={
-                !character.species ||
-                !characterSubspecies[
-                  character.species as keyof typeof characterSubspecies
-                ]
+                !character.species || availableSubspecies.length === 0
               }
             />
             {isSubspeciesDropdownOpen && availableSubspecies.length > 0 && (
@@ -1023,7 +1000,7 @@ const CharacterCreationPage = () => {
               onFocus={() => setIsAlignmentDropdownOpen(true)}
               onKeyDown={handleAlignmentKeyDown}
               onBlur={() => {
-                if (!characterAlignments.includes(filters.alignment)) {
+                if (!alignments.includes(filters.alignment)) {
                   setFilter("alignment", "");
                   handleInputChange("alignment", "");
                 }
@@ -1072,7 +1049,7 @@ const CharacterCreationPage = () => {
               onFocus={() => setIsBackgroundDropdownOpen(true)}
               onKeyDown={handleBackgroundKeyDown}
               onBlur={() => {
-                if (!characterBackgrounds.includes(filters.background)) {
+                if (!backgrounds.includes(filters.background)) {
                   setFilter("background", "");
                   handleInputChange("background", "");
                 }
