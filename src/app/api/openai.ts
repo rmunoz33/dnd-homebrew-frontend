@@ -312,7 +312,7 @@ Return ONLY a JSON object with these creative fields. Example:
 }`;
 
     const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-nano",
       messages: [
         {
           role: "system",
@@ -595,7 +595,7 @@ export const updateCharacterStatsAPI = async () => {
 
   try {
     const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-nano",
       messages: [
         { role: "system", content: systemPrompt },
         {
@@ -755,7 +755,7 @@ Format the response as a detailed markdown document that can be used as a campai
 
   try {
     const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-nano",
       messages: [
         {
           role: "system",
@@ -833,7 +833,7 @@ Always give your response in markdown format.`,
     };
 
     const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-nano",
       messages: [
         systemMessage,
         ...messages.map((msg: Message) => ({
