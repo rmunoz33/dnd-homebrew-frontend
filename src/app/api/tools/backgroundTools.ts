@@ -1,4 +1,5 @@
 import { Tool, toolRegistry } from "./registry";
+import { DND_API_BASE_URL } from "./config";
 
 const backgroundCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
@@ -8,7 +9,7 @@ let backgroundList: { index: string; name: string; url: string }[] = [];
 const fetchBackgroundList = async () => {
   if (backgroundList.length > 0) return;
   try {
-    const response = await fetch("https://www.dnd5eapi.co/api/backgrounds");
+    const response = await fetch(`${DND_API_BASE_URL}/api/2014/backgrounds`);
     const data = await response.json();
     backgroundList = data.results;
   } catch (error) {
@@ -51,9 +52,7 @@ const getBackgroundDetails: Tool = {
         };
       }
 
-      const response = await fetch(
-        `https://www.dnd5eapi.co${backgroundInfo.url}`
-      );
+      const response = await fetch(`${DND_API_BASE_URL}${backgroundInfo.url}`);
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`);

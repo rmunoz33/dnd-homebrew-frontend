@@ -1,4 +1,5 @@
 import { Tool, toolRegistry } from "./registry";
+import { DND_API_BASE_URL } from "./config";
 
 const ruleCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 3600000; // 1 hour
@@ -8,7 +9,7 @@ let ruleList: { index: string; name: string; url: string }[] = [];
 const fetchRuleList = async () => {
   if (ruleList.length > 0) return;
   try {
-    const response = await fetch("https://www.dnd5eapi.co/api/rules");
+    const response = await fetch(`${DND_API_BASE_URL}/api/2014/rules`);
     const data = await response.json();
     ruleList = data.results;
   } catch (error) {
@@ -51,7 +52,7 @@ const getRuleDetails: Tool = {
         };
       }
 
-      const response = await fetch(`https://www.dnd5eapi.co${ruleInfo.url}`);
+      const response = await fetch(`${DND_API_BASE_URL}${ruleInfo.url}`);
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`);
