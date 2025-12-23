@@ -34,6 +34,7 @@ const diceTypes = [
   { name: "d10", sides: 10 },
   { name: "d12", sides: 12 },
   { name: "d20", sides: 20 },
+  { name: "d%", sides: 100 },
 ];
 
 type DicePool = { [key: string]: number };
@@ -162,22 +163,33 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
         <div className="flex-1 overflow-y-auto">
           {/* Dice Icons */}
           <div className="grid grid-cols-3 gap-4 p-6 justify-items-center">
-            {diceTypes.map((die) => (
-              <button
-                key={die.name}
-                className="flex flex-col items-center focus:outline-none hover:scale-110 transition-transform"
-                onClick={() => addDie(die.name)}
-                aria-label={`Add ${die.name}`}
-              >
-                <Icon
-                  path={getDieIcon(die.name)}
-                  size={2}
-                  className="text-neutral-content"
-                />
+            {diceTypes.map((die) => {
+              const iconPath = getDieIcon(die.name);
+              return (
+                <button
+                  key={die.name}
+                  className="flex flex-col items-center focus:outline-none hover:scale-110 transition-transform"
+                  onClick={() => addDie(die.name)}
+                  aria-label={`Add ${die.name}`}
+                >
+                  {iconPath ? (
+                    <Icon
+                      path={iconPath}
+                      size={2}
+                      className="text-neutral-content"
+                    />
+                  ) : (
+                    <span
+                      className={` text-xl text-neutral-content w-10 h-10 flex items-center justify-center border-4 border-neutral-content rounded-lg`}
+                    >
+                      {die.name}
+                    </span>
+                  )}
 
-                <Plus size={16} className="text-green-500" />
-              </button>
-            ))}
+                  <Plus size={16} className="text-green-500" />
+                </button>
+              );
+            })}
           </div>
 
           {/* Dice Pool */}
@@ -188,28 +200,37 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
               ) : (
                 diceTypes
                   .filter((die) => dicePool[die.name])
-                  .map((die) => (
-                    <div
-                      key={die.name}
-                      className="flex items-center bg-base-100 rounded px-2 py-1 gap-1 shadow"
-                    >
-                      <Icon
-                        path={getDieIcon(die.name)}
-                        size={1.5}
-                        className="text-gray-500 dark:text-gray-400"
-                      />
-                      <span className="font-bold text-sm text-gray-500 dark:text-gray-400">
-                        {dicePool[die.name]}x {die.name}
-                      </span>
-                      <button
-                        className="btn btn-xs btn-circle btn-ghost text-red-500 hover:bg-red-200"
-                        onClick={() => removeDie(die.name)}
-                        aria-label={`Remove one ${die.name}`}
+                  .map((die) => {
+                    const iconPath = getDieIcon(die.name);
+                    return (
+                      <div
+                        key={die.name}
+                        className="flex items-center bg-base-100 rounded px-2 py-1 gap-1 shadow"
                       >
-                        <Minus size={14} />
-                      </button>
-                    </div>
-                  ))
+                        {iconPath ? (
+                          <Icon
+                            path={iconPath}
+                            size={1.5}
+                            className="text-gray-500 dark:text-gray-400"
+                          />
+                        ) : (
+                          <span className="text-sm font-bold text-gray-500 dark:text-gray-400 px-1">
+                            {die.name}
+                          </span>
+                        )}
+                        <span className="font-bold text-sm text-gray-500 dark:text-gray-400">
+                          {dicePool[die.name]}x {die.name}
+                        </span>
+                        <button
+                          className="btn btn-xs btn-circle btn-ghost text-red-500 hover:bg-red-200"
+                          onClick={() => removeDie(die.name)}
+                          aria-label={`Remove one ${die.name}`}
+                        >
+                          <Minus size={14} />
+                        </button>
+                      </div>
+                    );
+                  })
               )}
               {Object.keys(dicePool).length > 0 && (
                 <button
