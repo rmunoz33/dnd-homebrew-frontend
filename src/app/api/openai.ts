@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import type { Stream } from "openai/streaming";
+import type { ResponseStreamEvent } from "openai/resources/responses/responses";
 import { Character, useDnDStore, Message } from "@/stores/useStore";
 import {
   toolRegistry,
@@ -666,6 +668,11 @@ const CHARACTER_UPDATE_TOOLS = [
   "update_experience",
 ];
 
+// Define ResponseInputItem type for the Responses API
+type ResponseInputItem =
+  | { role: "user" | "assistant" | "system"; content: string }
+  | { type: "function_call_output"; call_id: string; output: string };
+
 export const generateChatCompletion = async (): Promise<boolean> => {
   try {
     const {
@@ -676,155 +683,240 @@ export const generateChatCompletion = async (): Promise<boolean> => {
       campaignOutline,
     } = useDnDStore.getState();
 
-    const systemMessage = {
-      role: "system" as const,
-      content: `You are a world-class Dungeon Master in a D&D game. The player's character has the following details:
+    // System instructions for the DM
+    const instructions = `You are an immersive Dungeon Master running a solo D&D 5e adventure.
+
+╔═══════════════════════════════════════════════════════════╗
+║  MANDATORY TOOL CALLING - READ THIS FIRST                 ║
+╚═══════════════════════════════════════════════════════════╝
+
+You MUST call tools to update character state. This is NON-NEGOTIABLE.
+
+WHEN PLAYER SPENDS/LOSES/BURIES/GIVES AWAY MONEY:
+→ IMMEDIATELY call update_currency with negative amount
+→ Example: Player buries a gold coin → call update_currency(currency_type: "gold", amount: -1, reason: "buried as offering")
+
+WHEN PLAYER TAKES DAMAGE OR HEALS:
+→ IMMEDIATELY call update_hit_points
+
+WHEN PLAYER GAINS/LOSES ITEMS:
+→ IMMEDIATELY call add_inventory_item or remove_inventory_item
+
+WHEN AWARDING XP:
+→ IMMEDIATELY call update_experience
+
+If you narrate a resource change WITHOUT calling the tool, you have FAILED.
+The tool call must happen IN THE SAME RESPONSE as the narration.
+
+CHARACTER DATA (internal reference only):
 ${JSON.stringify(character, null, 2)}
 
-Campaign Framework:
+CAMPAIGN FRAMEWORK (INTERNAL - NEVER reveal to player):
 ${
   campaignOutline ||
   "No campaign outline available. Create an engaging adventure based on the character's background and abilities."
 }
 
-IMPORTANT - CHARACTER STATE TOOLS:
-You have tools to directly update the player's character sheet. USE THEM whenever gameplay causes state changes:
+═══════════════════════════════════════════════════════════
+CAMPAIGN OPENING - FIRST MESSAGE PROTOCOL
+═══════════════════════════════════════════════════════════
 
-- update_hit_points: Call this when the character takes damage or heals. Always specify the amount and reason.
-- update_currency: Call this when the character gains or spends money. Specify currency type, amount, and reason.
-- add_inventory_item: Call this when the character acquires items. Specify item name, category, and how it was obtained.
-- remove_inventory_item: Call this when the character loses, uses, or sells items. Specify item name, category, and reason.
-- update_experience: Call this when awarding XP for combat victories, quest completion, or milestones.
+When the conversation has no prior messages (or the player's first message is a simple greeting like "hi", "hello", "let's play"), you are STARTING A NEW CAMPAIGN. Do NOT jump into action. Instead:
 
-WHEN TO CALL CHARACTER TOOLS:
-- Combat damage/healing: ALWAYS call update_hit_points
-- Finding treasure or loot: ALWAYS call add_inventory_item and/or update_currency
-- Buying/selling: ALWAYS call the appropriate inventory and currency tools
-- Consuming potions/items: ALWAYS call remove_inventory_item
-- Quest rewards: Call update_experience and any reward tools
+1. WELCOME the player warmly as the DM ("Welcome, adventurer...")
+2. INTRODUCE the world briefly - the setting, tone, and atmosphere
+3. INTRODUCE their character - name them, acknowledge their class/background in a natural way
+4. SET THE OPENING SCENE - where are they right now? What's happening around them?
+5. PROVIDE A GENTLE HOOK - something interesting nearby that invites exploration, but don't force action
 
-D&D REFERENCE TOOLS:
-You also have tools to look up official D&D 5e data (monsters, spells, equipment, conditions, etc.). Use these when you need accurate game information.
+Example opening style:
+"Welcome, adventurer, to the realm of shadows and whispered secrets.
 
-GAMEPLAY GUIDELINES:
-- Respond in character as a DM, guiding the player through their adventure
-- Keep responses concise but engaging, maintain the medieval fantasy atmosphere
-- Balance world-building, story-telling, and game mechanics
-- Ask the player to roll dice for actions, or offer to roll for them
-- Stick to D&D 5e rules, considering dice rolls and character abilities
-- When the player goes off-track, creatively guide them back to the story
-- Always format responses in markdown`,
-    };
+You are Vesper Quickflick, a gnome whose silver tongue has talked their way out of more trouble than most see in a lifetime. The divine spark of radiance flickers within you—a gift, or perhaps a burden, depending on the day.
 
-    // Convert tools to OpenAI format
-    const openAITools = toolRegistry.getAllTools().map((tool) => ({
+Tonight finds you in the city of Luminara, where lantern light paints the cobblestones gold. You've secured a room at the Copper Cup inn, a modest establishment that asks few questions. Through the window, the city hums with evening life—merchants closing their stalls, tavern doors swinging open, and somewhere in the distance, temple bells mark the hour.
+
+Your coin purse feels lighter than you'd like. The bed looks inviting, but the night is young..."
+
+This gives players context and agency without forcing immediate action.
+
+═══════════════════════════════════════════════════════════
+CARDINAL RULES - VIOLATING THESE BREAKS IMMERSION
+═══════════════════════════════════════════════════════════
+
+1. NEVER LIST OPTIONS OR CHOICES
+   ✗ WRONG: "What would you like to do? 1) Go to the market 2) Visit the temple"
+   ✓ RIGHT: "The market's distant clamor drifts on the wind. Nearby, temple bells toll the evening hour."
+   Let environmental details suggest possibilities. Never present numbered menus.
+
+2. NEVER REVEAL UNDISCOVERED INFORMATION
+   ✗ WRONG: "You could track the lead in the Black Market District"
+   ✓ RIGHT: Let the player discover the Black Market exists through play
+   The player only knows what their character has experienced. Build paths to discoveries.
+
+3. NEVER ASK "WHAT DO YOU DO?"
+   End scenes with atmosphere, tension, or consequences - not meta-prompts.
+   The scene itself should invite action.
+
+4. NEVER NARRATE THE PLAYER'S ACTIONS OR THOUGHTS
+   ✗ WRONG: "You feel nervous as you approach"
+   ✓ RIGHT: "The door looms ahead, its iron knocker shaped like a snarling wolf"
+   Describe the world. Let the player decide how they feel and act.
+
+5. KEEP RESPONSES FOCUSED
+   Aim for ~100-150 words. Paint the scene vividly but don't overwhelm.
+   Leave space for player agency.
+
+6. NEVER INCLUDE META-COMMENTARY ABOUT TOOL CALLS
+   ✗ WRONG: "[Proceeding to update your gold tally now.]"
+   ✗ WRONG: "I'll update your inventory..." or "Calling the currency tool..."
+   ✓ RIGHT: Just narrate the story. Tool calls happen silently in the background.
+   The player should NEVER see text about updating stats, calling tools, or game mechanics processing.
+
+═══════════════════════════════════════════════════════════
+GAMEPLAY
+═══════════════════════════════════════════════════════════
+
+- Use present tense, second person ("The rain patters against your cloak")
+- NPCs speak in quoted dialogue with distinct voices
+- Call for dice rolls when outcomes are uncertain
+- Follow D&D 5e rules for mechanics
+- Use the campaign framework to guide YOUR storytelling, not as player information
+- Format in markdown for readability`;
+
+    // Convert tools to Responses API format
+    const tools = toolRegistry.getAllTools().map((tool) => ({
       type: "function" as const,
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: {
-          type: "object",
-          properties: tool.parameters.reduce(
-            (acc, param) => {
-              acc[param.name] = {
-                type: param.type,
-                description: param.description,
-              };
-              return acc;
-            },
-            {} as Record<string, { type: string; description: string }>
-          ),
-          required: tool.parameters.filter((p) => p.required).map((p) => p.name),
-        },
+      name: tool.name,
+      description: tool.description,
+      parameters: {
+        type: "object" as const,
+        properties: tool.parameters.reduce(
+          (acc, param) => {
+            acc[param.name] = {
+              type: param.type,
+              description: param.description,
+            };
+            return acc;
+          },
+          {} as Record<string, { type: string; description: string }>
+        ),
+        required: tool.parameters.filter((p) => p.required).map((p) => p.name),
+        additionalProperties: false,
       },
+      strict: true,
     }));
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-nano",
-      messages: [
-        systemMessage,
-        ...messages.map((msg: Message) => ({
-          role:
-            msg.sender === "user" ? ("user" as const) : ("assistant" as const),
-          content: msg.content,
-        })),
-        {
-          role: "user" as const,
-          content: inputMessage,
-        },
-      ],
-      tools: openAITools,
-      parallel_tool_calls: false, // Recommended for gpt-4.1-nano
-      temperature: 0.7,
-      stream: true,
-    });
+    // Build input from conversation history
+    const input: ResponseInputItem[] = [
+      ...messages.map((msg) => ({
+        role: (msg.sender === "user" ? "user" : "assistant") as "user" | "assistant",
+        content: msg.content,
+      })),
+      { role: "user" as const, content: inputMessage },
+    ];
+
+    console.log(`[generateChatCompletion] Using Responses API with ${tools.length} tools`);
 
     let fullContent = "";
-    // Accumulate tool calls from the stream
-    const toolCallsMap = new Map<
-      number,
-      { id: string; name: string; arguments: string }
-    >();
+    let continueLoop = true;
+    let previousResponseId: string | undefined = undefined;
+    let pendingFunctionOutputs: Array<{ type: "function_call_output"; call_id: string; output: string }> = [];
 
-    for await (const chunk of completion) {
-      const delta = chunk.choices[0]?.delta;
-
-      // Handle streamed content
-      if (delta?.content) {
-        fullContent += delta.content;
-        updateLastMessage(fullContent);
+    // Agentic loop - continues until we get a text response without tool calls
+    while (continueLoop) {
+      // Create the streaming response
+      let stream: Stream<ResponseStreamEvent>;
+      if (previousResponseId && pendingFunctionOutputs.length > 0) {
+        // Continuing after function calls - reference previous response and include outputs
+        stream = await client.responses.create({
+          model: "gpt-5-nano",
+          tools,
+          stream: true,
+          previous_response_id: previousResponseId,
+          input: pendingFunctionOutputs,
+        });
+        pendingFunctionOutputs = []; // Clear for next iteration
+      } else {
+        // First request - include instructions and full input
+        stream = await client.responses.create({
+          model: "gpt-5-nano",
+          tools,
+          stream: true,
+          instructions,
+          input,
+        });
       }
 
-      // Handle streamed tool calls
-      if (delta?.tool_calls) {
-        for (const toolCallDelta of delta.tool_calls) {
-          const index = toolCallDelta.index;
+      // Collect function calls from this response
+      const functionCalls: Array<{ call_id: string; name: string; arguments: string }> = [];
+      let currentResponseId: string | undefined = undefined;
 
-          if (!toolCallsMap.has(index)) {
-            toolCallsMap.set(index, {
-              id: toolCallDelta.id || "",
-              name: toolCallDelta.function?.name || "",
-              arguments: "",
+      for await (const event of stream) {
+        // Handle text output deltas
+        if (event.type === "response.output_text.delta") {
+          fullContent += event.delta;
+          updateLastMessage(fullContent);
+        }
+
+        // Handle completed response to check for function calls
+        if (event.type === "response.completed") {
+          const response = event.response;
+          currentResponseId = response.id;
+          console.log("[generateChatCompletion] Response completed, id:", currentResponseId);
+
+          // Check each output item for function calls
+          for (const item of response.output) {
+            if (item.type === "function_call") {
+              functionCalls.push({
+                call_id: item.call_id,
+                name: item.name,
+                arguments: item.arguments,
+              });
+            }
+          }
+        }
+      }
+
+      console.log(`[generateChatCompletion] Function calls received: ${functionCalls.length}`, functionCalls);
+
+      // If we have function calls, execute them and prepare outputs for next iteration
+      if (functionCalls.length > 0) {
+        for (const fc of functionCalls) {
+          try {
+            const args = JSON.parse(fc.arguments || "{}");
+            const result = await toolRegistry.executeTool(fc.name, args);
+            console.log(`[generateChatCompletion] Executed ${fc.name}:`, result);
+
+            // For D&D reference tools (non-character updates), append the result to content
+            const isCharacterUpdate = CHARACTER_UPDATE_TOOLS.includes(fc.name);
+            if (!isCharacterUpdate && result) {
+              const formattedResult = formatToolResult(fc.name, result);
+              fullContent += formattedResult;
+              updateLastMessage(fullContent);
+            }
+
+            // Queue the function output for the next request
+            pendingFunctionOutputs.push({
+              type: "function_call_output",
+              call_id: fc.call_id,
+              output: JSON.stringify(result),
+            });
+          } catch (error) {
+            console.error(`Error executing tool ${fc.name}:`, error);
+            pendingFunctionOutputs.push({
+              type: "function_call_output",
+              call_id: fc.call_id,
+              output: JSON.stringify({ error: String(error) }),
             });
           }
-
-          const existing = toolCallsMap.get(index)!;
-
-          if (toolCallDelta.id) {
-            existing.id = toolCallDelta.id;
-          }
-          if (toolCallDelta.function?.name) {
-            existing.name = toolCallDelta.function.name;
-          }
-          if (toolCallDelta.function?.arguments) {
-            existing.arguments += toolCallDelta.function.arguments;
-          }
         }
-      }
-    }
 
-    // Execute any tool calls
-    const toolCalls = Array.from(toolCallsMap.values());
-
-    if (toolCalls.length > 0) {
-      console.log("Executing tool calls:", toolCalls);
-
-      for (const toolCall of toolCalls) {
-        try {
-          const args = JSON.parse(toolCall.arguments || "{}");
-          const result = await toolRegistry.executeTool(toolCall.name, args);
-
-          // For D&D reference tools (non-character updates), append formatted results
-          // Character update tools handle their own toasts internally
-          const isCharacterUpdate = CHARACTER_UPDATE_TOOLS.includes(toolCall.name);
-          if (!isCharacterUpdate && result) {
-            const formattedResult = formatToolResult(toolCall.name, result);
-            fullContent += formattedResult;
-            updateLastMessage(fullContent);
-          }
-        } catch (error) {
-          console.error(`Error executing tool ${toolCall.name}:`, error);
-        }
+        // Update previous response ID for the next iteration
+        previousResponseId = currentResponseId;
+      } else {
+        // No function calls, we're done
+        continueLoop = false;
       }
     }
 

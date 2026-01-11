@@ -14,6 +14,7 @@ import "./ruleTools";
 import "./traitTools";
 import "./languageTools";
 import "./damageTypeTools";
+import "./characterTools";
 
 // Export the registry for use in other parts of the application
 export { toolRegistry } from "./registry";
