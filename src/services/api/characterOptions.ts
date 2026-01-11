@@ -94,57 +94,6 @@ export const fetchClasses = async (): Promise<ClassOption[]> => {
 };
 
 /**
- * Fetch all available subclasses from paginated endpoint and add class associations
- * This ensures we get all subclasses (not just those linked to classes)
- */
-export const fetchSubclasses = async (): Promise<SubclassOption[]> => {
-  const allSubclasses: SubclassOption[] = [];
-  let page = 1;
-  let hasMore = true;
-
-  // Fetch all pages from the paginated subclasses endpoint
-  while (hasMore) {
-    const url = page === 1
-      ? `${API_BASE}/api/2014/subclasses`
-      : `${API_BASE}/api/2014/subclasses?page=${page}`;
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error(`Failed to fetch subclasses page ${page}`);
-      break;
-    }
-
-    const data: ApiResponse<SubclassOption> = await response.json();
-    allSubclasses.push(...data.results);
-
-    // Check if there are more pages
-    hasMore = page < (data.total_pages || 1);
-    page++;
-  }
-
-  // Now fetch detailed info for each subclass to get class associations
-  const subclassDetailsPromises = allSubclasses.map(async (subclass) => {
-    try {
-      const response = await fetch(`${API_BASE}/api/2014/subclasses/${subclass.index}`);
-      if (!response.ok) {
-        console.error(`Failed to fetch details for subclass ${subclass.index}`);
-        return subclass; // Return original if fetch fails
-      }
-      const details = await response.json();
-      return {
-        ...subclass,
-        class: details.class, // Add the class association from detailed endpoint
-      };
-    } catch (error) {
-      console.error(`Error fetching subclass ${subclass.index}:`, error);
-      return subclass; // Return original on error
-    }
-  });
-
-  return Promise.all(subclassDetailsPromises);
-};
-
-/**
  * Fetch all available backgrounds
  */
 export const fetchBackgrounds = async (): Promise<BackgroundOption[]> => {
@@ -165,5 +114,21 @@ export const fetchAlignments = async (): Promise<AlignmentOption[]> => {
     throw new Error(`Failed to fetch alignments: ${response.statusText}`);
   }
   const data: ApiResponse<AlignmentOption> = await response.json();
+  return data.results;
+};
+
+/**
+ * Fetch subclasses for a specific class (lazy loading)
+ * Uses the /api/2014/classes/{classIndex}/subclasses endpoint
+ */
+export const fetchSubclassesForClass = async (classIndex: string): Promise<SubclassOption[]> => {
+  const response = await fetch(`${API_BASE}/api/2014/classes/${classIndex}/subclasses`);
+  if (!response.ok) {
+    if (response.status === 404) {
+      return []; // Class has no subclasses
+    }
+    throw new Error(`Failed to fetch subclasses for ${classIndex}: ${response.statusText}`);
+  }
+  const data: ApiResponse<SubclassOption> = await response.json();
   return data.results;
 };

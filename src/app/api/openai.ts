@@ -10,12 +10,11 @@ import {
   fetchClasses,
   fetchAlignments,
   fetchBackgrounds,
-  fetchSubclasses,
+  fetchSubclassesForClass,
   type RaceOption,
   type ClassOption,
   type AlignmentOption,
   type BackgroundOption,
-  type SubclassOption,
 } from "@/services/api/characterOptions";
 
 const client = new OpenAI({
@@ -112,31 +111,18 @@ export const generateCharacterDetails = async (character: Character) => {
   try {
     const filledCharacter = { ...character };
 
-    // Fetch all options from API
-    const [racesData, classesData, alignmentsData, backgroundsData, subclassesData] = await Promise.all([
+    // Fetch all options from API (except subclasses - those are lazy loaded)
+    const [racesData, classesData, alignmentsData, backgroundsData] = await Promise.all([
       fetchRaces().catch(() => []),
       fetchClasses().catch(() => []),
       fetchAlignments().catch(() => []),
       fetchBackgrounds().catch(() => []),
-      fetchSubclasses().catch(() => []),
     ]);
 
     const races = racesData.map((r: RaceOption) => r.name);
     const classes = classesData.map((c: ClassOption) => c.name);
     const alignments = alignmentsData.map((a: AlignmentOption) => a.name);
     const backgrounds = backgroundsData.map((b: BackgroundOption) => b.name);
-    
-    // Group subclasses by parent class
-    const subclassesByClass: Record<string, string[]> = {};
-    subclassesData.forEach((subclass: SubclassOption) => {
-      if (subclass.class) {
-        const className = subclass.class.name;
-        if (!subclassesByClass[className]) {
-          subclassesByClass[className] = [];
-        }
-        subclassesByClass[className].push(subclass.name);
-      }
-    });
 
     // If a field is empty, select a random value from the API options
     if (!filledCharacter.species && races.length > 0) {
@@ -160,10 +146,15 @@ export const generateCharacterDetails = async (character: Character) => {
       }
     }
 
+    // Lazy load subclasses only for the main class if needed
     const mainClass = filledCharacter.classes[0];
-    if (!filledCharacter.subClass && mainClass && subclassesByClass[mainClass]) {
-      const subclassOptions = subclassesByClass[mainClass];
-      filledCharacter.subClass = subclassOptions[Math.floor(Math.random() * subclassOptions.length)];
+    if (!filledCharacter.subClass && mainClass) {
+      const classIndex = mainClass.toLowerCase().replace(/\s+/g, '-');
+      const subclassesForClass = await fetchSubclassesForClass(classIndex).catch(() => []);
+      if (subclassesForClass.length > 0) {
+        const subclassNames = subclassesForClass.map(sc => sc.name);
+        filledCharacter.subClass = subclassNames[Math.floor(Math.random() * subclassNames.length)];
+      }
     }
 
     // 1. Fetch canonical data for each selected field using the tool system
@@ -538,117 +529,6 @@ Return ONLY a JSON object with these creative fields. Example:
   }
 };
 
-/**
- * Analyzes the latest game messages to identify changes to the character's state,
- * using tools to fetch canonical data for items, spells, or conditions.
- */
-export const updateCharacterStatsAPI = async () => {
-  const { character, messages } = useDnDStore.getState();
-  const lastTwoMessages = messages.slice(-2);
-
-  if (lastTwoMessages.length < 2) {
-    return null;
-  }
-
-  // Get tool descriptions for the AI
-  const toolDescriptions = toolRegistry.generateToolDescriptions();
-  const toolSchema = toolRegistry.generateToolSchemaPrompt();
-
-  const systemPrompt = `You are a D&D game state manager. Your task is to analyze the last message from the DM and identify any changes to the player character's state.
-
-  Character State:
-  ${JSON.stringify(character, null, 2)}
-  
-  Last two messages (user and DM):
-  ${JSON.stringify(lastTwoMessages)}
-  
-  AVAILABLE D&D TOOLS (${toolRegistry.getToolCount()} tools):
-  ${toolDescriptions}
-  
-  TOOL SCHEMA FOR REFERENCE:
-  ${toolSchema}
-  
-  TASK:
-  1. Analyze the DM's last response for events that would change the character's sheet.
-  2. If you see a currency change (giving, spending, or receiving gold, silver, etc.), you MUST return a stat change. Infer the amount from the context.
-     - Example: If the DM says "You fish the coin out of the well", you return: { "changes": [{ "type": "stat", "stat": "money.gold", "change": 1 }] }.
-     - Do NOT use tools for currency.
-  3. If a player gets rid of an item (sells, drops, buries, etc.), you MUST return a stat change with an 'item_remove' type.
-     - Example: If the player buries their "family heirloom", you return: { "changes": [{ "type": "item_remove", "item": "family heirloom", "category": "items" }] }.
-  4. If a player re-acquires a generic item they previously had, you MUST return an 'item_add' type.
-     - Example: If the player digs up their "family heirloom", you return: { "changes": [{ "type": "item_add", "item": "family heirloom", "category": "items" }] }.
-  5. For events involving adding new, official D&D items, spells, conditions, etc., use the appropriate tool to get the official data.
-  6. For simple stat changes (like HP loss/gain), describe the change in a structured format. Use dot notation for nested properties.
-  
-  Return a JSON object containing a list of changes. Each change can be a tool call result or a simple stat modification.
-  
-  EXAMPLES:
-  - If the DM says "The goblin hits you for 5 slashing damage", you return:
-    { "changes": [{ "type": "stat", "stat": "hitPoints", "change": -5 }] }
-
-  - If the player gives 1 gold to a beggar, you return:
-    { "changes": [{ "type": "stat", "stat": "money.gold", "change": -1 }] }
-  
-  - If the DM says "You find a Potion of Healing", you call the 'getEquipmentDetails' tool for "Potion of Healing".
-  
-  - If the DM says "You are now poisoned", you call the 'getConditionDetails' tool for "Poisoned".`;
-
-  try {
-    const response = await client.chat.completions.create({
-      model: "gpt-4.1-nano",
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: `Analyze the last DM message and report any character state changes.`,
-        },
-      ],
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      tools: toolRegistry.getAllTools().map((tool) => ({
-        type: "function",
-        function: {
-          name: tool.name,
-          description: tool.description,
-          parameters: {
-            type: "object",
-            properties: tool.parameters.reduce((acc, param) => {
-              acc[param.name] = {
-                type: param.type,
-                description: param.description,
-              };
-              return acc;
-            }, {} as Record<string, unknown>),
-            required: tool.parameters
-              .filter((p) => p.required)
-              .map((p) => p.name),
-          },
-        },
-      })),
-    });
-
-    const message = response.choices[0].message;
-
-    if (message.tool_calls) {
-      // The model wants to call tools.
-      const toolResults = await executeToolsFromResponse(
-        JSON.stringify(message.tool_calls),
-        lastTwoMessages.find((m) => m.sender === "user")?.content || ""
-      );
-      return { type: "tool_results", results: toolResults };
-    } else if (message.content) {
-      // The model returned a simple stat change.
-      const parsedContent = JSON.parse(message.content);
-      return { type: "stat_changes", changes: parsedContent.changes };
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Error updating character stats:", error);
-    return null;
-  }
-};
-
 export const generateCampaignOutline = async (character: Character) => {
   const startingLevel = character.level || 1;
 
@@ -777,7 +657,16 @@ Format the response as a detailed markdown document that can be used as a campai
   }
 };
 
-export const generateChatCompletion = async () => {
+// Character state update tools - these modify game state directly
+const CHARACTER_UPDATE_TOOLS = [
+  "update_hit_points",
+  "update_currency",
+  "add_inventory_item",
+  "remove_inventory_item",
+  "update_experience",
+];
+
+export const generateChatCompletion = async (): Promise<boolean> => {
   try {
     const {
       inputMessage,
@@ -786,10 +675,6 @@ export const generateChatCompletion = async () => {
       updateLastMessage,
       campaignOutline,
     } = useDnDStore.getState();
-
-    // Get comprehensive tool descriptions for the AI
-    const toolDescriptions = toolRegistry.generateToolDescriptions();
-    const toolSchema = toolRegistry.generateToolSchemaPrompt();
 
     const systemMessage = {
       role: "system" as const,
@@ -802,35 +687,57 @@ ${
   "No campaign outline available. Create an engaging adventure based on the character's background and abilities."
 }
 
-AVAILABLE D&D TOOLS (${toolRegistry.getToolCount()} tools):
-${toolDescriptions}
+IMPORTANT - CHARACTER STATE TOOLS:
+You have tools to directly update the player's character sheet. USE THEM whenever gameplay causes state changes:
 
-TOOL SCHEMA FOR REFERENCE:
-${toolSchema}
+- update_hit_points: Call this when the character takes damage or heals. Always specify the amount and reason.
+- update_currency: Call this when the character gains or spends money. Specify currency type, amount, and reason.
+- add_inventory_item: Call this when the character acquires items. Specify item name, category, and how it was obtained.
+- remove_inventory_item: Call this when the character loses, uses, or sells items. Specify item name, category, and reason.
+- update_experience: Call this when awarding XP for combat victories, quest completion, or milestones.
 
-IMPORTANT TOOL USAGE GUIDELINES:
-- When the player asks about D&D mechanics, monsters, spells, equipment, classes, races, or any game content, use the appropriate tool to get accurate information
-- You have access to comprehensive D&D 5e data including: monsters, spells, equipment, classes, races, conditions, skills, feats, backgrounds, subclasses, magic items, rules, traits, languages, and damage types
-- If you need specific D&D data, mention which tool you would use and what information you need
-- For natural language queries like "I wanna shoot fire at that big bird monster", use tools to get spell details (Fireball) and monster stats (Owlbear)
-- For character creation questions, use class, race, background, and feat tools
-- For combat questions, use monster, spell, equipment, and damage type tools
-- For rules questions, use the rules tool
+WHEN TO CALL CHARACTER TOOLS:
+- Combat damage/healing: ALWAYS call update_hit_points
+- Finding treasure or loot: ALWAYS call add_inventory_item and/or update_currency
+- Buying/selling: ALWAYS call the appropriate inventory and currency tools
+- Consuming potions/items: ALWAYS call remove_inventory_item
+- Quest rewards: Call update_experience and any reward tools
 
-Respond in character as a DM, guiding the player through their adventure. Keep responses concise but engaging, and maintain the medieval fantasy atmosphere. Balance world-building, story-telling, and game mechanics.
+D&D REFERENCE TOOLS:
+You also have tools to look up official D&D 5e data (monsters, spells, equipment, conditions, etc.). Use these when you need accurate game information.
 
-If the player asks about their character's stats or abilities, use the provided character details to inform your response.
-
-If they want to perform an action, describe the outcome based on their character's abilities and the situation.
-
-Always ask the player to roll the dice for any action (e.g., initiative, attack, damage, etc.), or offer to roll for them.
-
-Stick to the rules and mechanics of the game, always taking into consideration dice rolls and character stats and abilities.
-
-When the player tries to detract from the story or the game, or they do something very out of character, creatively guide them back to the story.
-
-Always give your response in markdown format.`,
+GAMEPLAY GUIDELINES:
+- Respond in character as a DM, guiding the player through their adventure
+- Keep responses concise but engaging, maintain the medieval fantasy atmosphere
+- Balance world-building, story-telling, and game mechanics
+- Ask the player to roll dice for actions, or offer to roll for them
+- Stick to D&D 5e rules, considering dice rolls and character abilities
+- When the player goes off-track, creatively guide them back to the story
+- Always format responses in markdown`,
     };
+
+    // Convert tools to OpenAI format
+    const openAITools = toolRegistry.getAllTools().map((tool) => ({
+      type: "function" as const,
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: {
+          type: "object",
+          properties: tool.parameters.reduce(
+            (acc, param) => {
+              acc[param.name] = {
+                type: param.type,
+                description: param.description,
+              };
+              return acc;
+            },
+            {} as Record<string, { type: string; description: string }>
+          ),
+          required: tool.parameters.filter((p) => p.required).map((p) => p.name),
+        },
+      },
+    }));
 
     const completion = await client.chat.completions.create({
       model: "gpt-4.1-nano",
@@ -846,58 +753,79 @@ Always give your response in markdown format.`,
           content: inputMessage,
         },
       ],
+      tools: openAITools,
+      parallel_tool_calls: false, // Recommended for gpt-4.1-nano
       temperature: 0.7,
       stream: true,
     });
 
     let fullContent = "";
+    // Accumulate tool calls from the stream
+    const toolCallsMap = new Map<
+      number,
+      { id: string; name: string; arguments: string }
+    >();
+
     for await (const chunk of completion) {
-      const content = chunk.choices[0]?.delta?.content || "";
-      if (content) {
-        fullContent += content;
+      const delta = chunk.choices[0]?.delta;
+
+      // Handle streamed content
+      if (delta?.content) {
+        fullContent += delta.content;
         updateLastMessage(fullContent);
+      }
+
+      // Handle streamed tool calls
+      if (delta?.tool_calls) {
+        for (const toolCallDelta of delta.tool_calls) {
+          const index = toolCallDelta.index;
+
+          if (!toolCallsMap.has(index)) {
+            toolCallsMap.set(index, {
+              id: toolCallDelta.id || "",
+              name: toolCallDelta.function?.name || "",
+              arguments: "",
+            });
+          }
+
+          const existing = toolCallsMap.get(index)!;
+
+          if (toolCallDelta.id) {
+            existing.id = toolCallDelta.id;
+          }
+          if (toolCallDelta.function?.name) {
+            existing.name = toolCallDelta.function.name;
+          }
+          if (toolCallDelta.function?.arguments) {
+            existing.arguments += toolCallDelta.function.arguments;
+          }
+        }
       }
     }
 
-    // After getting the AI response, check if we need to execute any tools
-    const toolResult = await executeToolsFromResponse(
-      fullContent,
-      inputMessage
-    );
+    // Execute any tool calls
+    const toolCalls = Array.from(toolCallsMap.values());
 
-    if (
-      toolResult.toolUsed &&
-      toolResult.allResults &&
-      toolResult.allResults.length > 0
-    ) {
-      // Handle multiple tool results
-      let formattedResults = "\n\n**D&D Information**:\n";
-      toolResult.allResults.forEach((result) => {
-        if (result.error) {
-          formattedResults += `\n**${result.toolName}**: Error - ${result.error}\n`;
-        } else if (result.result) {
-          formattedResults += formatToolResult(result.toolName, result.result);
+    if (toolCalls.length > 0) {
+      console.log("Executing tool calls:", toolCalls);
+
+      for (const toolCall of toolCalls) {
+        try {
+          const args = JSON.parse(toolCall.arguments || "{}");
+          const result = await toolRegistry.executeTool(toolCall.name, args);
+
+          // For D&D reference tools (non-character updates), append formatted results
+          // Character update tools handle their own toasts internally
+          const isCharacterUpdate = CHARACTER_UPDATE_TOOLS.includes(toolCall.name);
+          if (!isCharacterUpdate && result) {
+            const formattedResult = formatToolResult(toolCall.name, result);
+            fullContent += formattedResult;
+            updateLastMessage(fullContent);
+          }
+        } catch (error) {
+          console.error(`Error executing tool ${toolCall.name}:`, error);
         }
-      });
-      const finalContent = fullContent + formattedResults;
-      updateLastMessage(finalContent);
-    } else if (
-      toolResult.toolUsed &&
-      toolResult.result &&
-      toolResult.toolName
-    ) {
-      // Handle single tool result (backward compatibility)
-      const formattedResult = formatToolResult(
-        toolResult.toolName,
-        toolResult.result
-      );
-      const finalContent = fullContent + formattedResult;
-      updateLastMessage(finalContent);
-    } else if (toolResult.toolUsed && toolResult.error) {
-      // Handle tool execution error
-      const errorMessage = `\n\n**Tool Error**: ${toolResult.error}`;
-      const finalContent = fullContent + errorMessage;
-      updateLastMessage(finalContent);
+      }
     }
 
     return true;

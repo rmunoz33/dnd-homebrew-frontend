@@ -7,7 +7,7 @@ import {
   generateCampaignOutline,
 } from "@/app/api/openai";
 import { useState, useEffect } from "react";
-import { useCharacterOptions, useSubspecies } from "@/hooks/useCharacterOptions";
+import { useCharacterOptions, useSubspecies, useSubclassesForClass } from "@/hooks/useCharacterOptions";
 import React, { useRef } from "react";
 
 interface NumberInputProps {
@@ -282,8 +282,10 @@ const CharacterCreationPage = () => {
   } = useDnDStore();
   
   // Fetch character options from API
-  const { races, classes, alignments, backgrounds, subclasses, loading: optionsLoading } = useCharacterOptions();
+  const { races, classes, alignments, backgrounds, loading: optionsLoading } = useCharacterOptions();
   const { data: availableSubspecies } = useSubspecies(character.species);
+  // Lazy load subclasses only when classes are selected
+  const { data: subclasses, loading: subclassesLoading } = useSubclassesForClass(character.classes);
   
   const [isRolling, setIsRolling] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -1194,6 +1196,8 @@ const CharacterCreationPage = () => {
               placeholder={
                 (character.level ?? 1) < 3
                   ? "Reach level 3 to select a subclass"
+                  : subclassesLoading
+                  ? "Loading subclasses..."
                   : (character.level ?? 1) >= 3
                   ? "Add Subclass *"
                   : "Add Subclass"
@@ -1214,7 +1218,7 @@ const CharacterCreationPage = () => {
               }}
               onKeyDown={handleSubclassKeyDown}
               disabled={
-                (character.level ?? 1) < 3 || character.classes.length === 0
+                (character.level ?? 1) < 3 || character.classes.length === 0 || subclassesLoading
               }
             />
             {isSubclassDropdownOpen && filteredSubclasses.length > 0 && (
