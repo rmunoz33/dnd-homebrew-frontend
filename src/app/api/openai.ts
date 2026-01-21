@@ -668,6 +668,12 @@ const CHARACTER_UPDATE_TOOLS = [
   "update_experience",
 ];
 
+// Track changes applied during streaming to prevent double-application
+interface AppliedChange {
+  tool: string;
+  params: Record<string, unknown>;
+}
+
 // Define ResponseInputItem type for the Responses API
 type ResponseInputItem =
   | { role: "user" | "assistant" | "system"; content: string }
@@ -684,108 +690,160 @@ export const generateChatCompletion = async (): Promise<boolean> => {
     } = useDnDStore.getState();
 
     // System instructions for the DM
+    // Calculate proficiency bonus from level
+    const proficiencyBonus = Math.floor((character.level - 1) / 4) + 2;
+
     const instructions = `You are an immersive Dungeon Master running a solo D&D 5e adventure.
 
-╔═══════════════════════════════════════════════════════════╗
-║  MANDATORY TOOL CALLING - READ THIS FIRST                 ║
-╚═══════════════════════════════════════════════════════════╝
+<tools>
+You have tools to update the character sheet. Use them — do NOT just narrate changes.
 
-You MUST call tools to update character state. This is NON-NEGOTIABLE.
+When the player's action results in gaining or losing resources, call the appropriate tool:
+- update_currency: money changes (spending, tipping, looting, rewards)
+- update_hit_points: HP changes (damage, healing)
+- add_inventory_item / remove_inventory_item: item changes
+- update_experience: XP awards
 
-WHEN PLAYER SPENDS/LOSES/BURIES/GIVES AWAY MONEY:
-→ IMMEDIATELY call update_currency with negative amount
-→ Example: Player buries a gold coin → call update_currency(currency_type: "gold", amount: -1, reason: "buried as offering")
+# Tool calling guidance:
+- Coins (gold, silver, copper, etc.) are CURRENCY, not items. Any coin changing hands = update_currency
+- If the player's money, HP, items, or XP changes, call the corresponding tool
+- Infer reasonable amounts when the player is vague (e.g., "a few coins" = 2-3, "some gold" = 5)
+- Always call the tool — the character sheet must stay in sync with the narrative
 
-WHEN PLAYER TAKES DAMAGE OR HEALS:
-→ IMMEDIATELY call update_hit_points
+Call tools silently — never mention them in your narrative.
+</tools>
 
-WHEN PLAYER GAINS/LOSES ITEMS:
-→ IMMEDIATELY call add_inventory_item or remove_inventory_item
+<character>
+Name: ${character.name}
+Level: ${character.level} (Proficiency Bonus: +${proficiencyBonus})
+Class: ${character.classes.join("/")}${character.subClass ? ` (${character.subClass})` : ""}
+Species: ${character.species}${character.subspecies ? ` (${character.subspecies})` : ""}
+Background: ${character.background}
+HP: ${character.hitPoints}/${character.maxHitPoints}
+AC: ${character.armorClass}
 
-WHEN AWARDING XP:
-→ IMMEDIATELY call update_experience
+Ability Scores & Modifiers:
+- STR: ${character.attributes.strength.value} (${character.attributes.strength.bonus >= 0 ? "+" : ""}${character.attributes.strength.bonus})
+- DEX: ${character.attributes.dexterity.value} (${character.attributes.dexterity.bonus >= 0 ? "+" : ""}${character.attributes.dexterity.bonus})
+- CON: ${character.attributes.constitution.value} (${character.attributes.constitution.bonus >= 0 ? "+" : ""}${character.attributes.constitution.bonus})
+- INT: ${character.attributes.intelligence.value} (${character.attributes.intelligence.bonus >= 0 ? "+" : ""}${character.attributes.intelligence.bonus})
+- WIS: ${character.attributes.wisdom.value} (${character.attributes.wisdom.bonus >= 0 ? "+" : ""}${character.attributes.wisdom.bonus})
+- CHA: ${character.attributes.charisma.value} (${character.attributes.charisma.bonus >= 0 ? "+" : ""}${character.attributes.charisma.bonus})
 
-If you narrate a resource change WITHOUT calling the tool, you have FAILED.
-The tool call must happen IN THE SAME RESPONSE as the narration.
+Equipment: ${[...character.equipment.weapons, ...character.equipment.armor, ...character.equipment.tools, ...character.equipment.magicItems, ...character.equipment.items].join(", ") || "None"}
+Gold: ${character.money.gold} gp
+</character>
 
-CHARACTER DATA (internal reference only):
-${JSON.stringify(character, null, 2)}
+<campaign>
+${campaignOutline || "No campaign outline available. Create an engaging adventure based on the character's background and abilities."}
+</campaign>
 
-CAMPAIGN FRAMEWORK (INTERNAL - NEVER reveal to player):
-${
-  campaignOutline ||
-  "No campaign outline available. Create an engaging adventure based on the character's background and abilities."
-}
+<rules>
+RESPONSE LENGTH:
+- Standard responses: Maximum 80 words
+- Combat or major revelations: Maximum 120 words
+- Exceeding these limits breaks pacing. Be concise.
 
-═══════════════════════════════════════════════════════════
-CAMPAIGN OPENING - FIRST MESSAGE PROTOCOL
-═══════════════════════════════════════════════════════════
+DICE ROLLS:
+- When a check is needed, tell the player their modifier: "Roll Perception. Your modifier is +${character.attributes.wisdom.bonus}."
+- NEVER reveal the DC or possible outcomes before the roll
+- NEVER list what different roll results would reveal
+- After they roll, narrate the outcome without explaining the DC
+- You may offer to roll for them
 
-When the conversation has no prior messages (or the player's first message is a simple greeting like "hi", "hello", "let's play"), you are STARTING A NEW CAMPAIGN. Do NOT jump into action. Instead:
+ACTION RESOLUTION:
+- Describe outcomes based on their roll and abilities
+- Success feels earned; failure creates complications, not dead ends
+- Reference their class features, background, and equipment
 
-1. WELCOME the player warmly as the DM ("Welcome, adventurer...")
-2. INTRODUCE the world briefly - the setting, tone, and atmosphere
-3. INTRODUCE their character - name them, acknowledge their class/background in a natural way
-4. SET THE OPENING SCENE - where are they right now? What's happening around them?
-5. PROVIDE A GENTLE HOOK - something interesting nearby that invites exploration, but don't force action
+PLAYER GUIDANCE:
+- If the player seems stuck, have an NPC hint or let the environment suggest a path
+- When off-track, creatively guide them back to the story
+- Respond to what the player DOES — if they take an action, resolve it
+</rules>
 
-Example opening style:
-"Welcome, adventurer, to the realm of shadows and whispered secrets.
+<immersion>
+NEVER DO THESE:
+- Reveal information the character hasn't discovered
+- Mention tool calls, stat updates, or game mechanics processing
+- Reveal DCs or possible roll outcomes before the player rolls
+- Use bullet points or numbered lists in narrative responses
+- Generate player dialogue or actions — never write what the player says or does next
 
-You are Vesper Quickflick, a gnome whose silver tongue has talked their way out of more trouble than most see in a lifetime. The divine spark of radiance flickers within you—a gift, or perhaps a burden, depending on the day.
+DESCRIBING THE PLAYER'S EXPERIENCE:
+✓ DO describe physical sensations: "A chill runs down your spine."
+✓ DO describe instinctive reactions: "Your hand moves to your blade."
+✓ DO describe sensory input: "The air tastes of copper and smoke."
+✗ DON'T dictate opinions: "You don't trust him."
+✗ DON'T dictate decisions: "You want to go left."
 
-Tonight finds you in the city of Luminara, where lantern light paints the cobblestones gold. You've secured a room at the Copper Cup inn, a modest establishment that asks few questions. Through the window, the city hums with evening life—merchants closing their stalls, tavern doors swinging open, and somewhere in the distance, temple bells mark the hour.
+The player decides what they think and choose. You describe the world and how it affects their senses.
+</immersion>
 
-Your coin purse feels lighter than you'd like. The bed looks inviting, but the night is young..."
+<player_engagement>
+READ THE PLAYER'S ENERGY:
+- Short/confused responses ("okay", "uh", "and now?") = they need guidance, not more prose
+- When confused, respond with a direct question or clear choice, not more atmosphere
+- Match response length to player engagement — don't overwhelm a hesitant player
 
-This gives players context and agency without forcing immediate action.
+OFFERING CHOICES IS GOOD:
+- Don't use numbered lists, but DO weave 2-3 clear options into your response
+- Example: "The letter names two contacts: Professor Voss at the university, or Seraphine in the undercity. The tunnels wait beneath the cathedral."
+- This gives direction while preserving agency
 
-═══════════════════════════════════════════════════════════
-CARDINAL RULES - VIOLATING THESE BREAKS IMMERSION
-═══════════════════════════════════════════════════════════
+ASKING QUESTIONS IS GOOD:
+- "Do you open the seal?" / "Do you go alone, or seek an ally first?"
+- Direct questions prompt action and help uncertain players engage
+- Avoid vague "What do you do?" — be specific about the immediate choice
 
-1. NEVER LIST OPTIONS OR CHOICES
-   ✗ WRONG: "What would you like to do? 1) Go to the market 2) Visit the temple"
-   ✓ RIGHT: "The market's distant clamor drifts on the wind. Nearby, temple bells toll the evening hour."
-   Let environmental details suggest possibilities. Never present numbered menus.
+WHEN THE PLAYER IS STUCK:
+- Don't repeat the scene description
+- Offer a concrete next step: "The courier mentioned Professor Voss knows the old tunnels. Her office is a short walk from here."
+- NPCs can prompt action: A servant asks, "Shall I summon your carriage, my lord?"
+</player_engagement>
 
-2. NEVER REVEAL UNDISCOVERED INFORMATION
-   ✗ WRONG: "You could track the lead in the Black Market District"
-   ✓ RIGHT: Let the player discover the Black Market exists through play
-   The player only knows what their character has experienced. Build paths to discoveries.
-
-3. NEVER ASK "WHAT DO YOU DO?"
-   End scenes with atmosphere, tension, or consequences - not meta-prompts.
-   The scene itself should invite action.
-
-4. NEVER NARRATE THE PLAYER'S ACTIONS OR THOUGHTS
-   ✗ WRONG: "You feel nervous as you approach"
-   ✓ RIGHT: "The door looms ahead, its iron knocker shaped like a snarling wolf"
-   Describe the world. Let the player decide how they feel and act.
-
-5. KEEP RESPONSES FOCUSED
-   Aim for ~100-150 words. Paint the scene vividly but don't overwhelm.
-   Leave space for player agency.
-
-6. NEVER INCLUDE META-COMMENTARY ABOUT TOOL CALLS
-   ✗ WRONG: "[Proceeding to update your gold tally now.]"
-   ✗ WRONG: "I'll update your inventory..." or "Calling the currency tool..."
-   ✓ RIGHT: Just narrate the story. Tool calls happen silently in the background.
-   The player should NEVER see text about updating stats, calling tools, or game mechanics processing.
-
-═══════════════════════════════════════════════════════════
-GAMEPLAY
-═══════════════════════════════════════════════════════════
-
-- Use present tense, second person ("The rain patters against your cloak")
+<style>
+- Present tense, second person
+- Clarity over poetry — the player must understand what's happening before appreciating how it feels
+- One or two sensory details per response, not a cascade of metaphors
 - NPCs speak in quoted dialogue with distinct voices
-- Call for dice rolls when outcomes are uncertain
-- Follow D&D 5e rules for mechanics
-- Use the campaign framework to guide YOUR storytelling, not as player information
-- Format in markdown for readability`;
+- Format in markdown
+</style>
+
+<campaign_opening>
+When starting a new campaign, GROUND THE PLAYER before adding atmosphere:
+
+FIRST (required): In plain language, establish:
+- The world: "Welcome to Ashenmoor, a kingdom where magic is feared and inquisitors hunt the gifted."
+- The character: "You are Zephyr Voss, a wizard who hides your talents while working as a librarian."
+- The situation: "A letter arrived today with a royal seal. The head librarian looks nervous."
+
+THEN (brief): Add one or two sensory details for atmosphere.
+
+FINALLY: End with a direct question: "Do you open the letter?"
+
+Clarity before poetry. The player needs to understand WHERE they are, WHO they are, and WHAT'S HAPPENING before they can engage with the story. Keep it under 100 words.
+</campaign_opening>
+
+<answering_questions>
+When the player asks a direct question ("Where am I?", "Who is that?", "What's happening?"):
+- Answer directly FIRST in plain language
+- THEN add brief flavor if appropriate
+- Don't bury the answer in atmosphere
+
+✗ WRONG: "The library sighs with ancient whispers, corridors shifting like dreams..."
+✓ RIGHT: "You're in the Nexus Library, a magical archive. It's a maze of floating bookshelves. You work here as a researcher."
+</answering_questions>
+
+<reminder>
+Use your tools to update the character sheet — do NOT just narrate resource changes. If the player spends money, call update_currency. If they take damage, call update_hit_points. Always call the tool, then narrate.
+</reminder>`;
 
     // Convert tools to Responses API format
-    const tools = toolRegistry.getAllTools().map((tool) => ({
+    // TEMP: Only include character state tools to test if fewer tools helps
+    const CHARACTER_TOOLS = ['update_hit_points', 'update_currency', 'add_inventory_item', 'remove_inventory_item', 'update_experience'];
+    const filteredTools = toolRegistry.getAllTools().filter(t => CHARACTER_TOOLS.includes(t.name));
+    const tools = filteredTools.map((tool) => ({
       type: "function" as const,
       name: tool.name,
       description: tool.description,
@@ -817,11 +875,17 @@ GAMEPLAY
     ];
 
     console.log(`[generateChatCompletion] Using Responses API with ${tools.length} tools`);
+    console.log(`[generateChatCompletion] Tool names:`, tools.map(t => t.name));
+    const charTools = tools.filter(t => ['update_currency', 'update_hit_points', 'add_inventory_item', 'remove_inventory_item', 'update_experience'].includes(t.name));
+    console.log(`[generateChatCompletion] Character tools (${charTools.length}):`, JSON.stringify(charTools, null, 2));
 
     let fullContent = "";
     let continueLoop = true;
     let previousResponseId: string | undefined = undefined;
     let pendingFunctionOutputs: Array<{ type: "function_call_output"; call_id: string; output: string }> = [];
+
+    // Track character state changes applied during streaming (for deduplication in post-processing)
+    const appliedChanges: AppliedChange[] = [];
 
     // Agentic loop - continues until we get a text response without tool calls
     while (continueLoop) {
@@ -830,7 +894,7 @@ GAMEPLAY
       if (previousResponseId && pendingFunctionOutputs.length > 0) {
         // Continuing after function calls - reference previous response and include outputs
         stream = await client.responses.create({
-          model: "gpt-5-nano",
+          model: "gpt-4.1-mini",
           tools,
           stream: true,
           previous_response_id: previousResponseId,
@@ -840,7 +904,7 @@ GAMEPLAY
       } else {
         // First request - include instructions and full input
         stream = await client.responses.create({
-          model: "gpt-5-nano",
+          model: "gpt-4.1-mini",
           tools,
           stream: true,
           instructions,
@@ -896,6 +960,12 @@ GAMEPLAY
               updateLastMessage(fullContent);
             }
 
+            // Track character state tool calls for deduplication
+            if (isCharacterUpdate) {
+              appliedChanges.push({ tool: fc.name, params: args });
+              console.log(`[generateChatCompletion] Tracked character change: ${fc.name}`, args);
+            }
+
             // Queue the function output for the next request
             pendingFunctionOutputs.push({
               type: "function_call_output",
@@ -920,6 +990,10 @@ GAMEPLAY
       }
     }
 
+    // Run fallback state extraction to catch changes the model didn't track via tools
+    // This uses the character tools (with toasts) and skips already-applied changes
+    await extractStateChangesFromNarrative(appliedChanges);
+
     return true;
   } catch (error) {
     console.error("Error in chat route:", error);
@@ -927,5 +1001,155 @@ GAMEPLAY
       .getState()
       .updateLastMessage("Sorry, I encountered an error. Please try again.");
     return false;
+  }
+};
+
+/**
+ * Post-processing fallback for state extraction.
+ *
+ * Analyzes the last DM response to detect character state changes that weren't
+ * tracked via tool calls during streaming. This hybrid approach is industry-standard
+ * for AI game state management.
+ *
+ * The function:
+ * 1. Takes the applied changes from streaming (to avoid duplicates)
+ * 2. Asks a fast model to identify any state changes (HP, currency, items, XP)
+ * 3. Filters out changes that were already applied
+ * 4. Calls the actual character tools (with toasts) for remaining changes
+ */
+const extractStateChangesFromNarrative = async (appliedChanges: AppliedChange[]) => {
+  const { character, messages } = useDnDStore.getState();
+  const lastTwoMessages = messages.slice(-2);
+
+  if (lastTwoMessages.length < 2) {
+    console.log("[extractStateChangesFromNarrative] Not enough messages to analyze");
+    return null;
+  }
+
+  // Build a summary of what was already applied for the prompt
+  const alreadyAppliedSummary = appliedChanges.length > 0
+    ? `ALREADY APPLIED (do NOT include these):\n${appliedChanges.map(c => `- ${c.tool}: ${JSON.stringify(c.params)}`).join('\n')}`
+    : "";
+
+  const systemPrompt = `You are a D&D game state analyzer. Your job is to detect when the player's resources change.
+
+CHARACTER STATE:
+- Gold: ${character.money.gold}, Silver: ${character.money.silver}, Copper: ${character.money.copper}
+- HP: ${character.hitPoints}/${character.maxHitPoints}
+
+CONVERSATION:
+Player: ${lastTwoMessages[0]?.content || ""}
+DM: ${lastTwoMessages[1]?.content || ""}
+
+${alreadyAppliedSummary}
+
+CURRENCY CHANGES - track ANY of these:
+- Coins thrown, tossed, or dropped (even as a distraction or test)
+- Coins given, tipped, or bribed
+- Coins spent or paid
+- Coins found, looted, or received
+- If the player says they throw/toss/give X coins, that's -X currency
+
+HP CHANGES - track ANY of these:
+- Damage taken from attacks, traps, or effects
+- Healing from potions, spells, or rest
+
+ITEM CHANGES - track ANY of these:
+- Items picked up, found, purchased, or received
+- Items dropped, sold, given away, or consumed
+
+Return JSON. If no changes, return: { "tool_calls": [] }
+
+FORMAT:
+{
+  "tool_calls": [
+    { "tool": "update_currency", "params": { "currency_type": "gold", "amount": -2, "reason": "thrown at door" } }
+  ]
+}
+
+IMPORTANT:
+- If the player said they threw/tossed coins and the DM narrated the coins landing/clattering, that IS a currency loss. Track it.
+- If the player says "coins" without specifying type, default to "gold".
+- The player's stated number is the amount (e.g., "2 coins" = amount: -2).`;
+
+  try {
+    console.log("[extractStateChangesFromNarrative] Analyzing narrative for missed state changes...");
+    console.log("[extractStateChangesFromNarrative] Player message:", lastTwoMessages[0]?.content);
+    console.log("[extractStateChangesFromNarrative] DM message:", lastTwoMessages[1]?.content);
+    console.log("[extractStateChangesFromNarrative] Already applied:", appliedChanges);
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4.1-nano",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: "Analyze the conversation and report any character state changes that need to be tracked." },
+      ],
+      temperature: 0.1, // Low temp for deterministic extraction
+      response_format: { type: "json_object" },
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      console.log("[extractStateChangesFromNarrative] No content in response");
+      return null;
+    }
+
+    const parsed = JSON.parse(content);
+    console.log("[extractStateChangesFromNarrative] Detected tool calls:", parsed);
+
+    if (parsed.tool_calls && parsed.tool_calls.length > 0) {
+      // Filter out any changes that match already-applied ones
+      const newToolCalls = parsed.tool_calls.filter((tc: { tool: string; params: Record<string, unknown> }) => {
+        // Check if this change was already applied
+        const isDuplicate = appliedChanges.some(applied => {
+          if (applied.tool !== tc.tool) return false;
+
+          // For currency, check if same type and similar amount
+          if (tc.tool === "update_currency") {
+            return applied.params.currency_type === tc.params.currency_type &&
+                   applied.params.amount === tc.params.amount;
+          }
+          // For HP, check if same amount
+          if (tc.tool === "update_hit_points") {
+            return applied.params.amount === tc.params.amount;
+          }
+          // For items, check if same item name
+          if (tc.tool === "add_inventory_item" || tc.tool === "remove_inventory_item") {
+            return (applied.params.item_name as string)?.toLowerCase() ===
+                   (tc.params.item_name as string)?.toLowerCase();
+          }
+          // For XP, check if same amount
+          if (tc.tool === "update_experience") {
+            return applied.params.amount === tc.params.amount;
+          }
+          return false;
+        });
+
+        if (isDuplicate) {
+          console.log("[extractStateChangesFromNarrative] Skipping duplicate:", tc);
+        }
+        return !isDuplicate;
+      });
+
+      console.log("[extractStateChangesFromNarrative] New tool calls after deduplication:", newToolCalls.length);
+
+      // Execute the remaining tool calls using the actual character tools
+      for (const tc of newToolCalls) {
+        try {
+          console.log(`[extractStateChangesFromNarrative] Executing ${tc.tool}:`, tc.params);
+          await toolRegistry.executeTool(tc.tool, tc.params);
+        } catch (error) {
+          console.error(`[extractStateChangesFromNarrative] Error executing ${tc.tool}:`, error);
+        }
+      }
+
+      return { applied: newToolCalls.length };
+    }
+
+    console.log("[extractStateChangesFromNarrative] No new changes detected");
+    return null;
+  } catch (error) {
+    console.error("[extractStateChangesFromNarrative] Error:", error);
+    return null;
   }
 };

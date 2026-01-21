@@ -1,4 +1,7 @@
 // Import all tools to register them with the tool registry
+// Character state tools first (most important for gameplay)
+import "./characterTools";
+// D&D reference tools
 import "./monsterTools";
 import "./spellTools";
 import "./equipmentTools";
@@ -14,7 +17,6 @@ import "./ruleTools";
 import "./traitTools";
 import "./languageTools";
 import "./damageTypeTools";
-import "./characterTools";
 
 // Export the registry for use in other parts of the application
 export { toolRegistry } from "./registry";

@@ -26,7 +26,7 @@ type CurrencyType = (typeof CURRENCY_TYPES)[number];
 const updateHitPoints: Tool = {
   name: "update_hit_points",
   description:
-    "Modify the player's current hit points. Use when the character takes damage (negative value) or receives healing (positive value). Examples: taking 5 damage = -5, healing 10 HP = +10. HP is automatically capped at max and cannot go below 0.",
+    "Call whenever the player takes damage or receives healing. Use negative for damage, positive for healing. HP auto-caps at max and floors at 0.",
   parameters: [
     {
       name: "amount",
@@ -91,7 +91,7 @@ const updateHitPoints: Tool = {
 const updateCurrency: Tool = {
   name: "update_currency",
   description:
-    "Modify the player's currency (gold, silver, copper, electrum, platinum). Use when the character spends money (negative value), receives payment, finds treasure, or is robbed. Examples: spending 10 gold = gold -10, finding 50 silver = silver +50.",
+    "Call for ANY currency change, no matter how small — even a single coin tossed, given as a tip, or spent on a bribe. Every transaction must be tracked. Use negative for spending/losing, positive for gaining.",
   parameters: [
     {
       name: "currency_type",
@@ -173,7 +173,7 @@ const updateCurrency: Tool = {
 const addInventoryItem: Tool = {
   name: "add_inventory_item",
   description:
-    "Add an item to the player's inventory. Use when the character acquires new equipment, picks up loot, receives a gift, or buys something. Choose the correct category for the item type.",
+    "Call whenever the player acquires an item — loot, purchases, gifts, or found objects. Choose the appropriate category: weapons, armor, tools, magicItems, or items.",
   parameters: [
     {
       name: "item_name",
@@ -253,7 +253,7 @@ const addInventoryItem: Tool = {
 const removeInventoryItem: Tool = {
   name: "remove_inventory_item",
   description:
-    "Remove an item from the player's inventory. Use when the character sells, drops, loses, consumes, or gives away an item. The item name matching is case-insensitive.",
+    "Call whenever the player loses, sells, drops, consumes, or gives away an item. Item matching is case-insensitive.",
   parameters: [
     {
       name: "item_name",
@@ -339,7 +339,7 @@ const removeInventoryItem: Tool = {
 const updateExperience: Tool = {
   name: "update_experience",
   description:
-    "Modify the player's experience points. Use when awarding XP for defeating monsters, completing quests, or achieving story milestones. Can also be used to remove XP in rare circumstances (e.g., curse effects).",
+    "Call to award XP for defeating enemies, completing quests, or story milestones. Use positive values; negative only for rare curse effects.",
   parameters: [
     {
       name: "amount",
