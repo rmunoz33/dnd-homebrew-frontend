@@ -1,21 +1,16 @@
 import OpenAI from "openai";
-import { Character, useDnDStore, Message } from "@/stores/useStore";
-import {
-  toolRegistry,
-  executeToolsFromResponse,
-  formatToolResult,
-} from "./tools";
+import { Character, useDnDStore } from "@/stores/useStore";
+import { toolRegistry } from "./tools";
 import {
   fetchRaces,
   fetchClasses,
   fetchAlignments,
   fetchBackgrounds,
-  fetchSubclasses,
+  fetchSubclassesForClass,
   type RaceOption,
   type ClassOption,
   type AlignmentOption,
   type BackgroundOption,
-  type SubclassOption,
 } from "@/services/api/characterOptions";
 
 const client = new OpenAI({
@@ -112,31 +107,18 @@ export const generateCharacterDetails = async (character: Character) => {
   try {
     const filledCharacter = { ...character };
 
-    // Fetch all options from API
-    const [racesData, classesData, alignmentsData, backgroundsData, subclassesData] = await Promise.all([
+    // Fetch all options from API (except subclasses - those are lazy loaded)
+    const [racesData, classesData, alignmentsData, backgroundsData] = await Promise.all([
       fetchRaces().catch(() => []),
       fetchClasses().catch(() => []),
       fetchAlignments().catch(() => []),
       fetchBackgrounds().catch(() => []),
-      fetchSubclasses().catch(() => []),
     ]);
 
     const races = racesData.map((r: RaceOption) => r.name);
     const classes = classesData.map((c: ClassOption) => c.name);
     const alignments = alignmentsData.map((a: AlignmentOption) => a.name);
     const backgrounds = backgroundsData.map((b: BackgroundOption) => b.name);
-    
-    // Group subclasses by parent class
-    const subclassesByClass: Record<string, string[]> = {};
-    subclassesData.forEach((subclass: SubclassOption) => {
-      if (subclass.class) {
-        const className = subclass.class.name;
-        if (!subclassesByClass[className]) {
-          subclassesByClass[className] = [];
-        }
-        subclassesByClass[className].push(subclass.name);
-      }
-    });
 
     // If a field is empty, select a random value from the API options
     if (!filledCharacter.species && races.length > 0) {
@@ -160,10 +142,15 @@ export const generateCharacterDetails = async (character: Character) => {
       }
     }
 
+    // Lazy load subclasses only for the main class if needed
     const mainClass = filledCharacter.classes[0];
-    if (!filledCharacter.subClass && mainClass && subclassesByClass[mainClass]) {
-      const subclassOptions = subclassesByClass[mainClass];
-      filledCharacter.subClass = subclassOptions[Math.floor(Math.random() * subclassOptions.length)];
+    if (!filledCharacter.subClass && mainClass) {
+      const classIndex = mainClass.toLowerCase().replace(/\s+/g, '-');
+      const subclassesForClass = await fetchSubclassesForClass(classIndex).catch(() => []);
+      if (subclassesForClass.length > 0) {
+        const subclassNames = subclassesForClass.map(sc => sc.name);
+        filledCharacter.subClass = subclassNames[Math.floor(Math.random() * subclassNames.length)];
+      }
     }
 
     // 1. Fetch canonical data for each selected field using the tool system
@@ -538,117 +525,6 @@ Return ONLY a JSON object with these creative fields. Example:
   }
 };
 
-/**
- * Analyzes the latest game messages to identify changes to the character's state,
- * using tools to fetch canonical data for items, spells, or conditions.
- */
-export const updateCharacterStatsAPI = async () => {
-  const { character, messages } = useDnDStore.getState();
-  const lastTwoMessages = messages.slice(-2);
-
-  if (lastTwoMessages.length < 2) {
-    return null;
-  }
-
-  // Get tool descriptions for the AI
-  const toolDescriptions = toolRegistry.generateToolDescriptions();
-  const toolSchema = toolRegistry.generateToolSchemaPrompt();
-
-  const systemPrompt = `You are a D&D game state manager. Your task is to analyze the last message from the DM and identify any changes to the player character's state.
-
-  Character State:
-  ${JSON.stringify(character, null, 2)}
-  
-  Last two messages (user and DM):
-  ${JSON.stringify(lastTwoMessages)}
-  
-  AVAILABLE D&D TOOLS (${toolRegistry.getToolCount()} tools):
-  ${toolDescriptions}
-  
-  TOOL SCHEMA FOR REFERENCE:
-  ${toolSchema}
-  
-  TASK:
-  1. Analyze the DM's last response for events that would change the character's sheet.
-  2. If you see a currency change (giving, spending, or receiving gold, silver, etc.), you MUST return a stat change. Infer the amount from the context.
-     - Example: If the DM says "You fish the coin out of the well", you return: { "changes": [{ "type": "stat", "stat": "money.gold", "change": 1 }] }.
-     - Do NOT use tools for currency.
-  3. If a player gets rid of an item (sells, drops, buries, etc.), you MUST return a stat change with an 'item_remove' type.
-     - Example: If the player buries their "family heirloom", you return: { "changes": [{ "type": "item_remove", "item": "family heirloom", "category": "items" }] }.
-  4. If a player re-acquires a generic item they previously had, you MUST return an 'item_add' type.
-     - Example: If the player digs up their "family heirloom", you return: { "changes": [{ "type": "item_add", "item": "family heirloom", "category": "items" }] }.
-  5. For events involving adding new, official D&D items, spells, conditions, etc., use the appropriate tool to get the official data.
-  6. For simple stat changes (like HP loss/gain), describe the change in a structured format. Use dot notation for nested properties.
-  
-  Return a JSON object containing a list of changes. Each change can be a tool call result or a simple stat modification.
-  
-  EXAMPLES:
-  - If the DM says "The goblin hits you for 5 slashing damage", you return:
-    { "changes": [{ "type": "stat", "stat": "hitPoints", "change": -5 }] }
-
-  - If the player gives 1 gold to a beggar, you return:
-    { "changes": [{ "type": "stat", "stat": "money.gold", "change": -1 }] }
-  
-  - If the DM says "You find a Potion of Healing", you call the 'getEquipmentDetails' tool for "Potion of Healing".
-  
-  - If the DM says "You are now poisoned", you call the 'getConditionDetails' tool for "Poisoned".`;
-
-  try {
-    const response = await client.chat.completions.create({
-      model: "gpt-4.1-nano",
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: `Analyze the last DM message and report any character state changes.`,
-        },
-      ],
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      tools: toolRegistry.getAllTools().map((tool) => ({
-        type: "function",
-        function: {
-          name: tool.name,
-          description: tool.description,
-          parameters: {
-            type: "object",
-            properties: tool.parameters.reduce((acc, param) => {
-              acc[param.name] = {
-                type: param.type,
-                description: param.description,
-              };
-              return acc;
-            }, {} as Record<string, unknown>),
-            required: tool.parameters
-              .filter((p) => p.required)
-              .map((p) => p.name),
-          },
-        },
-      })),
-    });
-
-    const message = response.choices[0].message;
-
-    if (message.tool_calls) {
-      // The model wants to call tools.
-      const toolResults = await executeToolsFromResponse(
-        JSON.stringify(message.tool_calls),
-        lastTwoMessages.find((m) => m.sender === "user")?.content || ""
-      );
-      return { type: "tool_results", results: toolResults };
-    } else if (message.content) {
-      // The model returned a simple stat change.
-      const parsedContent = JSON.parse(message.content);
-      return { type: "stat_changes", changes: parsedContent.changes };
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Error updating character stats:", error);
-    return null;
-  }
-};
-
 export const generateCampaignOutline = async (character: Character) => {
   const startingLevel = character.level || 1;
 
@@ -777,7 +653,7 @@ Format the response as a detailed markdown document that can be used as a campai
   }
 };
 
-export const generateChatCompletion = async () => {
+export const generateChatCompletion = async (): Promise<boolean> => {
   try {
     const {
       inputMessage,
@@ -787,64 +663,145 @@ export const generateChatCompletion = async () => {
       campaignOutline,
     } = useDnDStore.getState();
 
-    // Get comprehensive tool descriptions for the AI
-    const toolDescriptions = toolRegistry.generateToolDescriptions();
-    const toolSchema = toolRegistry.generateToolSchemaPrompt();
+    // Calculate proficiency bonus from level
+    const proficiencyBonus = Math.floor((character.level - 1) / 4) + 2;
 
     const systemMessage = {
       role: "system" as const,
-      content: `You are a world-class Dungeon Master in a D&D game. The player's character has the following details:
-${JSON.stringify(character, null, 2)}
+      content: `You are an immersive Dungeon Master running a solo D&D 5e adventure.
 
-Campaign Framework:
-${
-  campaignOutline ||
-  "No campaign outline available. Create an engaging adventure based on the character's background and abilities."
-}
+<character>
+Name: ${character.name}
+Level: ${character.level} (Proficiency Bonus: +${proficiencyBonus})
+Class: ${character.classes.join("/")}${character.subClass ? ` (${character.subClass})` : ""}
+Species: ${character.species}${character.subspecies ? ` (${character.subspecies})` : ""}
+Background: ${character.background}
+HP: ${character.hitPoints}/${character.maxHitPoints}
+AC: ${character.armorClass}
 
-AVAILABLE D&D TOOLS (${toolRegistry.getToolCount()} tools):
-${toolDescriptions}
+Ability Scores & Modifiers:
+- STR: ${character.attributes.strength.value} (${character.attributes.strength.bonus >= 0 ? "+" : ""}${character.attributes.strength.bonus})
+- DEX: ${character.attributes.dexterity.value} (${character.attributes.dexterity.bonus >= 0 ? "+" : ""}${character.attributes.dexterity.bonus})
+- CON: ${character.attributes.constitution.value} (${character.attributes.constitution.bonus >= 0 ? "+" : ""}${character.attributes.constitution.bonus})
+- INT: ${character.attributes.intelligence.value} (${character.attributes.intelligence.bonus >= 0 ? "+" : ""}${character.attributes.intelligence.bonus})
+- WIS: ${character.attributes.wisdom.value} (${character.attributes.wisdom.bonus >= 0 ? "+" : ""}${character.attributes.wisdom.bonus})
+- CHA: ${character.attributes.charisma.value} (${character.attributes.charisma.bonus >= 0 ? "+" : ""}${character.attributes.charisma.bonus})
 
-TOOL SCHEMA FOR REFERENCE:
-${toolSchema}
+Equipment: ${[...character.equipment.weapons, ...character.equipment.armor, ...character.equipment.tools, ...character.equipment.magicItems, ...character.equipment.items].join(", ") || "None"}
+Gold: ${character.money.gold} gp
+</character>
 
-IMPORTANT TOOL USAGE GUIDELINES:
-- When the player asks about D&D mechanics, monsters, spells, equipment, classes, races, or any game content, use the appropriate tool to get accurate information
-- You have access to comprehensive D&D 5e data including: monsters, spells, equipment, classes, races, conditions, skills, feats, backgrounds, subclasses, magic items, rules, traits, languages, and damage types
-- If you need specific D&D data, mention which tool you would use and what information you need
-- For natural language queries like "I wanna shoot fire at that big bird monster", use tools to get spell details (Fireball) and monster stats (Owlbear)
-- For character creation questions, use class, race, background, and feat tools
-- For combat questions, use monster, spell, equipment, and damage type tools
-- For rules questions, use the rules tool
+<campaign>
+${campaignOutline || "No campaign outline available. Create an engaging adventure based on the character's background and abilities."}
+</campaign>
 
-Respond in character as a DM, guiding the player through their adventure. Keep responses concise but engaging, and maintain the medieval fantasy atmosphere. Balance world-building, story-telling, and game mechanics.
+<rules>
+RESPONSE LENGTH:
+- Standard responses: Maximum 80 words
+- Combat or major revelations: Maximum 120 words
+- Exceeding these limits breaks pacing. Be concise.
 
-If the player asks about their character's stats or abilities, use the provided character details to inform your response.
+DICE ROLLS:
+- When a check is needed, tell the player their modifier: "Roll Perception. Your modifier is +${character.attributes.wisdom.bonus}."
+- NEVER reveal the DC or possible outcomes before the roll
+- NEVER list what different roll results would reveal
+- After they roll, narrate the outcome without explaining the DC
+- You may offer to roll for them
 
-If they want to perform an action, describe the outcome based on their character's abilities and the situation.
+ACTION RESOLUTION:
+- Describe outcomes based on their roll and abilities
+- Success feels earned; failure creates complications, not dead ends
+- Reference their class features, background, and equipment
 
-Always ask the player to roll the dice for any action (e.g., initiative, attack, damage, etc.), or offer to roll for them.
+PLAYER GUIDANCE:
+- If the player seems stuck, have an NPC hint or let the environment suggest a path
+- When off-track, creatively guide them back to the story
+- Respond to what the player DOES — if they take an action, resolve it
+</rules>
 
-Stick to the rules and mechanics of the game, always taking into consideration dice rolls and character stats and abilities.
+<immersion>
+NEVER DO THESE:
+- Reveal information the character hasn't discovered
+- Mention stat updates or game mechanics processing
+- Reveal DCs or possible roll outcomes before the player rolls
+- Use bullet points or numbered lists in narrative responses
+- Generate player dialogue or actions — never write what the player says or does next
 
-When the player tries to detract from the story or the game, or they do something very out of character, creatively guide them back to the story.
+DESCRIBING THE PLAYER'S EXPERIENCE:
+✓ DO describe physical sensations: "A chill runs down your spine."
+✓ DO describe instinctive reactions: "Your hand moves to your blade."
+✓ DO describe sensory input: "The air tastes of copper and smoke."
+✗ DON'T dictate opinions: "You don't trust him."
+✗ DON'T dictate decisions: "You want to go left."
 
-Always give your response in markdown format.`,
+The player decides what they think and choose. You describe the world and how it affects their senses.
+</immersion>
+
+<player_engagement>
+READ THE PLAYER'S ENERGY:
+- Short/confused responses ("okay", "uh", "and now?") = they need guidance, not more prose
+- When confused, respond with a direct question or clear choice, not more atmosphere
+- Match response length to player engagement — don't overwhelm a hesitant player
+
+OFFERING CHOICES IS GOOD:
+- Don't use numbered lists, but DO weave 2-3 clear options into your response
+- Example: "The letter names two contacts: Professor Voss at the university, or Seraphine in the undercity. The tunnels wait beneath the cathedral."
+- This gives direction while preserving agency
+
+ASKING QUESTIONS IS GOOD:
+- "Do you open the seal?" / "Do you go alone, or seek an ally first?"
+- Direct questions prompt action and help uncertain players engage
+- Avoid vague "What do you do?" — be specific about the immediate choice
+
+WHEN THE PLAYER IS STUCK:
+- Don't repeat the scene description
+- Offer a concrete next step: "The courier mentioned Professor Voss knows the old tunnels. Her office is a short walk from here."
+- NPCs can prompt action: A servant asks, "Shall I summon your carriage, my lord?"
+</player_engagement>
+
+<style>
+- Present tense, second person
+- Clarity over poetry — the player must understand what's happening before appreciating how it feels
+- One or two sensory details per response, not a cascade of metaphors
+- NPCs speak in quoted dialogue with distinct voices
+- Format in markdown
+</style>
+
+<campaign_opening>
+When starting a new campaign, GROUND THE PLAYER before adding atmosphere:
+
+FIRST (required): In plain language, establish:
+- The world: "Welcome to Ashenmoor, a kingdom where magic is feared and inquisitors hunt the gifted."
+- The character: "You are Zephyr Voss, a wizard who hides your talents while working as a librarian."
+- The situation: "A letter arrived today with a royal seal. The head librarian looks nervous."
+
+THEN (brief): Add one or two sensory details for atmosphere.
+
+FINALLY: End with a direct question: "Do you open the letter?"
+
+Clarity before poetry. The player needs to understand WHERE they are, WHO they are, and WHAT'S HAPPENING before they can engage with the story. Keep it under 100 words.
+</campaign_opening>
+
+<answering_questions>
+When the player asks a direct question ("Where am I?", "Who is that?", "What's happening?"):
+- Answer directly FIRST in plain language
+- THEN add brief flavor if appropriate
+- Don't bury the answer in atmosphere
+
+✗ WRONG: "The library sighs with ancient whispers, corridors shifting like dreams..."
+✓ RIGHT: "You're in the Nexus Library, a magical archive. It's a maze of floating bookshelves. You work here as a researcher."
+</answering_questions>`,
     };
 
     const completion = await client.chat.completions.create({
-      model: "gpt-4.1-nano",
+      model: "gpt-4.1-mini",
       messages: [
         systemMessage,
-        ...messages.map((msg: Message) => ({
-          role:
-            msg.sender === "user" ? ("user" as const) : ("assistant" as const),
+        ...messages.map((msg) => ({
+          role: msg.sender === "user" ? ("user" as const) : ("assistant" as const),
           content: msg.content,
         })),
-        {
-          role: "user" as const,
-          content: inputMessage,
-        },
+        { role: "user" as const, content: inputMessage },
       ],
       temperature: 0.7,
       stream: true,
@@ -859,46 +816,8 @@ Always give your response in markdown format.`,
       }
     }
 
-    // After getting the AI response, check if we need to execute any tools
-    const toolResult = await executeToolsFromResponse(
-      fullContent,
-      inputMessage
-    );
-
-    if (
-      toolResult.toolUsed &&
-      toolResult.allResults &&
-      toolResult.allResults.length > 0
-    ) {
-      // Handle multiple tool results
-      let formattedResults = "\n\n**D&D Information**:\n";
-      toolResult.allResults.forEach((result) => {
-        if (result.error) {
-          formattedResults += `\n**${result.toolName}**: Error - ${result.error}\n`;
-        } else if (result.result) {
-          formattedResults += formatToolResult(result.toolName, result.result);
-        }
-      });
-      const finalContent = fullContent + formattedResults;
-      updateLastMessage(finalContent);
-    } else if (
-      toolResult.toolUsed &&
-      toolResult.result &&
-      toolResult.toolName
-    ) {
-      // Handle single tool result (backward compatibility)
-      const formattedResult = formatToolResult(
-        toolResult.toolName,
-        toolResult.result
-      );
-      const finalContent = fullContent + formattedResult;
-      updateLastMessage(finalContent);
-    } else if (toolResult.toolUsed && toolResult.error) {
-      // Handle tool execution error
-      const errorMessage = `\n\n**Tool Error**: ${toolResult.error}`;
-      const finalContent = fullContent + errorMessage;
-      updateLastMessage(finalContent);
-    }
+    // After streaming completes, analyze narrative for character state changes
+    await extractStateChangesFromNarrative();
 
     return true;
   } catch (error) {
@@ -907,5 +826,108 @@ Always give your response in markdown format.`,
       .getState()
       .updateLastMessage("Sorry, I encountered an error. Please try again.");
     return false;
+  }
+};
+
+/**
+ * Analyzes the latest game messages to detect character state changes
+ * and applies them via character tools (with toast notifications).
+ *
+ * This is the sole source of truth for state updates — the DM generates
+ * narrative only, and this function extracts changes afterward.
+ */
+const extractStateChangesFromNarrative = async () => {
+  const { character, messages } = useDnDStore.getState();
+  // Use last 6 messages (3 exchanges) for context on vague references like "I do it again"
+  const recentMessages = messages.slice(-6);
+
+  if (recentMessages.length < 2) {
+    return null;
+  }
+
+  const conversation = recentMessages
+    .map((msg) => `${msg.sender === "user" ? "Player" : "DM"}: ${msg.content}`)
+    .join("\n\n");
+
+  const systemPrompt = `You are a D&D game state analyzer. Analyze the most recent DM response and identify ANY changes to the player character's state.
+
+CHARACTER STATE:
+- HP: ${character.hitPoints}/${character.maxHitPoints}
+- Gold: ${character.money.gold}, Silver: ${character.money.silver}, Copper: ${character.money.copper}, Electrum: ${character.money.electrum}, Platinum: ${character.money.platinum}
+- Equipment: ${[...character.equipment.weapons, ...character.equipment.armor, ...character.equipment.tools, ...character.equipment.magicItems, ...character.equipment.items].join(", ") || "None"}
+- XP: ${character.experience}
+
+RECENT CONVERSATION:
+${conversation}
+
+RULES:
+- Analyze the MOST RECENT player action AND DM response together
+- The player's message tells you what they DID (e.g., "I swallow a gold coin" = -1 gold)
+- The DM's message tells you the CONSEQUENCES (e.g., "you lose 3 hit points" = -3 HP)
+- You must track BOTH the action's cost AND its consequences
+- Players may use vague references like "I do it again" — use earlier messages to understand what "it" refers to
+- If nothing changed, return { "tool_calls": [] }
+- Do NOT report changes with amount 0
+
+WHAT TO TRACK:
+- HP changes: damage taken, healing received
+- Currency changes: coins spent, given, received, looted, tipped, thrown, swallowed, consumed
+- Item changes: items acquired, lost, sold, consumed, given away
+- XP changes: experience awarded for combat, quests, milestones
+
+EXAMPLES:
+- Player: "I swallow a gold coin" + DM: "You lose 3 HP" → TWO changes: update_currency (gold, -1) AND update_hit_points (-3)
+- Player: "I tip the bartender 2 silver" + DM: "He nods" → ONE change: update_currency (silver, -2)
+- Player: "I attack" + DM: "The goblin hits you for 5 damage" → ONE change: update_hit_points (-5)
+- Player: "I do it again" (earlier context: swallowing coins) + DM: "You lose 3 more HP" → TWO changes: update_currency (gold, -1) AND update_hit_points (-3)
+
+FORMAT:
+{
+  "tool_calls": [
+    { "tool": "update_hit_points", "params": { "amount": -5, "reason": "goblin attack" } },
+    { "tool": "update_currency", "params": { "currency_type": "gold", "amount": -1, "reason": "coin swallowed" } }
+  ]
+}
+
+AVAILABLE TOOLS:
+- update_hit_points: { amount: number, reason: string }
+- update_currency: { currency_type: "gold"|"silver"|"copper"|"electrum"|"platinum", amount: number, reason: string }
+- add_inventory_item: { item_name: string, category: "weapons"|"armor"|"tools"|"magicItems"|"items", reason: string }
+- remove_inventory_item: { item_name: string, category: "weapons"|"armor"|"tools"|"magicItems"|"items", reason: string }
+- update_experience: { amount: number, reason: string }`;
+
+  try {
+    const response = await client.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: "Analyze the latest DM response and report any character state changes as JSON." },
+      ],
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      return null;
+    }
+
+    const parsed = JSON.parse(content);
+
+    if (parsed.tool_calls && parsed.tool_calls.length > 0) {
+      for (const tc of parsed.tool_calls) {
+        try {
+          await toolRegistry.executeTool(tc.tool, tc.params);
+        } catch (error) {
+          console.error(`Error executing ${tc.tool}:`, error);
+        }
+      }
+      return { applied: parsed.tool_calls.length };
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error extracting state changes:", error);
+    return null;
   }
 };

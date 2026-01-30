@@ -7,7 +7,7 @@ import {
   fetchRaces,
   fetchRaceDetails,
   fetchClasses,
-  fetchSubclasses,
+  fetchSubclassesForClass,
   fetchBackgrounds,
   fetchAlignments
 } from '@/services/api/characterOptions';
@@ -151,45 +151,53 @@ export const useBackgrounds = (): UseDataResult<string> => {
 };
 
 /**
- * Hook to fetch and organize subclass data by parent class
+ * Hook to lazily fetch subclasses for selected classes
+ * Only fetches subclasses when a class is selected, avoiding the thundering herd problem
  */
-export const useSubclasses = (): { 
-  data: Record<string, string[]>; 
-  loading: boolean; 
-  error: string | null 
+export const useSubclassesForClass = (selectedClasses: string[]): {
+  data: Record<string, string[]>;
+  loading: boolean;
+  error: string | null
 } => {
   const [subclasses, setSubclasses] = useState<Record<string, string[]>>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedClassesKey = JSON.stringify(selectedClasses);
 
   useEffect(() => {
+    // Clear subclasses if no classes selected
+    if (!selectedClasses || selectedClasses.length === 0) {
+      setSubclasses({});
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     const loadSubclasses = async () => {
+      setLoading(true);
+      setError(null);
+
       try {
-        const apiSubclasses = await fetchSubclasses();
-        
-        // Group subclasses by parent class
         const groupedSubclasses: Record<string, string[]> = {};
-        
-        apiSubclasses.forEach(subclass => {
-          if (subclass.class) {
-            const className = subclass.class.name;
-            if (!groupedSubclasses[className]) {
-              groupedSubclasses[className] = [];
-            }
-            groupedSubclasses[className].push(subclass.name);
+
+        // Fetch subclasses for all selected classes in parallel
+        await Promise.all(selectedClasses.map(async (className) => {
+          const classIndex = className.toLowerCase().replace(/\s+/g, '-');
+          try {
+            const classSubclasses = await fetchSubclassesForClass(classIndex);
+            const subclassNames = classSubclasses.map(sc => sc.name);
+            subclassNames.sort((a, b) => a.localeCompare(b));
+            groupedSubclasses[className] = subclassNames;
+          } catch (err) {
+            console.error(`Failed to fetch subclasses for ${className}:`, err);
+            groupedSubclasses[className] = [];
           }
-        });
-        
-        // Sort subclasses within each class alphabetically
-        Object.keys(groupedSubclasses).forEach(className => {
-          groupedSubclasses[className].sort((a, b) => a.localeCompare(b));
-        });
-        
+        }));
+
         setSubclasses(groupedSubclasses);
       } catch (err) {
         console.error('Failed to fetch subclasses:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch subclasses');
-        // No fallback - leave empty object
         setSubclasses({});
       } finally {
         setLoading(false);
@@ -197,7 +205,8 @@ export const useSubclasses = (): {
     };
 
     loadSubclasses();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClassesKey]);
 
   return { data: subclasses, loading, error };
 };
@@ -254,24 +263,23 @@ export const useSubspecies = (selectedSpecies: string): UseDataResult<string> =>
 };
 
 /**
- * Main hook that provides all character options
+ * Main hook that provides all character options (except subclasses which are lazy-loaded)
+ * Use useSubclassesForClass() separately for subclass data
  */
 export const useCharacterOptions = () => {
   const races = useRaces();
   const classes = useClasses();
   const alignments = useAlignments();
   const backgrounds = useBackgrounds();
-  const subclasses = useSubclasses();
 
-  const loading = races.loading || classes.loading || alignments.loading || backgrounds.loading || subclasses.loading;
-  const hasError = !!(races.error || classes.error || alignments.error || backgrounds.error || subclasses.error);
+  const loading = races.loading || classes.loading || alignments.loading || backgrounds.loading;
+  const hasError = !!(races.error || classes.error || alignments.error || backgrounds.error);
 
   return {
     races: races.data,
     classes: classes.data,
     alignments: alignments.data,
     backgrounds: backgrounds.data,
-    subclasses: subclasses.data,
     loading,
     hasError,
     errors: {
@@ -279,7 +287,6 @@ export const useCharacterOptions = () => {
       classes: classes.error,
       alignments: alignments.error,
       backgrounds: backgrounds.error,
-      subclasses: subclasses.error,
     }
   };
 };
