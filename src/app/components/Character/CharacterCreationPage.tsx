@@ -658,10 +658,12 @@ const CharacterCreationPage = () => {
   };
 
   const removeClass = (classToRemove: string) => {
-    handleInputChange(
-      "classes",
-      character.classes.filter((c) => c !== classToRemove)
-    );
+    setCharacter({
+      ...character,
+      classes: character.classes.filter((c) => c !== classToRemove),
+      subClass: "",
+    });
+    setFilter("subclass", "");
   };
 
   const handleSubclassKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
