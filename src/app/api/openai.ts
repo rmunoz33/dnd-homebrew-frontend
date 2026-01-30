@@ -713,6 +713,15 @@ ACTION RESOLUTION:
 - Success feels earned; failure creates complications, not dead ends
 - Reference their class features, background, and equipment
 
+STATE CHANGES — MANDATORY:
+Every resource change MUST include a specific number and what changed, woven naturally into your prose. This includes resources the player spent to perform their action AND any consequences that follow. Never describe a cost, loss, or gain without stating the exact amount and type. Examples of correct narration:
+- "You take 4 damage from the impact"
+- "That costs you 3 gold"
+- "You pocket the silver ring"
+- "The potion is consumed, restoring 8 hit points"
+- "The victory earns you 50 experience"
+This is required for the character sheet to stay in sync with the narrative.
+
 PLAYER GUIDANCE:
 - If the player seems stuck, have an NPC hint or let the environment suggest a path
 - When off-track, creatively guide them back to the story
@@ -845,11 +854,18 @@ const extractStateChangesFromNarrative = async () => {
     return null;
   }
 
+  // Mark the last two messages as the current exchange, earlier ones as context
   const conversation = recentMessages
-    .map((msg) => `${msg.sender === "user" ? "Player" : "DM"}: ${msg.content}`)
+    .map((msg, i) => {
+      const role = msg.sender === "user" ? "Player" : "DM";
+      const isLatest = i >= recentMessages.length - 2;
+      return isLatest
+        ? `>>> ${role}: ${msg.content}`
+        : `${role}: ${msg.content}`;
+    })
     .join("\n\n");
 
-  const systemPrompt = `You are a D&D game state analyzer. Analyze the most recent DM response and identify ANY changes to the player character's state.
+  const systemPrompt = `You are a D&D game state analyzer. Your job is to identify character state changes from the latest exchange (marked with >>> below). Earlier messages are context only.
 
 CHARACTER STATE:
 - HP: ${character.hitPoints}/${character.maxHitPoints}
@@ -860,28 +876,37 @@ CHARACTER STATE:
 RECENT CONVERSATION:
 ${conversation}
 
-RULES:
-- Analyze the MOST RECENT player action AND DM response together
-- The player's message tells you what they DID (e.g., "I swallow a gold coin" = -1 gold)
-- The DM's message tells you the CONSEQUENCES (e.g., "you lose 3 hit points" = -3 HP)
-- You must track BOTH the action's cost AND its consequences
-- Players may use vague references like "I do it again" — use earlier messages to understand what "it" refers to
-- If nothing changed, return { "tool_calls": [] }
-- Do NOT report changes with amount 0
+# Reasoning Steps
 
-WHAT TO TRACK:
-- HP changes: damage taken, healing received
-- Currency changes: coins spent, given, received, looted, tipped, thrown, swallowed, consumed
-- Item changes: items acquired, lost, sold, consumed, given away
-- XP changes: experience awarded for combat, quests, milestones
+Think step by step:
+1. Read the LAST player message and LAST DM message (the most recent exchange, marked >>>)
+2. If the player's message is vague (e.g., "I do it again"), use earlier messages to determine what action they took
+3. Identify what the player SPENT or CONSUMED to perform their action (coins, items, potions, etc.)
+4. Identify what CONSEQUENCES the DM described (damage, healing, items received, XP awarded, etc.)
+5. If the DM states a specific number, use it. If not, infer a reasonable amount based on the action described
+6. Return ALL changes from the latest exchange — both the player's costs and the DM's consequences
 
-EXAMPLES:
-- Player: "I swallow a gold coin" + DM: "You lose 3 HP" → TWO changes: update_currency (gold, -1) AND update_hit_points (-3)
-- Player: "I tip the bartender 2 silver" + DM: "He nods" → ONE change: update_currency (silver, -2)
-- Player: "I attack" + DM: "The goblin hits you for 5 damage" → ONE change: update_hit_points (-5)
-- Player: "I do it again" (earlier context: swallowing coins) + DM: "You lose 3 more HP" → TWO changes: update_currency (gold, -1) AND update_hit_points (-3)
+# Inference Guidelines
 
-FORMAT:
+You may infer reasonable changes when the narrative clearly implies them, even without exact numbers:
+- A player swallowing/spending/giving a coin = currency loss (infer 1 if count not stated)
+- A player taking damage, getting hurt, or being attacked = HP loss (infer a small amount like 1-3 if not specified)
+- A player drinking a potion = item consumed + HP restored
+- A player picking up or pocketing something = item gained
+- If the DM states a specific number, always use that number instead of inferring
+
+# Anti-Duplication Rules
+
+This is critical — do NOT double-count changes:
+- Only report changes from the LATEST exchange (marked >>>)
+- If the DM is continuing to describe the aftermath of something that already happened in an earlier exchange, that is NOT a new change
+- If the player says "I do it again", that IS a new action — report its costs and consequences as new changes
+- Never report the same change twice in one response
+
+# Output Format
+
+Return JSON. If no changes occurred, return: { "tool_calls": [] }
+
 {
   "tool_calls": [
     { "tool": "update_hit_points", "params": { "amount": -5, "reason": "goblin attack" } },
@@ -889,12 +914,19 @@ FORMAT:
   ]
 }
 
-AVAILABLE TOOLS:
+Do NOT return tool calls with amount 0.
+
+# Available Tools
+
 - update_hit_points: { amount: number, reason: string }
 - update_currency: { currency_type: "gold"|"silver"|"copper"|"electrum"|"platinum", amount: number, reason: string }
 - add_inventory_item: { item_name: string, category: "weapons"|"armor"|"tools"|"magicItems"|"items", reason: string }
 - remove_inventory_item: { item_name: string, category: "weapons"|"armor"|"tools"|"magicItems"|"items", reason: string }
-- update_experience: { amount: number, reason: string }`;
+- update_experience: { amount: number, reason: string }
+
+# Final Instructions
+
+Report all changes from the latest exchange, including reasonable inferences. But NEVER duplicate changes from earlier exchanges. When unsure if something is a new change or a continuation of an old one, err on the side of not reporting it.`;
 
   try {
     const response = await client.chat.completions.create({
