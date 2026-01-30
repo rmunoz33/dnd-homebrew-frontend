@@ -162,6 +162,7 @@ export const useSubclassesForClass = (selectedClasses: string[]): {
   const [subclasses, setSubclasses] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedClassesKey = JSON.stringify(selectedClasses);
 
   useEffect(() => {
     // Clear subclasses if no classes selected
@@ -179,11 +180,9 @@ export const useSubclassesForClass = (selectedClasses: string[]): {
       try {
         const groupedSubclasses: Record<string, string[]> = {};
 
-        // Fetch subclasses for each selected class (sequentially to avoid rate limits)
-        for (const className of selectedClasses) {
-          // Convert class name to API index format (lowercase, hyphenated)
+        // Fetch subclasses for all selected classes in parallel
+        await Promise.all(selectedClasses.map(async (className) => {
           const classIndex = className.toLowerCase().replace(/\s+/g, '-');
-
           try {
             const classSubclasses = await fetchSubclassesForClass(classIndex);
             const subclassNames = classSubclasses.map(sc => sc.name);
@@ -193,7 +192,7 @@ export const useSubclassesForClass = (selectedClasses: string[]): {
             console.error(`Failed to fetch subclasses for ${className}:`, err);
             groupedSubclasses[className] = [];
           }
-        }
+        }));
 
         setSubclasses(groupedSubclasses);
       } catch (err) {
@@ -206,7 +205,8 @@ export const useSubclassesForClass = (selectedClasses: string[]): {
     };
 
     loadSubclasses();
-  }, [selectedClasses.join(',')]); // Re-fetch when selected classes change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClassesKey]);
 
   return { data: subclasses, loading, error };
 };

@@ -44,8 +44,12 @@ const updateHitPoints: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
-    const amount = params.amount as number;
-    const reason = params.reason as string;
+    const amount = Number(params.amount);
+    const reason = String(params.reason || "");
+
+    if (isNaN(amount)) {
+      return { success: false, error: `Invalid amount "${params.amount}". Must be a number.` };
+    }
 
     const { character, applyCharacterChanges } = useDnDStore.getState();
     const previousHP = character.hitPoints;
@@ -116,9 +120,13 @@ const updateCurrency: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
-    const currencyType = params.currency_type as string;
-    const amount = params.amount as number;
-    const reason = params.reason as string;
+    const currencyType = String(params.currency_type || "");
+    const amount = Number(params.amount);
+    const reason = String(params.reason || "");
+
+    if (isNaN(amount)) {
+      return { success: false, error: `Invalid amount "${params.amount}". Must be a number.` };
+    }
 
     // Validate currency type
     if (!CURRENCY_TYPES.includes(currencyType as CurrencyType)) {
@@ -198,9 +206,13 @@ const addInventoryItem: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
-    const itemName = params.item_name as string;
-    const category = params.category as string;
-    const reason = params.reason as string;
+    const itemName = String(params.item_name || "");
+    const category = String(params.category || "");
+    const reason = String(params.reason || "");
+
+    if (!itemName) {
+      return { success: false, error: "item_name is required." };
+    }
 
     // Validate category
     if (!EQUIPMENT_CATEGORIES.includes(category as EquipmentCategory)) {
@@ -278,9 +290,13 @@ const removeInventoryItem: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
-    const itemName = params.item_name as string;
-    const category = params.category as string;
-    const reason = params.reason as string;
+    const itemName = String(params.item_name || "");
+    const category = String(params.category || "");
+    const reason = String(params.reason || "");
+
+    if (!itemName) {
+      return { success: false, error: "item_name is required." };
+    }
 
     // Validate category
     if (!EQUIPMENT_CATEGORIES.includes(category as EquipmentCategory)) {
@@ -357,8 +373,12 @@ const updateExperience: Tool = {
     },
   ],
   execute: async (params: Record<string, unknown>) => {
-    const amount = params.amount as number;
-    const reason = params.reason as string;
+    const amount = Number(params.amount);
+    const reason = String(params.reason || "");
+
+    if (isNaN(amount)) {
+      return { success: false, error: `Invalid amount "${params.amount}". Must be a number.` };
+    }
 
     const { character, applyCharacterChanges } = useDnDStore.getState();
     const previousXP = character.experience;

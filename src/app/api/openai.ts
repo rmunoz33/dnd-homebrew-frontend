@@ -1,10 +1,9 @@
 import OpenAI from "openai";
 import type { Stream } from "openai/streaming";
 import type { ResponseStreamEvent } from "openai/resources/responses/responses";
-import { Character, useDnDStore, Message } from "@/stores/useStore";
+import { Character, useDnDStore } from "@/stores/useStore";
 import {
   toolRegistry,
-  executeToolsFromResponse,
   formatToolResult,
 } from "./tools";
 import {
@@ -839,10 +838,8 @@ When the player asks a direct question ("Where am I?", "Who is that?", "What's h
 Use your tools to update the character sheet — do NOT just narrate resource changes. If the player spends money, call update_currency. If they take damage, call update_hit_points. Always call the tool, then narrate.
 </reminder>`;
 
-    // Convert tools to Responses API format
-    // TEMP: Only include character state tools to test if fewer tools helps
-    const CHARACTER_TOOLS = ['update_hit_points', 'update_currency', 'add_inventory_item', 'remove_inventory_item', 'update_experience'];
-    const filteredTools = toolRegistry.getAllTools().filter(t => CHARACTER_TOOLS.includes(t.name));
+    // Convert character state tools to Responses API format
+    const filteredTools = toolRegistry.getAllTools().filter(t => CHARACTER_UPDATE_TOOLS.includes(t.name));
     const tools = filteredTools.map((tool) => ({
       type: "function" as const,
       name: tool.name,
@@ -873,11 +870,6 @@ Use your tools to update the character sheet — do NOT just narrate resource ch
       })),
       { role: "user" as const, content: inputMessage },
     ];
-
-    console.log(`[generateChatCompletion] Using Responses API with ${tools.length} tools`);
-    console.log(`[generateChatCompletion] Tool names:`, tools.map(t => t.name));
-    const charTools = tools.filter(t => ['update_currency', 'update_hit_points', 'add_inventory_item', 'remove_inventory_item', 'update_experience'].includes(t.name));
-    console.log(`[generateChatCompletion] Character tools (${charTools.length}):`, JSON.stringify(charTools, null, 2));
 
     let fullContent = "";
     let continueLoop = true;
@@ -927,7 +919,6 @@ Use your tools to update the character sheet — do NOT just narrate resource ch
         if (event.type === "response.completed") {
           const response = event.response;
           currentResponseId = response.id;
-          console.log("[generateChatCompletion] Response completed, id:", currentResponseId);
 
           // Check each output item for function calls
           for (const item of response.output) {
@@ -942,15 +933,12 @@ Use your tools to update the character sheet — do NOT just narrate resource ch
         }
       }
 
-      console.log(`[generateChatCompletion] Function calls received: ${functionCalls.length}`, functionCalls);
-
       // If we have function calls, execute them and prepare outputs for next iteration
       if (functionCalls.length > 0) {
         for (const fc of functionCalls) {
           try {
             const args = JSON.parse(fc.arguments || "{}");
             const result = await toolRegistry.executeTool(fc.name, args);
-            console.log(`[generateChatCompletion] Executed ${fc.name}:`, result);
 
             // For D&D reference tools (non-character updates), append the result to content
             const isCharacterUpdate = CHARACTER_UPDATE_TOOLS.includes(fc.name);
@@ -963,7 +951,6 @@ Use your tools to update the character sheet — do NOT just narrate resource ch
             // Track character state tool calls for deduplication
             if (isCharacterUpdate) {
               appliedChanges.push({ tool: fc.name, params: args });
-              console.log(`[generateChatCompletion] Tracked character change: ${fc.name}`, args);
             }
 
             // Queue the function output for the next request
@@ -1022,7 +1009,6 @@ const extractStateChangesFromNarrative = async (appliedChanges: AppliedChange[])
   const lastTwoMessages = messages.slice(-2);
 
   if (lastTwoMessages.length < 2) {
-    console.log("[extractStateChangesFromNarrative] Not enough messages to analyze");
     return null;
   }
 
@@ -1073,11 +1059,6 @@ IMPORTANT:
 - The player's stated number is the amount (e.g., "2 coins" = amount: -2).`;
 
   try {
-    console.log("[extractStateChangesFromNarrative] Analyzing narrative for missed state changes...");
-    console.log("[extractStateChangesFromNarrative] Player message:", lastTwoMessages[0]?.content);
-    console.log("[extractStateChangesFromNarrative] DM message:", lastTwoMessages[1]?.content);
-    console.log("[extractStateChangesFromNarrative] Already applied:", appliedChanges);
-
     const response = await client.chat.completions.create({
       model: "gpt-4.1-nano",
       messages: [
@@ -1090,12 +1071,10 @@ IMPORTANT:
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      console.log("[extractStateChangesFromNarrative] No content in response");
       return null;
     }
 
     const parsed = JSON.parse(content);
-    console.log("[extractStateChangesFromNarrative] Detected tool calls:", parsed);
 
     if (parsed.tool_calls && parsed.tool_calls.length > 0) {
       // Filter out any changes that match already-applied ones
@@ -1125,18 +1104,12 @@ IMPORTANT:
           return false;
         });
 
-        if (isDuplicate) {
-          console.log("[extractStateChangesFromNarrative] Skipping duplicate:", tc);
-        }
         return !isDuplicate;
       });
-
-      console.log("[extractStateChangesFromNarrative] New tool calls after deduplication:", newToolCalls.length);
 
       // Execute the remaining tool calls using the actual character tools
       for (const tc of newToolCalls) {
         try {
-          console.log(`[extractStateChangesFromNarrative] Executing ${tc.tool}:`, tc.params);
           await toolRegistry.executeTool(tc.tool, tc.params);
         } catch (error) {
           console.error(`[extractStateChangesFromNarrative] Error executing ${tc.tool}:`, error);
@@ -1146,7 +1119,6 @@ IMPORTANT:
       return { applied: newToolCalls.length };
     }
 
-    console.log("[extractStateChangesFromNarrative] No new changes detected");
     return null;
   } catch (error) {
     console.error("[extractStateChangesFromNarrative] Error:", error);
