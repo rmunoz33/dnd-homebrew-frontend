@@ -46,6 +46,7 @@ export default function RootLayout({
         <Toaster
           position="bottom-right"
           theme="dark"
+          expand
           toastOptions={{
             unstyled: true,
             classNames: {

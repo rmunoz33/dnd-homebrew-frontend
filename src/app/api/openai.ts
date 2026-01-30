@@ -1,11 +1,6 @@
 import OpenAI from "openai";
-import type { Stream } from "openai/streaming";
-import type { ResponseStreamEvent } from "openai/resources/responses/responses";
 import { Character, useDnDStore } from "@/stores/useStore";
-import {
-  toolRegistry,
-  formatToolResult,
-} from "./tools";
+import { toolRegistry } from "./tools";
 import {
   fetchRaces,
   fetchClasses,
@@ -658,26 +653,6 @@ Format the response as a detailed markdown document that can be used as a campai
   }
 };
 
-// Character state update tools - these modify game state directly
-const CHARACTER_UPDATE_TOOLS = [
-  "update_hit_points",
-  "update_currency",
-  "add_inventory_item",
-  "remove_inventory_item",
-  "update_experience",
-];
-
-// Track changes applied during streaming to prevent double-application
-interface AppliedChange {
-  tool: string;
-  params: Record<string, unknown>;
-}
-
-// Define ResponseInputItem type for the Responses API
-type ResponseInputItem =
-  | { role: "user" | "assistant" | "system"; content: string }
-  | { type: "function_call_output"; call_id: string; output: string };
-
 export const generateChatCompletion = async (): Promise<boolean> => {
   try {
     const {
@@ -688,29 +663,12 @@ export const generateChatCompletion = async (): Promise<boolean> => {
       campaignOutline,
     } = useDnDStore.getState();
 
-    // System instructions for the DM
     // Calculate proficiency bonus from level
     const proficiencyBonus = Math.floor((character.level - 1) / 4) + 2;
 
-    const instructions = `You are an immersive Dungeon Master running a solo D&D 5e adventure.
-
-<tools>
-You have tools to update the character sheet. Use them — do NOT just narrate changes.
-
-When the player's action results in gaining or losing resources, call the appropriate tool:
-- update_currency: money changes (spending, tipping, looting, rewards)
-- update_hit_points: HP changes (damage, healing)
-- add_inventory_item / remove_inventory_item: item changes
-- update_experience: XP awards
-
-# Tool calling guidance:
-- Coins (gold, silver, copper, etc.) are CURRENCY, not items. Any coin changing hands = update_currency
-- If the player's money, HP, items, or XP changes, call the corresponding tool
-- Infer reasonable amounts when the player is vague (e.g., "a few coins" = 2-3, "some gold" = 5)
-- Always call the tool — the character sheet must stay in sync with the narrative
-
-Call tools silently — never mention them in your narrative.
-</tools>
+    const systemMessage = {
+      role: "system" as const,
+      content: `You are an immersive Dungeon Master running a solo D&D 5e adventure.
 
 <character>
 Name: ${character.name}
@@ -764,7 +722,7 @@ PLAYER GUIDANCE:
 <immersion>
 NEVER DO THESE:
 - Reveal information the character hasn't discovered
-- Mention tool calls, stat updates, or game mechanics processing
+- Mention stat updates or game mechanics processing
 - Reveal DCs or possible roll outcomes before the player rolls
 - Use bullet points or numbered lists in narrative responses
 - Generate player dialogue or actions — never write what the player says or does next
@@ -832,154 +790,34 @@ When the player asks a direct question ("Where am I?", "Who is that?", "What's h
 
 ✗ WRONG: "The library sighs with ancient whispers, corridors shifting like dreams..."
 ✓ RIGHT: "You're in the Nexus Library, a magical archive. It's a maze of floating bookshelves. You work here as a researcher."
-</answering_questions>
+</answering_questions>`,
+    };
 
-<reminder>
-Use your tools to update the character sheet — do NOT just narrate resource changes. If the player spends money, call update_currency. If they take damage, call update_hit_points. Always call the tool, then narrate.
-</reminder>`;
-
-    // Convert character state tools to Responses API format
-    const filteredTools = toolRegistry.getAllTools().filter(t => CHARACTER_UPDATE_TOOLS.includes(t.name));
-    const tools = filteredTools.map((tool) => ({
-      type: "function" as const,
-      name: tool.name,
-      description: tool.description,
-      parameters: {
-        type: "object" as const,
-        properties: tool.parameters.reduce(
-          (acc, param) => {
-            acc[param.name] = {
-              type: param.type,
-              description: param.description,
-            };
-            return acc;
-          },
-          {} as Record<string, { type: string; description: string }>
-        ),
-        required: tool.parameters.filter((p) => p.required).map((p) => p.name),
-        additionalProperties: false,
-      },
-      strict: true,
-    }));
-
-    // Build input from conversation history
-    const input: ResponseInputItem[] = [
-      ...messages.map((msg) => ({
-        role: (msg.sender === "user" ? "user" : "assistant") as "user" | "assistant",
-        content: msg.content,
-      })),
-      { role: "user" as const, content: inputMessage },
-    ];
+    const completion = await client.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        systemMessage,
+        ...messages.map((msg) => ({
+          role: msg.sender === "user" ? ("user" as const) : ("assistant" as const),
+          content: msg.content,
+        })),
+        { role: "user" as const, content: inputMessage },
+      ],
+      temperature: 0.7,
+      stream: true,
+    });
 
     let fullContent = "";
-    let continueLoop = true;
-    let previousResponseId: string | undefined = undefined;
-    let pendingFunctionOutputs: Array<{ type: "function_call_output"; call_id: string; output: string }> = [];
-
-    // Track character state changes applied during streaming (for deduplication in post-processing)
-    const appliedChanges: AppliedChange[] = [];
-
-    // Agentic loop - continues until we get a text response without tool calls
-    while (continueLoop) {
-      // Create the streaming response
-      let stream: Stream<ResponseStreamEvent>;
-      if (previousResponseId && pendingFunctionOutputs.length > 0) {
-        // Continuing after function calls - reference previous response and include outputs
-        stream = await client.responses.create({
-          model: "gpt-4.1-mini",
-          tools,
-          stream: true,
-          previous_response_id: previousResponseId,
-          input: pendingFunctionOutputs,
-        });
-        pendingFunctionOutputs = []; // Clear for next iteration
-      } else {
-        // First request - include instructions and full input
-        stream = await client.responses.create({
-          model: "gpt-4.1-mini",
-          tools,
-          stream: true,
-          instructions,
-          input,
-        });
-      }
-
-      // Collect function calls from this response
-      const functionCalls: Array<{ call_id: string; name: string; arguments: string }> = [];
-      let currentResponseId: string | undefined = undefined;
-
-      for await (const event of stream) {
-        // Handle text output deltas
-        if (event.type === "response.output_text.delta") {
-          fullContent += event.delta;
-          updateLastMessage(fullContent);
-        }
-
-        // Handle completed response to check for function calls
-        if (event.type === "response.completed") {
-          const response = event.response;
-          currentResponseId = response.id;
-
-          // Check each output item for function calls
-          for (const item of response.output) {
-            if (item.type === "function_call") {
-              functionCalls.push({
-                call_id: item.call_id,
-                name: item.name,
-                arguments: item.arguments,
-              });
-            }
-          }
-        }
-      }
-
-      // If we have function calls, execute them and prepare outputs for next iteration
-      if (functionCalls.length > 0) {
-        for (const fc of functionCalls) {
-          try {
-            const args = JSON.parse(fc.arguments || "{}");
-            const result = await toolRegistry.executeTool(fc.name, args);
-
-            // For D&D reference tools (non-character updates), append the result to content
-            const isCharacterUpdate = CHARACTER_UPDATE_TOOLS.includes(fc.name);
-            if (!isCharacterUpdate && result) {
-              const formattedResult = formatToolResult(fc.name, result);
-              fullContent += formattedResult;
-              updateLastMessage(fullContent);
-            }
-
-            // Track character state tool calls for deduplication
-            if (isCharacterUpdate) {
-              appliedChanges.push({ tool: fc.name, params: args });
-            }
-
-            // Queue the function output for the next request
-            pendingFunctionOutputs.push({
-              type: "function_call_output",
-              call_id: fc.call_id,
-              output: JSON.stringify(result),
-            });
-          } catch (error) {
-            console.error(`Error executing tool ${fc.name}:`, error);
-            pendingFunctionOutputs.push({
-              type: "function_call_output",
-              call_id: fc.call_id,
-              output: JSON.stringify({ error: String(error) }),
-            });
-          }
-        }
-
-        // Update previous response ID for the next iteration
-        previousResponseId = currentResponseId;
-      } else {
-        // No function calls, we're done
-        continueLoop = false;
+    for await (const chunk of completion) {
+      const content = chunk.choices[0]?.delta?.content || "";
+      if (content) {
+        fullContent += content;
+        updateLastMessage(fullContent);
       }
     }
 
-    // Run fallback state extraction to catch changes the model didn't track via tools
-    // This uses the character tools (with toasts) and skips already-applied changes
-    await extractStateChangesFromNarrative(appliedChanges);
+    // After streaming completes, analyze narrative for character state changes
+    await extractStateChangesFromNarrative();
 
     return true;
   } catch (error) {
@@ -992,80 +830,80 @@ Use your tools to update the character sheet — do NOT just narrate resource ch
 };
 
 /**
- * Post-processing fallback for state extraction.
+ * Analyzes the latest game messages to detect character state changes
+ * and applies them via character tools (with toast notifications).
  *
- * Analyzes the last DM response to detect character state changes that weren't
- * tracked via tool calls during streaming. This hybrid approach is industry-standard
- * for AI game state management.
- *
- * The function:
- * 1. Takes the applied changes from streaming (to avoid duplicates)
- * 2. Asks a fast model to identify any state changes (HP, currency, items, XP)
- * 3. Filters out changes that were already applied
- * 4. Calls the actual character tools (with toasts) for remaining changes
+ * This is the sole source of truth for state updates — the DM generates
+ * narrative only, and this function extracts changes afterward.
  */
-const extractStateChangesFromNarrative = async (appliedChanges: AppliedChange[]) => {
+const extractStateChangesFromNarrative = async () => {
   const { character, messages } = useDnDStore.getState();
-  const lastTwoMessages = messages.slice(-2);
+  // Use last 6 messages (3 exchanges) for context on vague references like "I do it again"
+  const recentMessages = messages.slice(-6);
 
-  if (lastTwoMessages.length < 2) {
+  if (recentMessages.length < 2) {
     return null;
   }
 
-  // Build a summary of what was already applied for the prompt
-  const alreadyAppliedSummary = appliedChanges.length > 0
-    ? `ALREADY APPLIED (do NOT include these):\n${appliedChanges.map(c => `- ${c.tool}: ${JSON.stringify(c.params)}`).join('\n')}`
-    : "";
+  const conversation = recentMessages
+    .map((msg) => `${msg.sender === "user" ? "Player" : "DM"}: ${msg.content}`)
+    .join("\n\n");
 
-  const systemPrompt = `You are a D&D game state analyzer. Your job is to detect when the player's resources change.
+  const systemPrompt = `You are a D&D game state analyzer. Analyze the most recent DM response and identify ANY changes to the player character's state.
 
 CHARACTER STATE:
-- Gold: ${character.money.gold}, Silver: ${character.money.silver}, Copper: ${character.money.copper}
 - HP: ${character.hitPoints}/${character.maxHitPoints}
+- Gold: ${character.money.gold}, Silver: ${character.money.silver}, Copper: ${character.money.copper}, Electrum: ${character.money.electrum}, Platinum: ${character.money.platinum}
+- Equipment: ${[...character.equipment.weapons, ...character.equipment.armor, ...character.equipment.tools, ...character.equipment.magicItems, ...character.equipment.items].join(", ") || "None"}
+- XP: ${character.experience}
 
-CONVERSATION:
-Player: ${lastTwoMessages[0]?.content || ""}
-DM: ${lastTwoMessages[1]?.content || ""}
+RECENT CONVERSATION:
+${conversation}
 
-${alreadyAppliedSummary}
+RULES:
+- Analyze the MOST RECENT player action AND DM response together
+- The player's message tells you what they DID (e.g., "I swallow a gold coin" = -1 gold)
+- The DM's message tells you the CONSEQUENCES (e.g., "you lose 3 hit points" = -3 HP)
+- You must track BOTH the action's cost AND its consequences
+- Players may use vague references like "I do it again" — use earlier messages to understand what "it" refers to
+- If nothing changed, return { "tool_calls": [] }
+- Do NOT report changes with amount 0
 
-CURRENCY CHANGES - track ANY of these:
-- Coins thrown, tossed, or dropped (even as a distraction or test)
-- Coins given, tipped, or bribed
-- Coins spent or paid
-- Coins found, looted, or received
-- If the player says they throw/toss/give X coins, that's -X currency
+WHAT TO TRACK:
+- HP changes: damage taken, healing received
+- Currency changes: coins spent, given, received, looted, tipped, thrown, swallowed, consumed
+- Item changes: items acquired, lost, sold, consumed, given away
+- XP changes: experience awarded for combat, quests, milestones
 
-HP CHANGES - track ANY of these:
-- Damage taken from attacks, traps, or effects
-- Healing from potions, spells, or rest
-
-ITEM CHANGES - track ANY of these:
-- Items picked up, found, purchased, or received
-- Items dropped, sold, given away, or consumed
-
-Return JSON. If no changes, return: { "tool_calls": [] }
+EXAMPLES:
+- Player: "I swallow a gold coin" + DM: "You lose 3 HP" → TWO changes: update_currency (gold, -1) AND update_hit_points (-3)
+- Player: "I tip the bartender 2 silver" + DM: "He nods" → ONE change: update_currency (silver, -2)
+- Player: "I attack" + DM: "The goblin hits you for 5 damage" → ONE change: update_hit_points (-5)
+- Player: "I do it again" (earlier context: swallowing coins) + DM: "You lose 3 more HP" → TWO changes: update_currency (gold, -1) AND update_hit_points (-3)
 
 FORMAT:
 {
   "tool_calls": [
-    { "tool": "update_currency", "params": { "currency_type": "gold", "amount": -2, "reason": "thrown at door" } }
+    { "tool": "update_hit_points", "params": { "amount": -5, "reason": "goblin attack" } },
+    { "tool": "update_currency", "params": { "currency_type": "gold", "amount": -1, "reason": "coin swallowed" } }
   ]
 }
 
-IMPORTANT:
-- If the player said they threw/tossed coins and the DM narrated the coins landing/clattering, that IS a currency loss. Track it.
-- If the player says "coins" without specifying type, default to "gold".
-- The player's stated number is the amount (e.g., "2 coins" = amount: -2).`;
+AVAILABLE TOOLS:
+- update_hit_points: { amount: number, reason: string }
+- update_currency: { currency_type: "gold"|"silver"|"copper"|"electrum"|"platinum", amount: number, reason: string }
+- add_inventory_item: { item_name: string, category: "weapons"|"armor"|"tools"|"magicItems"|"items", reason: string }
+- remove_inventory_item: { item_name: string, category: "weapons"|"armor"|"tools"|"magicItems"|"items", reason: string }
+- update_experience: { amount: number, reason: string }`;
 
   try {
     const response = await client.chat.completions.create({
-      model: "gpt-4.1-nano",
+      model: "gpt-4.1-mini",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: "Analyze the conversation and report any character state changes that need to be tracked." },
+        { role: "user", content: "Analyze the latest DM response and report any character state changes as JSON." },
       ],
-      temperature: 0.1, // Low temp for deterministic extraction
+      temperature: 0.1,
       response_format: { type: "json_object" },
     });
 
@@ -1077,51 +915,19 @@ IMPORTANT:
     const parsed = JSON.parse(content);
 
     if (parsed.tool_calls && parsed.tool_calls.length > 0) {
-      // Filter out any changes that match already-applied ones
-      const newToolCalls = parsed.tool_calls.filter((tc: { tool: string; params: Record<string, unknown> }) => {
-        // Check if this change was already applied
-        const isDuplicate = appliedChanges.some(applied => {
-          if (applied.tool !== tc.tool) return false;
-
-          // For currency, check if same type and similar amount
-          if (tc.tool === "update_currency") {
-            return applied.params.currency_type === tc.params.currency_type &&
-                   applied.params.amount === tc.params.amount;
-          }
-          // For HP, check if same amount
-          if (tc.tool === "update_hit_points") {
-            return applied.params.amount === tc.params.amount;
-          }
-          // For items, check if same item name
-          if (tc.tool === "add_inventory_item" || tc.tool === "remove_inventory_item") {
-            return (applied.params.item_name as string)?.toLowerCase() ===
-                   (tc.params.item_name as string)?.toLowerCase();
-          }
-          // For XP, check if same amount
-          if (tc.tool === "update_experience") {
-            return applied.params.amount === tc.params.amount;
-          }
-          return false;
-        });
-
-        return !isDuplicate;
-      });
-
-      // Execute the remaining tool calls using the actual character tools
-      for (const tc of newToolCalls) {
+      for (const tc of parsed.tool_calls) {
         try {
           await toolRegistry.executeTool(tc.tool, tc.params);
         } catch (error) {
-          console.error(`[extractStateChangesFromNarrative] Error executing ${tc.tool}:`, error);
+          console.error(`Error executing ${tc.tool}:`, error);
         }
       }
-
-      return { applied: newToolCalls.length };
+      return { applied: parsed.tool_calls.length };
     }
 
     return null;
   } catch (error) {
-    console.error("[extractStateChangesFromNarrative] Error:", error);
+    console.error("Error extracting state changes:", error);
     return null;
   }
 };
