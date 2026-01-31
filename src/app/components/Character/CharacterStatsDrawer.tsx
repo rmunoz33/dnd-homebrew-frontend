@@ -42,7 +42,7 @@ const CharacterStatsDrawer = ({
 
       {/* Drawer */}
       <div
-        className={`fixed right-0 top-0 h-full w-96 bg-accent-content shadow-xl transition-transform duration-300 rounded-l-lg flex flex-col ${
+        className={`fixed right-0 top-0 h-full w-96 bg-base-200 border-l border-primary/15 shadow-xl transition-transform duration-300 rounded-l-lg flex flex-col ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -57,11 +57,11 @@ const CharacterStatsDrawer = ({
           }}
         >
           <div className="flex justify-between items-center">
-            <h1 className={`${medievalFont.className} text-2xl text-red-500`}>
+            <h1 className={`${medievalFont.className} text-2xl text-primary`}>
               Character Stats
             </h1>
             <button
-              className="btn btn-md btn-circle bg-red-500 hover:bg-red-600 text-white border-none shadow-md transition-all duration-200 hover:scale-110"
+              className="btn btn-md btn-circle btn-ghost text-base-content/60 hover:text-base-content transition-all duration-200 hover:scale-110"
               onClick={onClose}
               aria-label="Close character stats"
             >
@@ -79,7 +79,7 @@ const CharacterStatsDrawer = ({
             {/* Basic Info */}
             <div>
               <h3
-                className={`${medievalFont.className} text-xl text-red-500 font-semibold mb-2`}
+                className={`${medievalFont.className} text-xl text-primary font-semibold mb-2`}
               >
                 Basic Info
               </h3>
@@ -98,27 +98,27 @@ const CharacterStatsDrawer = ({
             {/* Combat Stats */}
             <div>
               <h3
-                className={`${medievalFont.className} text-xl text-red-500 font-semibold mb-2`}
+                className={`${medievalFont.className} text-xl text-primary font-semibold mb-2`}
               >
                 Combat Stats
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center">
-                  <span className="text-red-400 mr-1">❤</span>
+                  <span className="text-secondary mr-1">❤</span>
                   <span>
                     Hit Points: {character.hitPoints} / {character.maxHitPoints}
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-300 mr-1">🛡</span>
+                  <span className="text-base-content/60 mr-1">🛡</span>
                   <span>Armor Class: {character.armorClass}</span>
                 </div>
                 <div>
-                  <span className="text-yellow-400 mr-1">⚡</span>
+                  <span className="text-primary mr-1">⚡</span>
                   <span>Initiative: {character.initiative}</span>
                 </div>
                 <div>
-                  <span className="text-blue-400 mr-1">👣</span>
+                  <span className="text-info mr-1">👣</span>
                   <span>Speed: {character.speed}</span>
                 </div>
               </div>
@@ -127,7 +127,7 @@ const CharacterStatsDrawer = ({
             {/* Classes */}
             <div>
               <h3
-                className={`${medievalFont.className} text-xl text-red-500 font-semibold mb-2`}
+                className={`${medievalFont.className} text-xl text-primary font-semibold mb-2`}
               >
                 Classes
               </h3>
@@ -140,7 +140,7 @@ const CharacterStatsDrawer = ({
             {/* Attributes */}
             <div>
               <h3
-                className={`${medievalFont.className} text-xl text-red-500 font-semibold mb-2`}
+                className={`${medievalFont.className} text-xl text-primary font-semibold mb-2`}
               >
                 Attributes
               </h3>
@@ -228,7 +228,7 @@ const CharacterStatsDrawer = ({
             {/* Equipment */}
             <div>
               <h3
-                className={`${medievalFont.className} text-xl text-red-500 font-semibold mb-2`}
+                className={`${medievalFont.className} text-xl text-primary font-semibold mb-2`}
               >
                 Equipment
               </h3>
@@ -237,7 +237,7 @@ const CharacterStatsDrawer = ({
                   ([category, items]) =>
                     items.length > 0 && (
                       <div key={category}>
-                        <h4 className="font-bold capitalize text-red-400">
+                        <h4 className="font-bold capitalize text-primary/80">
                           {category}
                         </h4>
                         {items.map((item: string, index: number) => (
@@ -252,7 +252,7 @@ const CharacterStatsDrawer = ({
             {/* Currency */}
             <div>
               <h3
-                className={`${medievalFont.className} text-xl text-red-500 font-semibold mb-2`}
+                className={`${medievalFont.className} text-xl text-primary font-semibold mb-2`}
               >
                 Currency
               </h3>
@@ -268,7 +268,7 @@ const CharacterStatsDrawer = ({
             {/* Back Story */}
             <div>
               <h3
-                className={`${medievalFont.className} text-xl text-red-500 font-semibold mb-2`}
+                className={`${medievalFont.className} text-xl text-primary font-semibold mb-2`}
               >
                 Back Story
               </h3>

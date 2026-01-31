@@ -14,19 +14,19 @@ const GamePage = () => {
     <>
       <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
         <button
-          className="btn btn-circle btn-ghost bg-base-200"
+          className="btn btn-circle btn-ghost bg-base-200 border border-primary/15 hover:border-primary/30 backdrop-blur-sm"
           onClick={() => setIsSettingsDrawerOpen(true)}
         >
           <Settings size={24} />
         </button>
         <button
-          className="btn btn-circle btn-ghost bg-base-200"
+          className="btn btn-circle btn-ghost bg-base-200 border border-primary/15 hover:border-primary/30 backdrop-blur-sm"
           onClick={() => setIsStatsDrawerOpen(true)}
         >
           <User size={24} />
         </button>
         <button
-          className="btn btn-circle btn-ghost bg-base-200"
+          className="btn btn-circle btn-ghost bg-base-200 border border-primary/15 hover:border-primary/30 backdrop-blur-sm"
           onClick={() => setIsDiceDrawerOpen(true)}
         >
           <Dices size={24} />

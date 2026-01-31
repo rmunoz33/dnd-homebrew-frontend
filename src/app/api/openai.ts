@@ -653,7 +653,7 @@ Format the response as a detailed markdown document that can be used as a campai
   }
 };
 
-export const generateChatCompletion = async (): Promise<boolean> => {
+export const generateChatCompletion = async (overrideUserMessage?: string): Promise<boolean> => {
   try {
     const {
       inputMessage,
@@ -810,7 +810,7 @@ When the player asks a direct question ("Where am I?", "Who is that?", "What's h
           role: msg.sender === "user" ? ("user" as const) : ("assistant" as const),
           content: msg.content,
         })),
-        { role: "user" as const, content: inputMessage },
+        { role: "user" as const, content: overrideUserMessage ?? inputMessage },
       ],
       temperature: 0.7,
       stream: true,
@@ -823,6 +823,14 @@ When the player asks a direct question ("Where am I?", "Who is that?", "What's h
         fullContent += content;
         updateLastMessage(fullContent);
       }
+    }
+
+    // Update the AI message timestamp to when streaming finished
+    const { messages: currentMessages } = useDnDStore.getState();
+    const lastMsg = currentMessages[currentMessages.length - 1];
+    if (lastMsg && lastMsg.sender === "ai") {
+      lastMsg.timestamp = new Date();
+      useDnDStore.setState({ messages: [...currentMessages] });
     }
 
     // After streaming completes, analyze narrative for character state changes

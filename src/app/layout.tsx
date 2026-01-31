@@ -38,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" data-theme="fables">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full h-full`}
       >
@@ -51,21 +51,10 @@ export default function RootLayout({
             unstyled: true,
             classNames: {
               toast:
-                "flex items-center gap-3 p-4 rounded-lg shadow-lg border backdrop-blur-sm",
+                "flex items-center gap-3 p-4 rounded-lg shadow-lg border border-primary/20 backdrop-blur-sm bg-base-200/95 text-base-content",
               title: "font-semibold text-sm",
-              description: "text-xs opacity-80",
-              success:
-                "bg-emerald-900/90 border-emerald-700 text-emerald-100",
-              error: "bg-red-900/90 border-red-700 text-red-100",
-              warning: "bg-amber-900/90 border-amber-700 text-amber-100",
-              info: "bg-blue-900/90 border-blue-700 text-blue-100",
+              description: "text-xs text-base-content/60",
             },
-          }}
-          icons={{
-            success: <span className="text-lg">✨</span>,
-            error: <span className="text-lg">💔</span>,
-            warning: <span className="text-lg">⚠️</span>,
-            info: <span className="text-lg">📜</span>,
           }}
         />
       </body>

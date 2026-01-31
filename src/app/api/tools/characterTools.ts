@@ -67,12 +67,10 @@ const updateHitPoints: Tool = {
     if (actualChange < 0) {
       toast(`💔 ${Math.abs(actualChange)} damage`, {
         description: `${reason} • HP: ${newHP}/${newCharacter.maxHitPoints}`,
-        className: "bg-red-900/90 border-red-700 text-red-100",
       });
     } else if (actualChange > 0) {
       toast(`💚 Healed ${actualChange} HP`, {
         description: `${reason} • HP: ${newHP}/${newCharacter.maxHitPoints}`,
-        className: "bg-emerald-900/90 border-emerald-700 text-emerald-100",
       });
     }
 
@@ -153,12 +151,10 @@ const updateCurrency: Tool = {
     if (amount < 0) {
       toast(`${coinEmoji} -${Math.abs(amount)} ${currencyLabel}`, {
         description: reason,
-        className: "bg-amber-900/90 border-amber-700 text-amber-100",
       });
     } else {
       toast(`${coinEmoji} +${amount} ${currencyLabel}`, {
         description: reason,
-        className: "bg-yellow-900/90 border-yellow-600 text-yellow-100",
       });
     }
 
@@ -245,7 +241,6 @@ const addInventoryItem: Tool = {
     };
     toast(`${categoryIcons[category] || "📦"} ${itemName}`, {
       description: reason,
-      className: "bg-blue-900/90 border-blue-700 text-blue-100",
     });
 
     return {
@@ -335,7 +330,6 @@ const removeInventoryItem: Tool = {
     // Show toast notification
     toast(`📤 Lost: ${itemName}`, {
       description: reason,
-      className: "bg-slate-800/90 border-slate-600 text-slate-200",
     });
 
     return {
@@ -395,12 +389,10 @@ const updateExperience: Tool = {
     if (amount >= 0) {
       toast(`⭐ +${amount} XP`, {
         description: reason,
-        className: "bg-purple-900/90 border-purple-700 text-purple-100",
       });
     } else {
       toast(`⭐ ${amount} XP`, {
         description: reason,
-        className: "bg-purple-950/90 border-purple-800 text-purple-200",
       });
     }
 
