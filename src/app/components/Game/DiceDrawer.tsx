@@ -139,18 +139,18 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
 
       {/* Drawer */}
       <div
-        className={`fixed right-0 top-0 h-full w-96 bg-accent-content shadow-xl transition-transform duration-300 rounded-l-lg flex flex-col ${
+        className={`fixed right-0 top-0 h-full w-96 bg-base-200 border-l border-primary/15 shadow-xl transition-transform duration-300 rounded-l-lg flex flex-col ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Fixed Header */}
         <div className="p-4 border-b border-base-300 text-neutral-content">
           <div className="flex justify-between items-center">
-            <h1 className={`${medievalFont.className} text-2xl text-red-500`}>
+            <h1 className={`${medievalFont.className} text-2xl text-primary`}>
               Dice Roller
             </h1>
             <button
-              className="btn btn-md btn-circle bg-red-500 hover:bg-red-600 text-white border-none shadow-md transition-all duration-200 hover:scale-110"
+              className="btn btn-md btn-circle btn-ghost text-base-content/60 hover:text-base-content transition-all duration-200 hover:scale-110"
               onClick={onClose}
               aria-label="Close dice drawer"
             >
@@ -186,7 +186,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                     </span>
                   )}
 
-                  <Plus size={16} className="text-green-500" />
+                  <Plus size={16} className="text-success" />
                 </button>
               );
             })}
@@ -196,7 +196,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
           <div className="px-6 pb-2">
             <div className="flex flex-wrap gap-2 items-center min-h-[32px]">
               {Object.keys(dicePool).length === 0 ? (
-                <span className="text-white">Add dice to your pool above.</span>
+                <span className="text-base-content/50">Add dice to your pool above.</span>
               ) : (
                 diceTypes
                   .filter((die) => dicePool[die.name])
@@ -211,18 +211,18 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                           <Icon
                             path={iconPath}
                             size={1.5}
-                            className="text-gray-500 dark:text-gray-400"
+                            className="text-base-content/50"
                           />
                         ) : (
-                          <span className="text-sm font-bold text-gray-500 dark:text-gray-400 px-1">
+                          <span className="text-sm font-bold text-base-content/50 px-1">
                             {die.name}
                           </span>
                         )}
-                        <span className="font-bold text-sm text-gray-500 dark:text-gray-400">
+                        <span className="font-bold text-sm text-base-content/50">
                           {dicePool[die.name]}x {die.name}
                         </span>
                         <button
-                          className="btn btn-xs btn-circle btn-ghost text-red-500 hover:bg-red-200"
+                          className="btn btn-xs btn-circle btn-ghost text-error/70 hover:bg-error/10 hover:text-error"
                           onClick={() => removeDie(die.name)}
                           aria-label={`Remove one ${die.name}`}
                         >
@@ -234,7 +234,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
               )}
               {Object.keys(dicePool).length > 0 && (
                 <button
-                  className="btn btn-xs btn-circle btn-ghost text-gray-400 hover:text-red-500 ml-2"
+                  className="btn btn-xs btn-circle btn-ghost text-base-content/40 hover:text-error ml-2"
                   onClick={clearPool}
                   aria-label="Clear all dice"
                 >
@@ -247,7 +247,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
           {/* Roll Button */}
           <div className="px-6 pb-2 flex justify-center">
             <button
-              className={`btn w-full mt-2 bg-red-500 hover:bg-red-600 text-white border-none shadow-md transition-all duration-200 hover:scale-110 font-bold ${garamondFont.className}`}
+              className={`btn w-full mt-2 btn-primary shadow-md transition-all duration-200 hover:scale-110 font-bold ${garamondFont.className}`}
               onClick={rollAll}
               disabled={Object.keys(dicePool).length === 0}
             >
@@ -264,17 +264,17 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                   <div key={r.name} className="mb-2">
                     <span className="font-semibold uppercase">{r.name}:</span>
                     <span className="ml-2">{r.rolls.join(", ")}</span>
-                    <span className="ml-2 text-sm text-gray-400">
+                    <span className="ml-2 text-sm text-base-content/40">
                       (total: {r.rolls.reduce((a, b) => a + b, 0)})
                     </span>
                   </div>
                 ))}
-                <div className="mt-2 text-xl text-red-500 font-extrabold drop-shadow-lg">
+                <div className="mt-2 text-xl text-primary font-extrabold drop-shadow-lg">
                   Total: {total}
                 </div>
                 {results && results.length > 0 && (
                   <button
-                    className={`btn w-full mt-4 bg-gray-700 hover:bg-gray-600 text-white border-none shadow-md transition-all duration-200 hover:scale-105 font-bold ${garamondFont.className}`}
+                    className={`btn w-full mt-4 bg-base-300 hover:bg-base-100 border border-primary/15 text-base-content shadow-md transition-all duration-200 hover:scale-105 font-bold ${garamondFont.className}`}
                     onClick={handleSendToChat}
                   >
                     Send to Chat
@@ -282,7 +282,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                 )}
               </div>
             ) : (
-              <div className="mt-4 text-center text-gray-400">
+              <div className="mt-4 text-center text-base-content/40">
                 {`Add dice and click "Roll Dice"!`}
               </div>
             )}
