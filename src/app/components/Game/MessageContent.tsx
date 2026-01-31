@@ -35,18 +35,18 @@ const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
             </p>
           );
         },
-        h1: (props) => <h1 className="mb-2 text-2xl font-bold" {...props} />,
-        h2: (props) => <h2 className="mb-1 text-xl font-bold" {...props} />,
-        h3: (props) => <h3 className="text-lg font-bold" {...props} />,
+        h1: (props) => <h1 className="mb-2 text-2xl font-bold text-primary" {...props} />,
+        h2: (props) => <h2 className="mb-1 text-xl font-bold text-primary" {...props} />,
+        h3: (props) => <h3 className="text-lg font-bold text-primary" {...props} />,
         ul: (props) => <ul className="list-disc pl-3 sm:pl-3" {...props} />,
         ol: (props) => <ol className="list-decimal pl-3 sm:pl-3" {...props} />,
         li: (props) => <li className="ml-4" {...props} />,
         em: (props) => <em className="italic" {...props} />,
-        strong: (props) => <strong className="font-bold" {...props} />,
+        strong: (props) => <strong className="font-bold text-primary/90" {...props} />,
         a: (props) => <a {...props} />,
         blockquote: (props) => (
           <blockquote
-            className="border-gray-200 my-2 border-l-4 pl-4 italic"
+            className="border-primary/40 my-2 border-l-4 pl-4 italic"
             {...props}
           />
         ),

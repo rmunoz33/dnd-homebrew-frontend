@@ -4,6 +4,7 @@ import { useDnDStore, Message } from "@/stores/useStore";
 import { generateChatCompletion } from "@/app/api/openai";
 import MessageContent from "./MessageContent";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
+import { medievalFont } from "@/app/components/medievalFont";
 
 const GameChat = () => {
   // Store
@@ -121,10 +122,10 @@ const GameChat = () => {
         } mt-3${!isLast ? " mb-3" : ""}`}
       >
         <div
-          className={`max-w-[85%] rounded-lg p-2 sm:p-3 ${
+          className={`max-w-[85%] p-2 sm:p-3 ${
             message.sender === "user"
-              ? "bg-gray-600 text-white"
-              : "bg-neutral text-neutral-content"
+              ? "bg-base-300 border border-primary/10 text-base-content rounded-lg rounded-br-sm"
+              : "bg-neutral border border-primary/10 text-neutral-content rounded-lg rounded-bl-sm chat-ai-glow"
           }`}
         >
           {message.sender === "ai" && !message.content ? (
@@ -133,7 +134,7 @@ const GameChat = () => {
             <MessageContent content={message.content} />
           )}
           <div
-            className={`text-[10px] sm:text-xs mt-1 opacity-70 ${
+            className={`text-[10px] sm:text-xs mt-1 text-base-content/50 ${
               message.sender === "user" ? "text-right" : "text-left"
             }`}
           >
@@ -150,9 +151,16 @@ const GameChat = () => {
         {/* Messages area */}
         <div className="flex-1 overflow-hidden p-4 relative">
           {messages.length === 0 ? (
-            <div className="text-center text-neutral-content opacity-50">
-              <h2 className="text-2xl mb-2">Welcome, brave adventurer!</h2>
-              <p>
+            <div className="text-center mt-24">
+              <h2 className={`text-3xl mb-3 text-primary text-glow-gold ${medievalFont.className}`}>
+                Welcome, brave adventurer!
+              </h2>
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <span className="flex-1 max-w-16 h-px bg-primary/15" />
+                <span className="text-primary/40 text-sm">❖</span>
+                <span className="flex-1 max-w-16 h-px bg-primary/15" />
+              </div>
+              <p className="text-base-content/40">
                 Start your journey by sending a message to your Dungeon Master.
               </p>
             </div>
@@ -179,7 +187,7 @@ const GameChat = () => {
                       }
                       setShouldAutoScroll(true);
                     }}
-                    className="btn btn-circle bg-gray-700 hover:bg-gray-600 text-white shadow-lg"
+                    className="btn btn-circle bg-base-300 hover:bg-base-200 border border-primary/20 text-primary shadow-lg"
                     aria-label="Scroll to bottom"
                   >
                     <ArrowDown size={20} />
@@ -190,7 +198,7 @@ const GameChat = () => {
           )}
         </div>
         {/* Input area */}
-        <div className="border-t border-gray-700">
+        <div className="border-t border-primary/15">
           <div className="max-w-4xl mx-auto px-4 py-2">
             <div className="flex gap-2 items-end">
               <textarea
@@ -198,7 +206,7 @@ const GameChat = () => {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Type your message..."
-                className="textarea textarea-bordered flex-1 text-base md:text-base min-h-10 sm:min-h-12 bg-gray-500 text-white placeholder-gray-400 disabled:text-gray-500 disabled:bg-gray-600 resize-none overflow-y-auto transition-none"
+                className="textarea textarea-bordered flex-1 text-base md:text-base min-h-10 sm:min-h-12 bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-none disabled:text-base-content/30 disabled:bg-base-200/30 resize-none overflow-y-auto transition-none"
                 disabled={isLoading}
                 rows={1}
               />
@@ -208,7 +216,7 @@ const GameChat = () => {
                   handleSendMessage();
                 }}
                 disabled={!inputMessage.trim() || isLoading}
-                className={`btn btn-circle btn-neutral-content h-10 w-10 sm:h-12 sm:w-12 min-h-0 ${
+                className={`btn btn-circle btn-primary h-10 w-10 sm:h-12 sm:w-12 min-h-0 ${
                   isLoading ? "loading" : ""
                 }`}
               >
