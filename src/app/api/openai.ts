@@ -825,6 +825,14 @@ When the player asks a direct question ("Where am I?", "Who is that?", "What's h
       }
     }
 
+    // Update the AI message timestamp to when streaming finished
+    const { messages: currentMessages } = useDnDStore.getState();
+    const lastMsg = currentMessages[currentMessages.length - 1];
+    if (lastMsg && lastMsg.sender === "ai") {
+      lastMsg.timestamp = new Date();
+      useDnDStore.setState({ messages: [...currentMessages] });
+    }
+
     // After streaming completes, analyze narrative for character state changes
     await extractStateChangesFromNarrative();
 
