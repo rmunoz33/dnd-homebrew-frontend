@@ -67,34 +67,17 @@ const GameChat = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Use atBottomStateChange to manage autoscroll
+  // Track whether user is at the bottom for scroll-to-bottom button visibility
   const handleAtBottomStateChange = (isAtBottom: boolean) => {
     setShouldAutoScroll(isAtBottom);
   };
 
-  // When a new message is sent, scroll to bottom and enable autoscroll
-  useEffect(() => {
-    if (!virtuosoRef.current) return;
-    // If user is at bottom or last message is from user, scroll to bottom
-    if (
-      shouldAutoScroll ||
-      (messages.length > 0 && messages[messages.length - 1].sender === "user")
-    ) {
-      virtuosoRef.current.scrollTo({ top: 999999, behavior: "smooth" });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length]);
-
-  // Autoscroll as the last message content changes (for streaming AI responses), but only if shouldAutoScroll
-  const lastMessageContent =
-    messages.length > 0 ? messages[messages.length - 1].content : "";
-  useEffect(() => {
-    if (!virtuosoRef.current) return;
-    if (messages.length === 0) return;
-    if (shouldAutoScroll) {
-      virtuosoRef.current.scrollTo({ top: 999999, behavior: "auto" });
-    }
-  }, [lastMessageContent, shouldAutoScroll, messages.length]);
+  // Let Virtuoso handle auto-scrolling via followOutput.
+  // Returns 'auto' (instant) when at bottom so streaming stays pinned,
+  // returns false when user has scrolled up to avoid interrupting reading.
+  const handleFollowOutput = (isAtBottom: boolean) => {
+    return isAtBottom ? "auto" as const : false;
+  };
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -113,10 +96,6 @@ const GameChat = () => {
     addMessage(userMessage);
     addMessage(aiMessage);
     setInputMessage("");
-    // Explicitly scroll to bottom after sending and enable autoscroll
-    if (virtuosoRef.current) {
-      virtuosoRef.current.scrollTo({ top: 999999, behavior: "smooth" });
-    }
     setShouldAutoScroll(true);
     setIsLoading(true);
     try {
@@ -134,31 +113,20 @@ const GameChat = () => {
     }
   };
 
-  // Add a dummy spacer item to the end of the messages array
-  const virtuosoData = [...messages, { id: "spacer", type: "spacer" }];
-
   const renderMessage = (index: number) => {
-    const item = virtuosoData[index];
-    // Type guard for spacer
-    if ("type" in item && item.type === "spacer") {
-      return <div style={{ height: 48 }} />;
-    }
-    const message = item as Message;
-    // Only add bottom margin if not the last real message
-    const isLast = index === virtuosoData.length - 2;
+    const message = messages[index];
+    const isLast = index === messages.length - 1;
     // Show DM label if this is an AI message and the previous message was from the user (or it's the first message)
     const showDmLabel =
       message.sender === "ai" &&
       (index === 0 ||
-        (index > 0 &&
-          !("type" in virtuosoData[index - 1]) &&
-          (virtuosoData[index - 1] as Message).sender === "user"));
+        (index > 0 && messages[index - 1].sender === "user"));
 
     return (
       <div
         className={`flex ${
           message.sender === "user" ? "justify-end" : "justify-start"
-        } mt-4${!isLast ? " mb-4" : ""}`}
+        } pt-4${!isLast ? " pb-4" : ""}`}
       >
         <div className={message.sender === "user" ? "max-w-[85%]" : "max-w-[75%]"}>
           {showDmLabel && (
@@ -198,12 +166,16 @@ const GameChat = () => {
         <div className="flex-1 overflow-hidden p-4 relative">
           <Virtuoso
             ref={virtuosoRef}
-            data={virtuosoData}
-            totalCount={virtuosoData.length}
+            data={messages}
+            totalCount={messages.length}
             itemContent={renderMessage}
             className="h-full"
-            followOutput={false}
+            followOutput={handleFollowOutput}
+            atBottomThreshold={50}
+            alignToBottom
             atBottomStateChange={handleAtBottomStateChange}
+            initialTopMostItemIndex={Math.max(0, messages.length - 1)}
+            style={{ paddingBottom: 16 }}
           />
           {!shouldAutoScroll && (
             <div className="fixed bottom-20 right-4 z-50">
@@ -211,7 +183,7 @@ const GameChat = () => {
                 onClick={() => {
                   if (virtuosoRef.current) {
                     virtuosoRef.current.scrollTo({
-                      top: 999999,
+                      top: Number.MAX_SAFE_INTEGER,
                       behavior: "smooth",
                     });
                   }
