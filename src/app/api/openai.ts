@@ -653,7 +653,7 @@ Format the response as a detailed markdown document that can be used as a campai
   }
 };
 
-export const generateChatCompletion = async (): Promise<boolean> => {
+export const generateChatCompletion = async (overrideUserMessage?: string): Promise<boolean> => {
   try {
     const {
       inputMessage,
@@ -810,7 +810,7 @@ When the player asks a direct question ("Where am I?", "Who is that?", "What's h
           role: msg.sender === "user" ? ("user" as const) : ("assistant" as const),
           content: msg.content,
         })),
-        { role: "user" as const, content: inputMessage },
+        { role: "user" as const, content: overrideUserMessage ?? inputMessage },
       ],
       temperature: 0.7,
       stream: true,

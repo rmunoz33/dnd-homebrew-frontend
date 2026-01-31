@@ -19,6 +19,7 @@ const GameChat = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const hasTriggeredGreeting = useRef(false);
 
   // Auto-resize the textarea based on content
   useEffect(() => {
@@ -35,6 +36,36 @@ const GameChat = () => {
       textarea.removeEventListener("input", adjustHeight);
     };
   }, [inputMessage]);
+
+  // Auto-send initial DM greeting when chat is empty
+  useEffect(() => {
+    if (messages.length > 0 || hasTriggeredGreeting.current) return;
+    hasTriggeredGreeting.current = true;
+
+    const sendGreeting = async () => {
+      const aiMessage: Message = {
+        id: Date.now().toString(),
+        content: "",
+        sender: "ai",
+        timestamp: new Date(),
+      };
+      addMessage(aiMessage);
+      setIsLoading(true);
+      try {
+        await generateChatCompletion(
+          "Begin the adventure. Set the scene for the player and invite them to make their first choice."
+        );
+      } catch (error) {
+        console.error("Error sending greeting:", error);
+        updateLastMessage("The ancient tome flickers... Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    sendGreeting();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Use atBottomStateChange to manage autoscroll
   const handleAtBottomStateChange = (isAtBottom: boolean) => {
@@ -165,51 +196,33 @@ const GameChat = () => {
       <div className="flex flex-col h-full max-w-4xl mx-auto pr-16 sm:pr-4">
         {/* Messages area */}
         <div className="flex-1 overflow-hidden p-4 relative">
-          {messages.length === 0 ? (
-            <div className="text-center mt-24">
-              <h2 className={`text-3xl mb-3 text-primary text-glow-gold ${medievalFont.className}`}>
-                Welcome, brave adventurer!
-              </h2>
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <span className="flex-1 max-w-16 h-px bg-primary/15" />
-                <span className="text-primary/40 text-sm">❖</span>
-                <span className="flex-1 max-w-16 h-px bg-primary/15" />
-              </div>
-              <p className="text-base-content/40">
-                Start your journey by sending a message to your Dungeon Master.
-              </p>
+          <Virtuoso
+            ref={virtuosoRef}
+            data={virtuosoData}
+            totalCount={virtuosoData.length}
+            itemContent={renderMessage}
+            className="h-full"
+            followOutput={false}
+            atBottomStateChange={handleAtBottomStateChange}
+          />
+          {!shouldAutoScroll && (
+            <div className="fixed bottom-20 right-4 z-50">
+              <button
+                onClick={() => {
+                  if (virtuosoRef.current) {
+                    virtuosoRef.current.scrollTo({
+                      top: 999999,
+                      behavior: "smooth",
+                    });
+                  }
+                  setShouldAutoScroll(true);
+                }}
+                className="btn btn-circle bg-base-300 hover:bg-base-200 border border-primary/20 text-primary shadow-lg"
+                aria-label="Scroll to bottom"
+              >
+                <ArrowDown size={20} />
+              </button>
             </div>
-          ) : (
-            <>
-              <Virtuoso
-                ref={virtuosoRef}
-                data={virtuosoData}
-                totalCount={virtuosoData.length}
-                itemContent={renderMessage}
-                className="h-full"
-                followOutput={false}
-                atBottomStateChange={handleAtBottomStateChange}
-              />
-              {!shouldAutoScroll && (
-                <div className="fixed bottom-20 right-4 z-50">
-                  <button
-                    onClick={() => {
-                      if (virtuosoRef.current) {
-                        virtuosoRef.current.scrollTo({
-                          top: 999999,
-                          behavior: "smooth",
-                        });
-                      }
-                      setShouldAutoScroll(true);
-                    }}
-                    className="btn btn-circle bg-base-300 hover:bg-base-200 border border-primary/20 text-primary shadow-lg"
-                    aria-label="Scroll to bottom"
-                  >
-                    <ArrowDown size={20} />
-                  </button>
-                </div>
-              )}
-            </>
           )}
         </div>
         {/* Input area */}
