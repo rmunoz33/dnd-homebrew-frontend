@@ -115,19 +115,33 @@ const GameChat = () => {
     const message = item as Message;
     // Only add bottom margin if not the last real message
     const isLast = index === virtuosoData.length - 2;
+    // Show DM label if this is an AI message and the previous message was from the user (or it's the first message)
+    const showDmLabel =
+      message.sender === "ai" &&
+      (index === 0 ||
+        (index > 0 &&
+          !("type" in virtuosoData[index - 1]) &&
+          (virtuosoData[index - 1] as Message).sender === "user"));
+
     return (
       <div
         className={`flex ${
           message.sender === "user" ? "justify-end" : "justify-start"
-        } mt-3${!isLast ? " mb-3" : ""}`}
+        } mt-4${!isLast ? " mb-4" : ""}`}
       >
-        <div
-          className={`max-w-[85%] p-2 sm:p-3 ${
-            message.sender === "user"
-              ? "bg-base-300 border border-primary/10 text-base-content rounded-lg rounded-br-sm"
-              : "bg-neutral border border-primary/10 text-neutral-content rounded-lg rounded-bl-sm chat-ai-glow"
-          }`}
-        >
+        <div className={message.sender === "user" ? "max-w-[85%]" : "max-w-[75%]"}>
+          {showDmLabel && (
+            <div className={`text-xs text-primary/40 mb-1 ml-1 ${medievalFont.className}`}>
+              Dungeon Master
+            </div>
+          )}
+          <div
+            className={`p-2 sm:p-3 ${
+              message.sender === "user"
+                ? "bg-primary/15 border border-primary/20 text-base-content rounded-lg rounded-br-sm"
+                : "bg-neutral border border-primary/10 text-neutral-content rounded-lg rounded-bl-sm chat-ai-glow"
+            }`}
+          >
           {message.sender === "ai" && !message.content ? (
             <span className="loading loading-dots loading-sm"></span>
           ) : (
@@ -140,6 +154,7 @@ const GameChat = () => {
           >
             {message.timestamp.toLocaleTimeString()}
           </div>
+          </div>
         </div>
       </div>
     );
@@ -147,7 +162,7 @@ const GameChat = () => {
 
   return (
     <div className="fixed inset-0">
-      <div className="flex flex-col h-full max-w-4xl mx-auto">
+      <div className="flex flex-col h-full max-w-4xl mx-auto pr-16 sm:pr-4">
         {/* Messages area */}
         <div className="flex-1 overflow-hidden p-4 relative">
           {messages.length === 0 ? (
@@ -200,7 +215,7 @@ const GameChat = () => {
         {/* Input area */}
         <div className="border-t border-primary/15">
           <div className="max-w-4xl mx-auto px-4 py-2">
-            <div className="flex gap-2 items-end">
+            <div className="flex gap-2 items-end rounded-lg border border-transparent focus-within:border-primary/25 transition-colors p-1">
               <textarea
                 ref={textareaRef}
                 value={inputMessage}
