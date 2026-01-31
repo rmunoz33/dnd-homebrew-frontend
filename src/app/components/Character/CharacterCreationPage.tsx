@@ -7,265 +7,17 @@ import {
   generateCampaignOutline,
 } from "@/app/api/openai";
 import { useState, useEffect } from "react";
-import { useCharacterOptions, useSubspecies, useSubclassesForClass } from "@/hooks/useCharacterOptions";
+import {
+  useCharacterOptions,
+  useSubspecies,
+  useSubclassesForClass,
+} from "@/hooks/useCharacterOptions";
 import React, { useRef } from "react";
-
-interface NumberInputProps {
-  value: string | number;
-  onChange: (value: number) => void;
-  min?: number;
-  max?: number;
-  placeholder?: string;
-  disabled?: boolean;
-  className?: string;
-}
-
-const NumberInput: React.FC<NumberInputProps> = ({
-  value,
-  onChange,
-  min = 0,
-  max = Infinity,
-  placeholder,
-  disabled = false,
-  className = "input input-bordered w-full",
-}) => {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue =
-      e.target.value === "" ? min : parseInt(e.target.value) || min;
-    onChange(Math.min(max, Math.max(min, newValue)));
-  };
-
-  const increment = () => {
-    const currentValue =
-      typeof value === "string" ? parseInt(value) || min : value;
-    if (currentValue < max) {
-      onChange(currentValue + 1);
-    }
-  };
-
-  const decrement = () => {
-    const currentValue =
-      typeof value === "string" ? parseInt(value) || min : value;
-    if (currentValue > min) {
-      onChange(currentValue - 1);
-    }
-  };
-
-  return (
-    <div className="relative flex">
-      <input
-        type="number"
-        className={className}
-        value={value}
-        onChange={handleChange}
-        min={min}
-        max={max}
-        placeholder={placeholder}
-        disabled={disabled}
-      />
-      <div className="absolute right-0 top-0 bottom-0 flex flex-col justify-center pr-2">
-        <button
-          type="button"
-          className="text-gray-500 hover:text-gray-700 focus:outline-none"
-          onClick={increment}
-          disabled={
-            disabled ||
-            (typeof value === "number"
-              ? value >= max
-              : parseInt(value as string) >= max)
-          }
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 15l7-7 7 7"
-            />
-          </svg>
-        </button>
-        <button
-          type="button"
-          className="text-gray-500 hover:text-gray-700 focus:outline-none"
-          onClick={decrement}
-          disabled={
-            disabled ||
-            (typeof value === "number"
-              ? value <= min
-              : parseInt(value as string) <= min)
-          }
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// First, let's create a reusable component for the dropdown inputs with clear button
-interface ClearableInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  onClear: () => void;
-  placeholder: string;
-  onFocus?: () => void;
-  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
-  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  disabled?: boolean;
-  className?: string;
-}
-
-const ClearableInput: React.FC<ClearableInputProps> = ({
-  value,
-  onChange,
-  onClear,
-  placeholder,
-  onFocus,
-  onBlur,
-  onKeyDown,
-  disabled = false,
-  className = "input input-bordered w-full",
-}) => {
-  return (
-    <div className="relative">
-      <input
-        type="text"
-        placeholder={placeholder}
-        className={className}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        onKeyDown={onKeyDown}
-        disabled={disabled}
-      />
-      {value && (
-        <button
-          type="button"
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-          onClick={onClear}
-          disabled={disabled}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
-      )}
-    </div>
-  );
-};
-
-// Reusable component for equipment category sections
-const EquipmentInput = ({
-  category,
-  placeholder,
-  onAdd,
-}: {
-  category: keyof Character["equipment"];
-  placeholder: string;
-  onAdd: (
-    category: keyof Character["equipment"],
-    value: string,
-    setInput: (value: string) => void
-  ) => void;
-}) => {
-  const [inputValue, setInputValue] = useState("");
-
-  const handleAdd = () => {
-    if (inputValue.trim()) {
-      onAdd(category, inputValue.trim(), setInputValue);
-    }
-  };
-
-  return (
-    <div className="flex">
-      <input
-        type="text"
-        placeholder={placeholder}
-        className="input input-bordered w-full"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-      />
-      <button onClick={handleAdd} className="btn ml-2">
-        Add
-      </button>
-    </div>
-  );
-};
-
-const EquipmentCategory = ({
-  title,
-  items,
-  category,
-  onRemove,
-  onAdd,
-}: {
-  title: string;
-  items: string[];
-  category: keyof Character["equipment"];
-  onRemove: (category: keyof Character["equipment"], item: string) => void;
-  onAdd: (
-    category: keyof Character["equipment"],
-    value: string,
-    setInput: (value: string) => void
-  ) => void;
-}) => {
-  return (
-    <div className="col-span-1">
-      <h3 className="text-white mb-2">{title}</h3>
-      <div className="flex flex-wrap gap-2 mb-2 min-h-[40px]">
-        {items.map((item, index) => (
-          <span
-            key={`${category}-${item}-${index}`}
-            className="badge badge-neutral-content gap-2"
-          >
-            {item}
-            <button
-              onClick={() => onRemove(category, item)}
-              className="btn btn-xs btn-ghost"
-            >
-              &times;
-            </button>
-          </span>
-        ))}
-      </div>
-      <EquipmentInput
-        category={category}
-        placeholder={`Add ${title.slice(0, -1).toLowerCase()}`}
-        onAdd={onAdd}
-      />
-    </div>
-  );
-};
+import { NumberInput } from "./NumberInput";
+import { ClearableInput } from "./ClearableInput";
+import { EquipmentCategorySection } from "./EquipmentSection";
+import { ResetWarningModal } from "./ResetWarningModal";
+import { SectionHeader } from "./SectionHeader";
 
 const CharacterCreationPage = () => {
   const {
@@ -280,13 +32,20 @@ const CharacterCreationPage = () => {
     campaignOutline,
     setCampaignOutline,
   } = useDnDStore();
-  
+
   // Fetch character options from API
-  const { races, classes, alignments, backgrounds, loading: optionsLoading } = useCharacterOptions();
+  const {
+    races,
+    classes,
+    alignments,
+    backgrounds,
+    loading: optionsLoading,
+  } = useCharacterOptions();
   const { data: availableSubspecies } = useSubspecies(character.species);
   // Lazy load subclasses only when classes are selected
-  const { data: subclasses, loading: subclassesLoading } = useSubclassesForClass(character.classes);
-  
+  const { data: subclasses, loading: subclassesLoading } =
+    useSubclassesForClass(character.classes);
+
   const [isRolling, setIsRolling] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showResetWarning, setShowResetWarning] = useState(false);
@@ -348,7 +107,11 @@ const CharacterCreationPage = () => {
       setFilter("subspecies", "");
     }
     // Also check if current subspecies is valid for the new species
-    else if (character.subspecies && availableSubspecies.length > 0 && !availableSubspecies.includes(character.subspecies)) {
+    else if (
+      character.subspecies &&
+      availableSubspecies.length > 0 &&
+      !availableSubspecies.includes(character.subspecies)
+    ) {
       handleInputChange("subspecies", "");
       setFilter("subspecies", "");
     }
@@ -431,7 +194,7 @@ const CharacterCreationPage = () => {
   };
 
   const handleConfirmReset = () => {
-    clearMessages(); // Clear all chat messages
+    clearMessages();
     setShowResetWarning(false);
     setCampaignOutline("");
     generateRandomCharacter();
@@ -516,7 +279,6 @@ const CharacterCreationPage = () => {
           setFilter("species", selectedSpecies);
           setIsSpeciesDropdownOpen(false);
           setSpeciesFocusedIndex(-1);
-          // Subspecies will be handled by the useSubspecies hook
         }
         break;
       case "Escape":
@@ -559,7 +321,9 @@ const CharacterCreationPage = () => {
     }
   };
 
-  const handleAlignmentKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleAlignmentKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
     if (!isAlignmentDropdownOpen) return;
 
     switch (e.key) {
@@ -643,7 +407,10 @@ const CharacterCreationPage = () => {
         if (classFocusedIndex >= 0) {
           const selectedClass = filteredClasses[classFocusedIndex];
           if (character.classes.length < 3) {
-            handleInputChange("classes", [...character.classes, selectedClass]);
+            handleInputChange("classes", [
+              ...character.classes,
+              selectedClass,
+            ]);
           }
           setFilter("class", "");
           setIsClassDropdownOpen(false);
@@ -666,7 +433,9 @@ const CharacterCreationPage = () => {
     setFilter("subclass", "");
   };
 
-  const handleSubclassKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleSubclassKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
     if (!isSubclassDropdownOpen) return;
 
     switch (e.key) {
@@ -755,12 +524,10 @@ const CharacterCreationPage = () => {
   const handleSaveCharacter = async () => {
     if (!isCharacterDetailsComplete()) return;
     setIsSaving(true);
-    // Pick a random loading message
     setLoadingMessage(
       loadingMessages[Math.floor(Math.random() * loadingMessages.length)]
     );
     try {
-      // Only generate if not already set
       if (!campaignOutline) {
         const outline = await generateCampaignOutline(character);
         setCampaignOutline(outline ?? "");
@@ -768,57 +535,46 @@ const CharacterCreationPage = () => {
       setIsCharacterCreated(true);
     } catch (error) {
       console.error("Error saving character:", error);
-      // You might want to show an error message to the user here
     } finally {
       setIsSaving(false);
     }
   };
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[#3f3f3f]">
-      {/* Reset Warning Modal */}
-      {showResetWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-gray-200 p-6 rounded-lg shadow-xl max-w-md border-2 border-red-500">
-            <h3 className="text-xl font-bold mb-4 text-red-500">
-              Reset Adventure?
-            </h3>
-            <p className="mb-6 text-gray-800">
-              Generating a new character will reset your current adventure and
-              clear all chat messages. Are you sure you want to continue?
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                className="btn bg-gray-600 hover:bg-gray-700 text-white border-none"
-                onClick={() => setShowResetWarning(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn bg-red-500 hover:bg-red-600 text-white border-none"
-                onClick={handleConfirmReset}
-              >
-                Reset Adventure
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+  const inputClassName =
+    "input input-bordered w-full bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-none";
 
-      <div className="flex flex-col items-center gap-8 w-full max-w-2xl p-8 mx-auto">
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-login-vignette px-4 py-8">
+      <ResetWarningModal
+        isOpen={showResetWarning}
+        onCancel={() => setShowResetWarning(false)}
+        onConfirm={handleConfirmReset}
+      />
+
+      <div className="flex flex-col items-center gap-6 w-full max-w-2xl mx-auto">
+        {/* Header */}
         <div className="flex flex-col items-center gap-4">
-          <h1 className={`${medievalFont.className} text-5xl text-red-500`}>
+          <h1
+            className={`${medievalFont.className} text-3xl sm:text-4xl md:text-5xl text-primary text-glow-gold text-center`}
+          >
             Create Your Character
           </h1>
+
+          <div className="flex items-center gap-3 text-primary/20">
+            <span className="block w-12 h-px bg-current" />
+            <span className="text-xs">&#x2756;</span>
+            <span className="block w-12 h-px bg-current" />
+          </div>
+
           {optionsLoading && (
-            <div className="text-center text-white mb-2">
+            <div className="text-center text-base-content mb-2">
               <div className="flex items-center gap-2 justify-center">
                 <span className="animate-spin text-2xl">🎲</span>
                 <span>Loading character options...</span>
               </div>
             </div>
           )}
-          <div className="text-center text-white mb-2 max-w-lg">
+          <div className="text-center text-base-content/70 mb-2 max-w-lg">
             <p>
               Fields left at default values will be generated when you click{" "}
               <span className="font-bold">
@@ -830,687 +586,643 @@ const CharacterCreationPage = () => {
           </div>
           <div className="flex gap-2">
             <button
-              className="btn btn-sm"
+              className="btn btn-outline border-primary/30 text-base-content/80 hover:bg-primary/10 hover:border-primary/50 btn-sm"
               onClick={handleAISuggestions}
               disabled={isRolling}
             >
               {isRolling ? (
-                <span className="animate-spin text-2xl text-white">🎲</span>
+                <span className="animate-spin text-2xl">🎲</span>
               ) : (
                 "Roll Me a Character"
               )}
             </button>
             {isCharacterModified() && (
-              <button className="btn btn-sm" onClick={handleReset}>
+              <button
+                className="btn btn-ghost text-base-content/50 btn-sm"
+                onClick={handleReset}
+              >
                 Reset
               </button>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-xl">
-          <h2 className="text-xl text-white font-bold col-span-full mb-2">
-            Character Details
-          </h2>
-          <input
-            type="text"
-            placeholder="Name *"
-            className="input input-bordered w-full"
-            value={character.name}
-            onChange={(e) => handleInputChange("name", e.target.value)}
-          />
-          <NumberInput
-            value={String(character.level ?? 1)}
-            min={1}
-            max={20}
-            placeholder="Level *"
-            onChange={(value) => handleInputChange("level", value)}
-          />
-          <div className="relative species-dropdown">
-            <ClearableInput
-              value={filters.species}
-              onChange={(newValue) => {
-                setFilter("species", newValue);
-                if (!newValue) {
-                  handleInputChange("species", "");
-                  handleInputChange("subspecies", "");
-                  setFilter("subspecies", "");
-                  setIsSubspeciesDropdownOpen(false);
-                } else if (races.includes(newValue)) {
-                  handleInputChange("species", newValue);
-                }
-                setIsSpeciesDropdownOpen(true);
-                setSpeciesFocusedIndex(-1);
-              }}
-              onClear={() => {
-                setFilter("species", "");
-                handleInputChange("species", "");
-                handleInputChange("subspecies", "");
-                setFilter("subspecies", "");
-                setIsSubspeciesDropdownOpen(false);
-                setIsSpeciesDropdownOpen(false);
-              }}
-              placeholder="Species *"
-              onFocus={() => setIsSpeciesDropdownOpen(true)}
-              onBlur={() => {
-                if (!races.includes(filters.species)) {
+        {/* Form Card */}
+        <div className="bg-base-200/30 border border-primary/10 rounded-xl p-6 md:p-8 w-full max-w-xl backdrop-blur-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+            <SectionHeader title="Character Details" />
+            <input
+              type="text"
+              placeholder="Name *"
+              className={inputClassName}
+              value={character.name}
+              onChange={(e) => handleInputChange("name", e.target.value)}
+            />
+            <NumberInput
+              value={String(character.level ?? 1)}
+              min={1}
+              max={20}
+              placeholder="Level *"
+              onChange={(value) => handleInputChange("level", value)}
+            />
+            <div className="relative species-dropdown">
+              <ClearableInput
+                value={filters.species}
+                onChange={(newValue) => {
+                  setFilter("species", newValue);
+                  if (!newValue) {
+                    handleInputChange("species", "");
+                    handleInputChange("subspecies", "");
+                    setFilter("subspecies", "");
+                    setIsSubspeciesDropdownOpen(false);
+                  } else if (races.includes(newValue)) {
+                    handleInputChange("species", newValue);
+                  }
+                  setIsSpeciesDropdownOpen(true);
+                  setSpeciesFocusedIndex(-1);
+                }}
+                onClear={() => {
                   setFilter("species", "");
                   handleInputChange("species", "");
                   handleInputChange("subspecies", "");
                   setFilter("subspecies", "");
                   setIsSubspeciesDropdownOpen(false);
-                } else {
-                  handleInputChange("species", filters.species);
-                }
-              }}
-              onKeyDown={handleSpeciesKeyDown}
-            />
-            {isSpeciesDropdownOpen && filteredSpecies.length > 0 && (
-              <ul
-                ref={speciesDropdownRef}
-                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
-              >
-                {filteredSpecies.map((species, index) => (
-                  <li
-                    key={species}
-                    className={`px-4 py-2 cursor-pointer ${
-                      index === speciesFocusedIndex
-                        ? "bg-base-300"
-                        : "hover:bg-base-300"
-                    }`}
-                    onClick={() => {
-                      handleInputChange("species", species);
-                      setFilter("species", species);
-                      setIsSpeciesDropdownOpen(false);
-                      setSpeciesFocusedIndex(-1);
-                    }}
-                  >
-                    {species}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div className="relative subspecies-dropdown">
-            <ClearableInput
-              value={filters.subspecies}
-              onChange={(newValue) => {
-                setFilter("subspecies", newValue);
-                handleInputChange("subspecies", newValue);
-                setIsSubspeciesDropdownOpen(true);
-                setSubspeciesFocusedIndex(-1);
-              }}
-              onClear={() => {
-                setFilter("subspecies", "");
-                handleInputChange("subspecies", "");
-                setIsSubspeciesDropdownOpen(false);
-              }}
-              placeholder={
-                availableSubspecies.length > 0
-                  ? "Subspecies *"
-                  : "Subspecies"
-              }
-              onFocus={() => {
-                if (character.species && availableSubspecies.length > 0) {
+                  setIsSpeciesDropdownOpen(false);
+                }}
+                placeholder="Species *"
+                onFocus={() => setIsSpeciesDropdownOpen(true)}
+                onBlur={() => {
+                  if (!races.includes(filters.species)) {
+                    setFilter("species", "");
+                    handleInputChange("species", "");
+                    handleInputChange("subspecies", "");
+                    setFilter("subspecies", "");
+                    setIsSubspeciesDropdownOpen(false);
+                  } else {
+                    handleInputChange("species", filters.species);
+                  }
+                }}
+                onKeyDown={handleSpeciesKeyDown}
+              />
+              {isSpeciesDropdownOpen && filteredSpecies.length > 0 && (
+                <ul
+                  ref={speciesDropdownRef}
+                  className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+                >
+                  {filteredSpecies.map((species, index) => (
+                    <li
+                      key={species}
+                      className={`px-4 py-2 cursor-pointer ${
+                        index === speciesFocusedIndex
+                          ? "bg-base-300"
+                          : "hover:bg-base-300"
+                      }`}
+                      onClick={() => {
+                        handleInputChange("species", species);
+                        setFilter("species", species);
+                        setIsSpeciesDropdownOpen(false);
+                        setSpeciesFocusedIndex(-1);
+                      }}
+                    >
+                      {species}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="relative subspecies-dropdown">
+              <ClearableInput
+                value={filters.subspecies}
+                onChange={(newValue) => {
+                  setFilter("subspecies", newValue);
+                  handleInputChange("subspecies", newValue);
                   setIsSubspeciesDropdownOpen(true);
-                }
-              }}
-              onBlur={() => {
-                if (!availableSubspecies.includes(filters.subspecies)) {
+                  setSubspeciesFocusedIndex(-1);
+                }}
+                onClear={() => {
                   setFilter("subspecies", "");
                   handleInputChange("subspecies", "");
+                  setIsSubspeciesDropdownOpen(false);
+                }}
+                placeholder={
+                  availableSubspecies.length > 0
+                    ? "Subspecies *"
+                    : "Subspecies"
                 }
-              }}
-              onKeyDown={handleSubspeciesKeyDown}
-              disabled={
-                !character.species || availableSubspecies.length === 0
-              }
-            />
-            {isSubspeciesDropdownOpen && availableSubspecies.length > 0 && (
-              <ul
-                ref={subspeciesDropdownRef}
-                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
-              >
-                {availableSubspecies.map((subspecies, index) => (
-                  <li
-                    key={subspecies}
-                    className={`px-4 py-2 cursor-pointer ${
-                      index === subspeciesFocusedIndex
-                        ? "bg-base-300"
-                        : "hover:bg-base-300"
-                    }`}
-                    onClick={() => {
-                      handleInputChange("subspecies", subspecies);
-                      setFilter("subspecies", subspecies);
-                      setIsSubspeciesDropdownOpen(false);
-                      setSubspeciesFocusedIndex(-1);
-                    }}
-                  >
-                    {subspecies}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div className="relative alignment-dropdown">
-            <ClearableInput
-              value={filters.alignment}
-              onChange={(newValue) => {
-                setFilter("alignment", newValue);
-                setIsAlignmentDropdownOpen(true);
-                setAlignmentFocusedIndex(-1);
-              }}
-              onClear={() => {
-                setFilter("alignment", "");
-                handleInputChange("alignment", "");
-                setIsAlignmentDropdownOpen(false);
-              }}
-              placeholder="Alignment *"
-              onFocus={() => setIsAlignmentDropdownOpen(true)}
-              onKeyDown={handleAlignmentKeyDown}
-              onBlur={() => {
-                if (!alignments.includes(filters.alignment)) {
+                onFocus={() => {
+                  if (character.species && availableSubspecies.length > 0) {
+                    setIsSubspeciesDropdownOpen(true);
+                  }
+                }}
+                onBlur={() => {
+                  if (!availableSubspecies.includes(filters.subspecies)) {
+                    setFilter("subspecies", "");
+                    handleInputChange("subspecies", "");
+                  }
+                }}
+                onKeyDown={handleSubspeciesKeyDown}
+                disabled={
+                  !character.species || availableSubspecies.length === 0
+                }
+              />
+              {isSubspeciesDropdownOpen && availableSubspecies.length > 0 && (
+                <ul
+                  ref={subspeciesDropdownRef}
+                  className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+                >
+                  {availableSubspecies.map((subspecies, index) => (
+                    <li
+                      key={subspecies}
+                      className={`px-4 py-2 cursor-pointer ${
+                        index === subspeciesFocusedIndex
+                          ? "bg-base-300"
+                          : "hover:bg-base-300"
+                      }`}
+                      onClick={() => {
+                        handleInputChange("subspecies", subspecies);
+                        setFilter("subspecies", subspecies);
+                        setIsSubspeciesDropdownOpen(false);
+                        setSubspeciesFocusedIndex(-1);
+                      }}
+                    >
+                      {subspecies}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="relative alignment-dropdown">
+              <ClearableInput
+                value={filters.alignment}
+                onChange={(newValue) => {
+                  setFilter("alignment", newValue);
+                  setIsAlignmentDropdownOpen(true);
+                  setAlignmentFocusedIndex(-1);
+                }}
+                onClear={() => {
                   setFilter("alignment", "");
                   handleInputChange("alignment", "");
-                }
-              }}
-            />
-            {isAlignmentDropdownOpen && filteredAlignments.length > 0 && (
-              <ul
-                ref={alignmentDropdownRef}
-                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
-              >
-                {filteredAlignments.map((alignment, index) => (
-                  <li
-                    key={alignment}
-                    className={`px-4 py-2 cursor-pointer ${
-                      index === alignmentFocusedIndex
-                        ? "bg-base-300"
-                        : "hover:bg-base-300"
-                    }`}
-                    onClick={() => {
-                      handleInputChange("alignment", alignment);
-                      setFilter("alignment", alignment);
-                      setIsAlignmentDropdownOpen(false);
-                      setAlignmentFocusedIndex(-1);
-                    }}
-                  >
-                    {alignment}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div className="relative background-dropdown">
-            <ClearableInput
-              value={filters.background}
-              onChange={(newValue) => {
-                setFilter("background", newValue);
-                setIsBackgroundDropdownOpen(true);
-                setBackgroundFocusedIndex(-1);
-              }}
-              onClear={() => {
-                setFilter("background", "");
-                handleInputChange("background", "");
-                setIsBackgroundDropdownOpen(false);
-              }}
-              placeholder="Background *"
-              onFocus={() => setIsBackgroundDropdownOpen(true)}
-              onKeyDown={handleBackgroundKeyDown}
-              onBlur={() => {
-                if (!backgrounds.includes(filters.background)) {
-                  setFilter("background", "");
-                  handleInputChange("background", "");
-                }
-              }}
-            />
-            {isBackgroundDropdownOpen && filteredBackgrounds.length > 0 && (
-              <ul
-                ref={backgroundDropdownRef}
-                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
-              >
-                {filteredBackgrounds.map((background, index) => (
-                  <li
-                    key={background}
-                    className={`px-4 py-2 cursor-pointer ${
-                      index === backgroundFocusedIndex
-                        ? "bg-base-300"
-                        : "hover:bg-base-300"
-                    }`}
-                    onClick={() => {
-                      handleInputChange("background", background);
-                      setFilter("background", background);
-                      setIsBackgroundDropdownOpen(false);
-                      setBackgroundFocusedIndex(-1);
-                    }}
-                  >
-                    {background}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div className="col-span-full">
-            <textarea
-              placeholder="Backstory"
-              className="textarea textarea-bordered w-full h-32"
-              value={character.backStory}
-              onChange={(e) => handleInputChange("backStory", e.target.value)}
-            />
-          </div>
-
-          <h2 className="text-xl text-white font-bold col-span-full mt-6 mb-2">
-            Classes
-          </h2>
-          <div className="relative class-dropdown">
-            <div className="flex flex-wrap gap-2 mb-2">
-              {character.classes.map((className) => (
-                <span
-                  key={className}
-                  className="badge badge-neutral-content gap-2"
-                >
-                  {className}
-                  <button
-                    onClick={() => removeClass(className)}
-                    className="btn btn-xs btn-ghost"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <ClearableInput
-              value={filters.class}
-              onChange={(newValue) => {
-                setFilter("class", newValue);
-                setIsClassDropdownOpen(true);
-                setClassFocusedIndex(-1);
-              }}
-              onClear={() => {
-                setFilter("class", "");
-                setIsClassDropdownOpen(false);
-              }}
-              placeholder="Add Class (max 3) *"
-              onFocus={() => setIsClassDropdownOpen(true)}
-              onBlur={(e) => {
-                // Only close if the related target is not within the dropdown
-                const relatedTarget = e.relatedTarget as HTMLElement;
-                if (!relatedTarget?.closest(".class-dropdown")) {
-                  setTimeout(() => {
-                    setIsClassDropdownOpen(false);
-                  }, 200);
-                }
-              }}
-              onKeyDown={handleClassKeyDown}
-              disabled={character.classes.length >= 3}
-            />
-            {isClassDropdownOpen && filteredClasses.length > 0 && (
-              <ul
-                ref={classDropdownRef}
-                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
-              >
-                {filteredClasses.map((className, index) => (
-                  <li
-                    key={className}
-                    className={`px-4 py-2 cursor-pointer ${
-                      index === classFocusedIndex
-                        ? "bg-base-300"
-                        : "hover:bg-base-300"
-                    }`}
-                    onClick={() => {
-                      if (character.classes.length < 3) {
-                        const updatedClasses = [
-                          ...character.classes,
-                          className,
-                        ];
-                        handleInputChange("classes", updatedClasses);
-                        setFilter("class", "");
-                        setIsClassDropdownOpen(false);
-                        setClassFocusedIndex(-1);
-                      }
-                    }}
-                  >
-                    {className}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="relative subclass-dropdown mt-2">
-            <ClearableInput
-              value={filters.subclass}
-              onChange={(newValue) => {
-                setFilter("subclass", newValue);
-                if (!newValue) {
-                  handleInputChange("subClass", "");
-                } else if (filteredSubclasses.includes(newValue)) {
-                  handleInputChange("subClass", newValue);
-                }
-                setIsSubclassDropdownOpen(true);
-                setSubclassFocusedIndex(-1);
-              }}
-              onClear={() => {
-                setFilter("subclass", "");
-                handleInputChange("subClass", "");
-                setIsSubclassDropdownOpen(false);
-              }}
-              placeholder={
-                (character.level ?? 1) < 3
-                  ? "Reach level 3 to select a subclass"
-                  : subclassesLoading
-                  ? "Loading subclasses..."
-                  : (character.level ?? 1) >= 3
-                  ? "Add Subclass *"
-                  : "Add Subclass"
-              }
-              onFocus={() => setIsSubclassDropdownOpen(true)}
-              onBlur={(e) => {
-                // Only close if the related target is not within the dropdown
-                const relatedTarget = e.relatedTarget as HTMLElement;
-                if (!relatedTarget?.closest(".subclass-dropdown")) {
-                  setTimeout(() => {
-                    setIsSubclassDropdownOpen(false);
-                  }, 200);
-                }
-                if (!filteredSubclasses.includes(filters.subclass)) {
-                  setFilter("subclass", "");
-                  handleInputChange("subClass", "");
-                }
-              }}
-              onKeyDown={handleSubclassKeyDown}
-              disabled={
-                (character.level ?? 1) < 3 || character.classes.length === 0 || subclassesLoading
-              }
-            />
-            {isSubclassDropdownOpen && filteredSubclasses.length > 0 && (
-              <ul
-                ref={subclassDropdownRef}
-                className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
-              >
-                {filteredSubclasses.map((subclass, index) => (
-                  <li
-                    key={subclass}
-                    className={`px-4 py-2 cursor-pointer ${
-                      index === subclassFocusedIndex
-                        ? "bg-base-300"
-                        : "hover:bg-base-300"
-                    }`}
-                    onClick={() => {
-                      handleInputChange("subClass", subclass);
-                      setFilter("subclass", subclass);
-                      setIsSubclassDropdownOpen(false);
-                      setSubclassFocusedIndex(-1);
-                    }}
-                  >
-                    {subclass}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <h2 className="text-xl text-white font-bold col-span-full mt-6 mb-2">
-            Special Abilities
-          </h2>
-          <div className="col-span-full">
-            <div className="flex flex-wrap gap-2 mb-2">
-              {(character.specialAbilities || []).map((ability) => (
-                <span
-                  key={ability}
-                  className="badge badge-neutral-content gap-2"
-                >
-                  {ability}
-                  <button
-                    onClick={() => {
-                      handleInputChange(
-                        "specialAbilities",
-                        character.specialAbilities.filter((a) => a !== ability)
-                      );
-                    }}
-                    className="btn btn-xs btn-ghost"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Add special ability"
-                className="input input-bordered w-full"
-                value={specialAbilityInput}
-                onChange={(e) => setSpecialAbilityInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && specialAbilityInput?.trim()) {
-                    handleInputChange("specialAbilities", [
-                      ...(character.specialAbilities || []),
-                      specialAbilityInput.trim(),
-                    ]);
-                    setSpecialAbilityInput("");
+                  setIsAlignmentDropdownOpen(false);
+                }}
+                placeholder="Alignment *"
+                onFocus={() => setIsAlignmentDropdownOpen(true)}
+                onKeyDown={handleAlignmentKeyDown}
+                onBlur={() => {
+                  if (!alignments.includes(filters.alignment)) {
+                    setFilter("alignment", "");
+                    handleInputChange("alignment", "");
                   }
                 }}
               />
-              <button
-                className="btn btn-sm"
-                onClick={() => {
-                  if (specialAbilityInput?.trim()) {
-                    handleInputChange("specialAbilities", [
-                      ...(character.specialAbilities || []),
-                      specialAbilityInput.trim(),
-                    ]);
-                    setSpecialAbilityInput("");
+              {isAlignmentDropdownOpen && filteredAlignments.length > 0 && (
+                <ul
+                  ref={alignmentDropdownRef}
+                  className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+                >
+                  {filteredAlignments.map((alignment, index) => (
+                    <li
+                      key={alignment}
+                      className={`px-4 py-2 cursor-pointer ${
+                        index === alignmentFocusedIndex
+                          ? "bg-base-300"
+                          : "hover:bg-base-300"
+                      }`}
+                      onClick={() => {
+                        handleInputChange("alignment", alignment);
+                        setFilter("alignment", alignment);
+                        setIsAlignmentDropdownOpen(false);
+                        setAlignmentFocusedIndex(-1);
+                      }}
+                    >
+                      {alignment}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="relative background-dropdown">
+              <ClearableInput
+                value={filters.background}
+                onChange={(newValue) => {
+                  setFilter("background", newValue);
+                  setIsBackgroundDropdownOpen(true);
+                  setBackgroundFocusedIndex(-1);
+                }}
+                onClear={() => {
+                  setFilter("background", "");
+                  handleInputChange("background", "");
+                  setIsBackgroundDropdownOpen(false);
+                }}
+                placeholder="Background *"
+                onFocus={() => setIsBackgroundDropdownOpen(true)}
+                onKeyDown={handleBackgroundKeyDown}
+                onBlur={() => {
+                  if (!backgrounds.includes(filters.background)) {
+                    setFilter("background", "");
+                    handleInputChange("background", "");
                   }
                 }}
-              >
-                Add
-              </button>
+              />
+              {isBackgroundDropdownOpen && filteredBackgrounds.length > 0 && (
+                <ul
+                  ref={backgroundDropdownRef}
+                  className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+                >
+                  {filteredBackgrounds.map((background, index) => (
+                    <li
+                      key={background}
+                      className={`px-4 py-2 cursor-pointer ${
+                        index === backgroundFocusedIndex
+                          ? "bg-base-300"
+                          : "hover:bg-base-300"
+                      }`}
+                      onClick={() => {
+                        handleInputChange("background", background);
+                        setFilter("background", background);
+                        setIsBackgroundDropdownOpen(false);
+                        setBackgroundFocusedIndex(-1);
+                      }}
+                    >
+                      {background}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          </div>
+            <div className="col-span-full">
+              <textarea
+                placeholder="Backstory"
+                className="textarea textarea-bordered w-full h-32 bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-none"
+                value={character.backStory}
+                onChange={(e) =>
+                  handleInputChange("backStory", e.target.value)
+                }
+              />
+            </div>
 
-          <h2 className="text-xl text-white font-bold col-span-full mt-6 mb-2">
-            Equipment
-          </h2>
+            <SectionHeader title="Classes" />
+            <div className="relative class-dropdown">
+              <div className="flex flex-wrap gap-2 mb-2">
+                {character.classes.map((className) => (
+                  <span
+                    key={className}
+                    className="badge bg-primary/10 border border-primary/20 text-base-content gap-2"
+                  >
+                    {className}
+                    <button
+                      onClick={() => removeClass(className)}
+                      className="btn btn-xs btn-ghost text-primary/40 hover:text-primary"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <ClearableInput
+                value={filters.class}
+                onChange={(newValue) => {
+                  setFilter("class", newValue);
+                  setIsClassDropdownOpen(true);
+                  setClassFocusedIndex(-1);
+                }}
+                onClear={() => {
+                  setFilter("class", "");
+                  setIsClassDropdownOpen(false);
+                }}
+                placeholder="Add Class (max 3) *"
+                onFocus={() => setIsClassDropdownOpen(true)}
+                onBlur={(e) => {
+                  const relatedTarget = e.relatedTarget as HTMLElement;
+                  if (!relatedTarget?.closest(".class-dropdown")) {
+                    setTimeout(() => {
+                      setIsClassDropdownOpen(false);
+                    }, 200);
+                  }
+                }}
+                onKeyDown={handleClassKeyDown}
+                disabled={character.classes.length >= 3}
+              />
+              {isClassDropdownOpen && filteredClasses.length > 0 && (
+                <ul
+                  ref={classDropdownRef}
+                  className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+                >
+                  {filteredClasses.map((className, index) => (
+                    <li
+                      key={className}
+                      className={`px-4 py-2 cursor-pointer ${
+                        index === classFocusedIndex
+                          ? "bg-base-300"
+                          : "hover:bg-base-300"
+                      }`}
+                      onClick={() => {
+                        if (character.classes.length < 3) {
+                          const updatedClasses = [
+                            ...character.classes,
+                            className,
+                          ];
+                          handleInputChange("classes", updatedClasses);
+                          setFilter("class", "");
+                          setIsClassDropdownOpen(false);
+                          setClassFocusedIndex(-1);
+                        }
+                      }}
+                    >
+                      {className}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-          <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-4">
-            <EquipmentCategory
-              title="Weapons"
-              items={character.equipment?.weapons || []}
-              category="weapons"
-              onRemove={removeEquipment}
-              onAdd={addEquipment}
-            />
-            <EquipmentCategory
-              title="Armor"
-              items={character.equipment?.armor || []}
-              category="armor"
-              onRemove={removeEquipment}
-              onAdd={addEquipment}
-            />
-            <EquipmentCategory
-              title="Tools"
-              items={character.equipment?.tools || []}
-              category="tools"
-              onRemove={removeEquipment}
-              onAdd={addEquipment}
-            />
-            <EquipmentCategory
-              title="Magic Items"
-              items={character.equipment?.magicItems || []}
-              category="magicItems"
-              onRemove={removeEquipment}
-              onAdd={addEquipment}
-            />
-            <div className="md:col-span-2">
-              <EquipmentCategory
-                title="Other Items"
-                items={character.equipment?.items || []}
-                category="items"
+            <div className="relative subclass-dropdown mt-2">
+              <ClearableInput
+                value={filters.subclass}
+                onChange={(newValue) => {
+                  setFilter("subclass", newValue);
+                  if (!newValue) {
+                    handleInputChange("subClass", "");
+                  } else if (filteredSubclasses.includes(newValue)) {
+                    handleInputChange("subClass", newValue);
+                  }
+                  setIsSubclassDropdownOpen(true);
+                  setSubclassFocusedIndex(-1);
+                }}
+                onClear={() => {
+                  setFilter("subclass", "");
+                  handleInputChange("subClass", "");
+                  setIsSubclassDropdownOpen(false);
+                }}
+                placeholder={
+                  (character.level ?? 1) < 3
+                    ? "Reach level 3 to select a subclass"
+                    : subclassesLoading
+                      ? "Loading subclasses..."
+                      : (character.level ?? 1) >= 3
+                        ? "Add Subclass *"
+                        : "Add Subclass"
+                }
+                onFocus={() => setIsSubclassDropdownOpen(true)}
+                onBlur={(e) => {
+                  const relatedTarget = e.relatedTarget as HTMLElement;
+                  if (!relatedTarget?.closest(".subclass-dropdown")) {
+                    setTimeout(() => {
+                      setIsSubclassDropdownOpen(false);
+                    }, 200);
+                  }
+                  if (!filteredSubclasses.includes(filters.subclass)) {
+                    setFilter("subclass", "");
+                    handleInputChange("subClass", "");
+                  }
+                }}
+                onKeyDown={handleSubclassKeyDown}
+                disabled={
+                  (character.level ?? 1) < 3 ||
+                  character.classes.length === 0 ||
+                  subclassesLoading
+                }
+              />
+              {isSubclassDropdownOpen && filteredSubclasses.length > 0 && (
+                <ul
+                  ref={subclassDropdownRef}
+                  className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-base-200 rounded-lg shadow-lg"
+                >
+                  {filteredSubclasses.map((subclass, index) => (
+                    <li
+                      key={subclass}
+                      className={`px-4 py-2 cursor-pointer ${
+                        index === subclassFocusedIndex
+                          ? "bg-base-300"
+                          : "hover:bg-base-300"
+                      }`}
+                      onClick={() => {
+                        handleInputChange("subClass", subclass);
+                        setFilter("subclass", subclass);
+                        setIsSubclassDropdownOpen(false);
+                        setSubclassFocusedIndex(-1);
+                      }}
+                    >
+                      {subclass}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <SectionHeader title="Special Abilities" />
+            <div className="col-span-full">
+              <div className="flex flex-wrap gap-2 mb-2">
+                {(character.specialAbilities || []).map((ability) => (
+                  <span
+                    key={ability}
+                    className="badge bg-primary/10 border border-primary/20 text-base-content gap-2"
+                  >
+                    {ability}
+                    <button
+                      onClick={() => {
+                        handleInputChange(
+                          "specialAbilities",
+                          character.specialAbilities.filter(
+                            (a) => a !== ability
+                          )
+                        );
+                      }}
+                      className="btn btn-xs btn-ghost text-primary/40 hover:text-primary"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Add special ability"
+                  className={inputClassName}
+                  value={specialAbilityInput}
+                  onChange={(e) => setSpecialAbilityInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && specialAbilityInput?.trim()) {
+                      handleInputChange("specialAbilities", [
+                        ...(character.specialAbilities || []),
+                        specialAbilityInput.trim(),
+                      ]);
+                      setSpecialAbilityInput("");
+                    }
+                  }}
+                />
+                <button
+                  className="btn btn-ghost text-primary/60 hover:text-primary btn-sm"
+                  onClick={() => {
+                    if (specialAbilityInput?.trim()) {
+                      handleInputChange("specialAbilities", [
+                        ...(character.specialAbilities || []),
+                        specialAbilityInput.trim(),
+                      ]);
+                      setSpecialAbilityInput("");
+                    }
+                  }}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            <SectionHeader title="Equipment" />
+            <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-4">
+              <EquipmentCategorySection
+                title="Weapons"
+                items={character.equipment?.weapons || []}
+                category="weapons"
                 onRemove={removeEquipment}
                 onAdd={addEquipment}
               />
+              <EquipmentCategorySection
+                title="Armor"
+                items={character.equipment?.armor || []}
+                category="armor"
+                onRemove={removeEquipment}
+                onAdd={addEquipment}
+              />
+              <EquipmentCategorySection
+                title="Tools"
+                items={character.equipment?.tools || []}
+                category="tools"
+                onRemove={removeEquipment}
+                onAdd={addEquipment}
+              />
+              <EquipmentCategorySection
+                title="Magic Items"
+                items={character.equipment?.magicItems || []}
+                category="magicItems"
+                onRemove={removeEquipment}
+                onAdd={addEquipment}
+              />
+              <div className="md:col-span-2">
+                <EquipmentCategorySection
+                  title="Other Items"
+                  items={character.equipment?.items || []}
+                  category="items"
+                  onRemove={removeEquipment}
+                  onAdd={addEquipment}
+                />
+              </div>
             </div>
-          </div>
 
-          <h2 className="text-xl text-white font-bold col-span-full mt-6 mb-2">
-            Attributes
-          </h2>
-          <div className="col-span-full grid grid-cols-2 md:grid-cols-3 gap-4">
-            {[
-              "strength",
-              "dexterity",
-              "constitution",
-              "intelligence",
-              "wisdom",
-              "charisma",
-              "honor",
-              "sanity",
-            ].map((stat) => (
-              <div key={stat} className="form-control">
-                <label className="label">
-                  <span className="label-text text-white capitalize">
-                    {stat}
-                  </span>
-                </label>
-                <div className="flex flex-col gap-2">
-                  <NumberInput
-                    value={String(
-                      character.attributes?.[
-                        stat as keyof typeof character.attributes
-                      ]?.value ?? 1
-                    )}
-                    min={1}
-                    max={30}
-                    onChange={(value) => {
-                      // Calculate bonus using D&D formula: (score - 10) / 2, rounded down
-                      const bonus = Math.floor((value - 10) / 2);
-                      handleInputChange("attributes", {
-                        ...character.attributes,
-                        [stat]: {
-                          value: value,
-                          bonus: bonus,
-                        },
-                      });
-                    }}
-                  />
-                  <div className="flex items-center mt-1">
-                    <span className="text-white text-sm mr-2">Bonus:</span>
-                    <span className="text-white text-sm font-bold">
-                      {character.attributes?.[
-                        stat as keyof typeof character.attributes
-                      ]?.bonus >= 0
-                        ? "+"
-                        : ""}
-                      {character.attributes?.[
-                        stat as keyof typeof character.attributes
-                      ]?.bonus ?? Math.floor((1 - 10) / 2)}
+            <SectionHeader title="Attributes" />
+            <div className="col-span-full grid grid-cols-2 md:grid-cols-3 gap-4">
+              {[
+                "strength",
+                "dexterity",
+                "constitution",
+                "intelligence",
+                "wisdom",
+                "charisma",
+                "honor",
+                "sanity",
+              ].map((stat) => (
+                <div
+                  key={stat}
+                  className="form-control bg-base-200/30 rounded-lg p-3 border border-primary/5"
+                >
+                  <label className="label">
+                    <span className="label-text text-base-content/70 capitalize">
+                      {stat}
                     </span>
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    <NumberInput
+                      value={String(
+                        character.attributes?.[
+                          stat as keyof typeof character.attributes
+                        ]?.value ?? 1
+                      )}
+                      min={1}
+                      max={30}
+                      onChange={(value) => {
+                        const bonus = Math.floor((value - 10) / 2);
+                        handleInputChange("attributes", {
+                          ...character.attributes,
+                          [stat]: {
+                            value: value,
+                            bonus: bonus,
+                          },
+                        });
+                      }}
+                    />
+                    <div className="flex items-center mt-1">
+                      <span className="text-base-content/60 text-sm mr-2">
+                        Bonus:
+                      </span>
+                      <span className="text-primary text-sm font-bold">
+                        {character.attributes?.[
+                          stat as keyof typeof character.attributes
+                        ]?.bonus >= 0
+                          ? "+"
+                          : ""}
+                        {character.attributes?.[
+                          stat as keyof typeof character.attributes
+                        ]?.bonus ?? Math.floor((1 - 10) / 2)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          <h2 className="text-xl text-white font-bold col-span-full mt-6 mb-2">
-            Currency
-          </h2>
-          <div className="col-span-full grid grid-cols-3 md:grid-cols-5 gap-4">
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text text-white">Platinum</span>
-              </label>
-              <NumberInput
-                value={String(character.money.platinum)}
-                min={0}
-                onChange={(value) =>
-                  handleInputChange("money", {
-                    ...character.money,
-                    platinum: value,
-                  })
-                }
-              />
+            <SectionHeader title="Currency" />
+            <div className="col-span-full grid grid-cols-3 md:grid-cols-5 gap-4">
+              {(
+                [
+                  "platinum",
+                  "gold",
+                  "electrum",
+                  "silver",
+                  "copper",
+                ] as const
+              ).map((currency) => (
+                <div
+                  key={currency}
+                  className="form-control bg-base-200/30 rounded-lg p-3 border border-primary/5"
+                >
+                  <label className="label">
+                    <span className="label-text text-base-content/70 capitalize">
+                      {currency}
+                    </span>
+                  </label>
+                  <NumberInput
+                    value={String(character.money[currency])}
+                    min={0}
+                    onChange={(value) =>
+                      handleInputChange("money", {
+                        ...character.money,
+                        [currency]: value,
+                      })
+                    }
+                  />
+                </div>
+              ))}
             </div>
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text text-white">Gold</span>
-              </label>
-              <NumberInput
-                value={String(character.money.gold)}
-                min={0}
-                onChange={(value) =>
-                  handleInputChange("money", {
-                    ...character.money,
-                    gold: value,
-                  })
-                }
-              />
-            </div>
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text text-white">Electrum</span>
-              </label>
-              <NumberInput
-                value={String(character.money.electrum)}
-                min={0}
-                onChange={(value) =>
-                  handleInputChange("money", {
-                    ...character.money,
-                    electrum: value,
-                  })
-                }
-              />
-            </div>
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text text-white">Silver</span>
-              </label>
-              <NumberInput
-                value={String(character.money.silver)}
-                min={0}
-                onChange={(value) =>
-                  handleInputChange("money", {
-                    ...character.money,
-                    silver: value,
-                  })
-                }
-              />
-            </div>
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text text-white">Copper</span>
-              </label>
-              <NumberInput
-                value={String(character.money.copper)}
-                min={0}
-                onChange={(value) =>
-                  handleInputChange("money", {
-                    ...character.money,
-                    copper: value,
-                  })
-                }
-              />
-            </div>
-          </div>
 
-          <div className="col-span-full mt-2 text-sm text-gray-400">
-            * Required fields
-          </div>
-          <div className="col-span-full">
-            <button
-              className="btn mt-8"
-              disabled={!isCharacterDetailsComplete() || isSaving}
-              onClick={handleSaveCharacter}
-            >
-              {isSaving ? (
-                <span className="flex items-center gap-2 text-white font-bold">
-                  <span className="animate-spin text-2xl">🎲</span>
-                  {loadingMessage}
-                </span>
-              ) : (
-                "Save Character"
-              )}
-            </button>
+            <div className="col-span-full mt-2 text-sm text-base-content/50">
+              * Required fields
+            </div>
+            <div className="col-span-full">
+              <button
+                className="btn btn-outline btn-lg w-full border-primary/30 text-base-content/80 hover:bg-primary/10 hover:border-primary/50 uppercase tracking-widest font-bold mt-4"
+                disabled={!isCharacterDetailsComplete() || isSaving}
+                onClick={handleSaveCharacter}
+              >
+                {isSaving ? (
+                  <span className="flex items-center gap-2 text-base-content font-bold">
+                    <span className="animate-spin text-2xl">🎲</span>
+                    {loadingMessage}
+                  </span>
+                ) : (
+                  "Save Character"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
