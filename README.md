@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fables & Sagas
+
+A solo D&D 5th Edition adventure companion powered by AI. Create a character, generate a campaign, and play through an immersive story with an AI Dungeon Master that tracks your stats, inventory, and progression in real time.
+
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router), React 19, TypeScript
+- **Styling:** Tailwind CSS, DaisyUI (custom dark medieval theme)
+- **State:** Zustand with localStorage persistence
+- **AI:** Vercel AI SDK + OpenAI (server-side only)
+- **UI:** Lucide icons, MDI icons (dice), React Virtuoso (virtual scrolling), Sonner (toasts), React Markdown
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 22.x (see `.nvmrc`)
+- An OpenAI API key
+- The [D&D Homebrew API](https://github.com/rmunoz33/dnd-homebrew-api) running (for character options, equipment data, etc.)
+
+### Installation
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create a `.env` file in the project root:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+OPENAI_API_KEY="sk-proj-..."                         # OpenAI API key (server-side only)
+NEXT_PUBLIC_CONTENT_DB_URL="https://...railway.app"  # D&D Homebrew API URL
+```
 
-## Learn More
+### Running
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run dev       # Development server at http://localhost:3000
+npm run build     # Production build
+npm run start     # Production server
+npm run lint      # ESLint
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/
+│   ├── actions/          # Server actions (AI text generation)
+│   ├── api/
+│   │   ├── chat/         # Streaming chat endpoint
+│   │   └── tools/        # D&D data tools (20+ tool definitions)
+│   ├── components/
+│   │   ├── Login/        # Landing page & login
+│   │   ├── Character/    # Character creation form
+│   │   ├── Game/         # Chat, dice roller, stats drawer
+│   │   └── Settings/     # Settings drawer
+│   ├── layout.tsx        # Root layout
+│   └── page.tsx          # Entry point
+├── hooks/                # Custom React hooks
+├── services/             # API service layer (D&D data fetching)
+└── stores/               # Zustand store (character, messages, UI state)
+```
 
-## Deploy on Vercel
+## Features
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Character Creation
+- Full D&D 5e character builder: species, class (multiclass up to 3), subclass, background, alignment, abilities, equipment, currency
+- "Roll Me a Character" button for AI-powered random generation with canonical D&D data
+- Auto-calculated ability bonuses, HP, AC, initiative, and starting equipment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### AI Dungeon Master
+- Streaming chat with an AI DM that knows your character's stats, equipment, and campaign
+- Automatic state extraction: damage, healing, loot, and currency changes sync to your character sheet in real time
+- Campaign outline generation tailored to your character's background and abilities
+- Response length constraints for good pacing (80-120 words)
+
+### Dice Roller
+- Full set: d4, d6, d8, d10, d12, d20, d100
+- Roll multiple dice with totals
+- Send results directly to chat
+
+### D&D Data Integration
+- 20+ tool definitions for querying spells, monsters, equipment, classes, races, feats, backgrounds, and more from the Homebrew API
+- Tools are used during character creation and campaign generation for canonical accuracy
+
+## Architecture
+
+The app is a single-page application using client-side routing via Zustand state (`isLoggedIn` -> `isCharacterCreated` -> game). All AI calls are server-side:
+
+- **`/api/chat`** streams DM responses via the Vercel AI SDK's `streamText`
+- **Server actions** in `src/app/actions/openai.ts` handle non-streaming AI calls (state extraction, character generation, campaign outlines)
+- **Zustand** is the single source of truth for messages, character data, and UI state, persisted to localStorage
+
+## Hosting
+
+Deployed on [Netlify](https://app.netlify.com). The companion API is hosted on [Railway](https://railway.app).
