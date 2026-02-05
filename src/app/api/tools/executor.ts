@@ -1,9 +1,9 @@
 import { toolRegistry } from "./index";
 import { OpenAI } from "openai";
 
+// Server-side OpenAI client (used only in API routes)
 const client = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY!,
-  dangerouslyAllowBrowser: true,
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
 interface ToolExecutionResult {

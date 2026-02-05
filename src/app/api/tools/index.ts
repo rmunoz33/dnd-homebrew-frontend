@@ -21,4 +21,6 @@ import "./damageTypeTools";
 // Export the registry for use in other parts of the application
 export { toolRegistry } from "./registry";
 export type { Tool, ToolParameter } from "./registry";
-export { executeToolsFromResponse, formatToolResult } from "./executor";
+// Note: executeToolsFromResponse and formatToolResult are NOT re-exported here
+// to avoid loading OpenAI client on the client side. Import directly from
+// "./executor" in server-only code (API routes) that needs these functions.
