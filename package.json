@@ -9,12 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.25",
+    "@ai-sdk/react": "^3.0.72",
     "@mdi/js": "^7.4.47",
     "@mdi/react": "^1.6.1",
+    "ai": "^6.0.70",
     "daisyui": "^4.12.23",
     "lucide-react": "^0.473.0",
     "next": "^16.1.1",
-    "openai": "^6.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.0.0",

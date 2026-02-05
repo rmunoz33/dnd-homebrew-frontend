@@ -1,10 +1,6 @@
 import { toolRegistry } from "./index";
-import { OpenAI } from "openai";
-
-const client = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY!,
-  dangerouslyAllowBrowser: true,
-});
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
 
 interface ToolExecutionResult {
   toolUsed: boolean;
@@ -237,18 +233,13 @@ export async function executeToolsFromResponse(
 AI response: "${aiResponse}"`;
 
   try {
-    const response = await client.chat.completions.create({
-      model: "gpt-4.1-nano",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
+    const { text: content } = await generateText({
+      model: openai("gpt-4.1-nano"),
+      system: systemPrompt,
+      prompt: userPrompt,
       temperature: 0.1,
-      max_tokens: 300,
-      response_format: { type: "json_object" },
     });
 
-    const content = response.choices[0]?.message?.content;
     if (!content) {
       return { toolUsed: false };
     }

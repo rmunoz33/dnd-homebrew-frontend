@@ -65,6 +65,8 @@ interface DnDStore {
   clearMessages: () => void;
   inputMessage: string;
   setInputMessage: (message: string) => void;
+  isChatLoading: boolean;
+  setIsChatLoading: (isLoading: boolean) => void;
   campaignOutline: string;
   setCampaignOutline: (outline: string) => void;
   filters: {
@@ -215,6 +217,8 @@ export const useDnDStore = create<DnDStore>()(
       clearMessages: () => set({ messages: [] }),
       inputMessage: "",
       setInputMessage: (message: string) => set({ inputMessage: message }),
+      isChatLoading: false,
+      setIsChatLoading: (isLoading: boolean) => set({ isChatLoading: isLoading }),
       campaignOutline: "",
       setCampaignOutline: (outline: string) =>
         set({ campaignOutline: outline }),
@@ -228,8 +232,6 @@ export const useDnDStore = create<DnDStore>()(
         set((state) => {
           const { character } = state;
           const newCharacter = { ...character };
-
-          console.log("Applying character changes:", changeResult);
 
           if (changeResult.type === "stat_changes" && changeResult.changes) {
             changeResult.changes.forEach((change: Change) => {
@@ -252,7 +254,7 @@ export const useDnDStore = create<DnDStore>()(
                   if (finalKey === "hitPoints") {
                     current.hitPoints = Math.min(
                       current.hitPoints,
-                      (newCharacter as Character).maxHitPoints
+                      (newCharacter as Character).maxHitPoints,
                     );
                   }
                 }
@@ -263,7 +265,7 @@ export const useDnDStore = create<DnDStore>()(
                     category
                   ].filter(
                     (item: string) =>
-                      item.toLowerCase() !== change.item.toLowerCase()
+                      item.toLowerCase() !== change.item.toLowerCase(),
                   );
                 }
               } else if (change.type === "item_add") {
@@ -332,6 +334,6 @@ export const useDnDStore = create<DnDStore>()(
           })),
         };
       },
-    }
-  )
+    },
+  ),
 );
