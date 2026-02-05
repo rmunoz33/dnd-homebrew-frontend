@@ -295,9 +295,10 @@ export const generateCharacterDetails = async (character: Character) => {
       enhancedCharacter.attributes.dexterity &&
       enhancedCharacter.canonicalData
     ) {
+      // Bonuses are guaranteed set by the calculation loop above
       const constitutionModifier =
-        enhancedCharacter.attributes.constitution.bonus;
-      const dexterityModifier = enhancedCharacter.attributes.dexterity.bonus;
+        enhancedCharacter.attributes.constitution.bonus as number;
+      const dexterityModifier = enhancedCharacter.attributes.dexterity.bonus as number;
 
       // Initiative
       enhancedCharacter.initiative = dexterityModifier;

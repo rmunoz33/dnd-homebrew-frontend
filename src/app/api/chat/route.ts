@@ -1,41 +1,18 @@
-import { streamText, type UIMessage } from "ai";
+import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { Character } from "@/stores/useStore";
 
 export const maxDuration = 30;
 
-// Support both old format (content string) and new UIMessage format (parts array)
-interface OldMessage {
+interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
 
 interface ChatRequestBody {
-  messages: Array<OldMessage | UIMessage>;
+  messages: ChatMessage[];
   character: Character;
   campaignOutline: string;
-}
-
-// Convert UIMessage to the format streamText expects
-function normalizeMessages(messages: Array<OldMessage | UIMessage>): Array<{ role: "user" | "assistant"; content: string }> {
-  return messages.map((msg) => {
-    // Check if it's the new UIMessage format (has parts array)
-    if ("parts" in msg && Array.isArray(msg.parts)) {
-      const textContent = msg.parts
-        .filter((p): p is { type: "text"; text: string } => p.type === "text")
-        .map((p) => p.text)
-        .join("");
-      return {
-        role: msg.role as "user" | "assistant",
-        content: textContent,
-      };
-    }
-    // Old format with content string
-    return {
-      role: msg.role as "user" | "assistant",
-      content: (msg as OldMessage).content,
-    };
-  });
 }
 
 function buildSystemPrompt(character: Character, campaignOutline: string): string {
@@ -179,12 +156,11 @@ export async function POST(req: Request) {
   const { messages, character, campaignOutline }: ChatRequestBody = await req.json();
 
   const systemPrompt = buildSystemPrompt(character, campaignOutline);
-  const normalizedMessages = normalizeMessages(messages);
 
   const result = streamText({
     model: openai("gpt-4.1-mini"),
     system: systemPrompt,
-    messages: normalizedMessages,
+    messages,
     temperature: 0.7,
   });
 

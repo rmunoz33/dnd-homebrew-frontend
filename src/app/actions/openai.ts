@@ -109,7 +109,13 @@ Report all changes from the latest exchange, including reasonable inferences. Bu
       temperature: 0.1,
     });
 
-    const parsed = JSON.parse(text);
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (parseError) {
+      console.error("Failed to parse state changes JSON. Raw text:", text, parseError);
+      return [];
+    }
     return parsed.tool_calls || [];
   } catch (error) {
     console.error("Error extracting state changes:", error);
@@ -138,12 +144,12 @@ export interface CreativeFields {
   personality?: string;
   specialAbilities?: string[];
   attributes?: {
-    strength?: { value: number };
-    dexterity?: { value: number };
-    constitution?: { value: number };
-    intelligence?: { value: number };
-    wisdom?: { value: number };
-    charisma?: { value: number };
+    strength?: { value: number; bonus?: number };
+    dexterity?: { value: number; bonus?: number };
+    constitution?: { value: number; bonus?: number };
+    intelligence?: { value: number; bonus?: number };
+    wisdom?: { value: number; bonus?: number };
+    charisma?: { value: number; bonus?: number };
   };
   money?: { gold: number };
 }
@@ -204,7 +210,14 @@ Return ONLY a JSON object with these creative fields. Example:
       temperature: 0.7,
     });
 
-    return JSON.parse(text);
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (parseError) {
+      console.error("Failed to parse creative fields JSON. Raw text:", text, parseError);
+      return {};
+    }
+    return parsed;
   } catch (error) {
     console.error("Error generating creative fields:", error);
     return {};

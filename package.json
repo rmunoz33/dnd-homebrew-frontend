@@ -17,7 +17,6 @@
     "daisyui": "^4.12.23",
     "lucide-react": "^0.473.0",
     "next": "^16.1.1",
-    "openai": "^6.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.0.0",
