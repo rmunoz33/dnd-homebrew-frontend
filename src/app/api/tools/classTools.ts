@@ -1,21 +1,6 @@
 import { Tool, toolRegistry } from "./registry";
-import { DND_API_BASE_URL } from "./config";
-
-const classCache = new Map<string, { data: unknown; timestamp: number }>();
-const CACHE_DURATION = 3600000; // 1 hour
-let classList: { index: string; name: string; url: string }[] = [];
-
-// Fetch the list of all classes on startup
-const fetchClassList = async () => {
-  if (classList.length > 0) return;
-  try {
-    const response = await fetch(`${DND_API_BASE_URL}/api/2014/classes`);
-    const data = await response.json();
-    classList = data.results;
-  } catch (error) {
-    console.error("Error fetching class list:", error);
-  }
-};
+import { createDbLookupTool } from "@/lib/db/toolFactory";
+import ClassModel from "@/lib/db/models/class";
 
 const getClassDetails: Tool = {
   name: "getClassDetails",
@@ -30,45 +15,7 @@ const getClassDetails: Tool = {
       required: true,
     },
   ],
-  execute: async (params: Record<string, unknown>) => {
-    await fetchClassList();
-    const className = params.className as string;
-    const cacheKey = `class_${className.toLowerCase()}`;
-    const cached = classCache.get(cacheKey);
-
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      return cached.data;
-    }
-
-    try {
-      const classInfo = classList.find(
-        (c) => c.name.toLowerCase() === className.toLowerCase()
-      );
-
-      if (!classInfo) {
-        return {
-          error: true,
-          message: `Class "${className}" not found. Please check the spelling or try a different class name.`,
-        };
-      }
-
-      const response = await fetch(`${DND_API_BASE_URL}${classInfo.url}`);
-
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      classCache.set(cacheKey, { data, timestamp: Date.now() });
-      return data;
-    } catch (error) {
-      console.error("Error fetching class details:", error);
-      return {
-        error: true,
-        message: `Unable to fetch information for "${className}". Please try again or ask me to describe it based on my knowledge.`,
-      };
-    }
-  },
+  execute: createDbLookupTool(ClassModel, "Class", "className"),
 };
 
 toolRegistry.register(getClassDetails);
