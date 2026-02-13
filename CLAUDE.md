@@ -27,7 +27,7 @@ No test suite exists in this repo. The sibling `dnd-homebrew-database/` repo has
 
 ## Tech Stack
 
-Next.js 16, React 19, TypeScript, Tailwind CSS v4, DaisyUI v5, Zustand v5, Vercel AI SDK + OpenAI, Mongoose/TypeGoose. Node.js 20+ (see `.nvmrc`).
+Next.js 16, React 19, TypeScript, Tailwind CSS v4, DaisyUI v5, Zustand v5, Vercel AI SDK + OpenAI, Mongoose/TypeGoose. Node.js 20.x (see `.nvmrc`).
 
 ## Architecture
 
