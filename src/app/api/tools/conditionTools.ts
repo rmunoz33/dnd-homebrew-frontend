@@ -1,21 +1,6 @@
 import { Tool, toolRegistry } from "./registry";
-import { DND_API_BASE_URL } from "./config";
-
-const conditionCache = new Map<string, { data: unknown; timestamp: number }>();
-const CACHE_DURATION = 3600000; // 1 hour
-let conditionList: { index: string; name: string; url: string }[] = [];
-
-// Fetch the list of all conditions on startup
-const fetchConditionList = async () => {
-  if (conditionList.length > 0) return;
-  try {
-    const response = await fetch(`${DND_API_BASE_URL}/api/2014/conditions`);
-    const data = await response.json();
-    conditionList = data.results;
-  } catch (error) {
-    console.error("Error fetching condition list:", error);
-  }
-};
+import { createDbLookupTool } from "@/lib/db/toolFactory";
+import ConditionModel from "@/lib/db/models/condition";
 
 const getConditionDetails: Tool = {
   name: "getConditionDetails",
@@ -30,45 +15,7 @@ const getConditionDetails: Tool = {
       required: true,
     },
   ],
-  execute: async (params: Record<string, unknown>) => {
-    await fetchConditionList();
-    const conditionName = params.conditionName as string;
-    const cacheKey = `condition_${conditionName.toLowerCase()}`;
-    const cached = conditionCache.get(cacheKey);
-
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      return cached.data;
-    }
-
-    try {
-      const conditionInfo = conditionList.find(
-        (c) => c.name.toLowerCase() === conditionName.toLowerCase()
-      );
-
-      if (!conditionInfo) {
-        return {
-          error: true,
-          message: `Condition "${conditionName}" not found. Please check the spelling or try a different condition name.`,
-        };
-      }
-
-      const response = await fetch(`${DND_API_BASE_URL}${conditionInfo.url}`);
-
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      conditionCache.set(cacheKey, { data, timestamp: Date.now() });
-      return data;
-    } catch (error) {
-      console.error("Error fetching condition details:", error);
-      return {
-        error: true,
-        message: `Unable to fetch information for "${conditionName}". Please try again or ask me to describe it based on my knowledge.`,
-      };
-    }
-  },
+  execute: createDbLookupTool(ConditionModel, "Condition", "conditionName"),
 };
 
 toolRegistry.register(getConditionDetails);

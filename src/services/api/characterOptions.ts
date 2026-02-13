@@ -2,7 +2,7 @@
  * API service for fetching character creation options from the D&D content database
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_CONTENT_DB_URL || 'https://fables-and-sagas-production.up.railway.app';
+const API_BASE = '';
 
 export interface ApiResponse<T> {
   count: number;

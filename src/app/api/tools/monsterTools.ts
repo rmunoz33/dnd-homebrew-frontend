@@ -1,22 +1,6 @@
 import { Tool, toolRegistry } from "./registry";
-import { DND_API_BASE_URL } from "./config";
-
-// Simple in-memory cache for frequently accessed data
-const monsterCache = new Map<string, { data: unknown; timestamp: number }>();
-const CACHE_DURATION = 3600000; // 1 hour in milliseconds
-let monsterList: { index: string; name: string; url: string }[] = [];
-
-// Fetch the list of all monsters on startup
-const fetchMonsterList = async () => {
-  if (monsterList.length > 0) return;
-  try {
-    const response = await fetch(`${DND_API_BASE_URL}/api/2014/monsters`);
-    const data = await response.json();
-    monsterList = data.results;
-  } catch (error) {
-    console.error("Error fetching monster list:", error);
-  }
-};
+import { createDbLookupTool } from "@/lib/db/toolFactory";
+import MonsterModel from "@/lib/db/models/monster";
 
 const getMonsterStats: Tool = {
   name: "getMonsterStats",
@@ -31,53 +15,9 @@ const getMonsterStats: Tool = {
       required: true,
     },
   ],
-  execute: async (params: Record<string, unknown>) => {
-    await fetchMonsterList();
-    const monsterName = params.monsterName as string;
-
-    // Check cache first
-    const cacheKey = `monster_${monsterName.toLowerCase()}`;
-    const cached = monsterCache.get(cacheKey);
-
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      return cached.data;
-    }
-
-    try {
-      const monsterInfo = monsterList.find(
-        (m) => m.name.toLowerCase() === monsterName.toLowerCase()
-      );
-
-      if (!monsterInfo) {
-        return {
-          error: true,
-          message: `Monster "${monsterName}" not found. Please check the spelling or try a different monster name.`,
-        };
-      }
-
-      const response = await fetch(`${DND_API_BASE_URL}${monsterInfo.url}`);
-
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // Cache the result
-      monsterCache.set(cacheKey, { data, timestamp: Date.now() });
-
-      return data;
-    } catch (error) {
-      console.error("Error fetching monster stats:", error);
-      return {
-        error: true,
-        message: `Unable to fetch information for "${monsterName}". Please try again or ask me to describe it based on my knowledge.`,
-      };
-    }
-  },
+  execute: createDbLookupTool(MonsterModel, "Monster", "monsterName"),
 };
 
-// Register the tool
 toolRegistry.register(getMonsterStats);
 
 export { getMonsterStats };

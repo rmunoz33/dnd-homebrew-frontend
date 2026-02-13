@@ -5,7 +5,7 @@ import { medievalFont } from "@/app/components/medievalFont";
 import {
   generateCharacterDetails,
   generateCampaignOutline,
-} from "@/app/api/openai";
+} from "@/app/actions/openai";
 import { useState, useEffect } from "react";
 import {
   useCharacterOptions,

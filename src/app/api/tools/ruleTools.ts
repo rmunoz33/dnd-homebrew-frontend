@@ -1,21 +1,6 @@
 import { Tool, toolRegistry } from "./registry";
-import { DND_API_BASE_URL } from "./config";
-
-const ruleCache = new Map<string, { data: unknown; timestamp: number }>();
-const CACHE_DURATION = 3600000; // 1 hour
-let ruleList: { index: string; name: string; url: string }[] = [];
-
-// Fetch the list of all rules on startup
-const fetchRuleList = async () => {
-  if (ruleList.length > 0) return;
-  try {
-    const response = await fetch(`${DND_API_BASE_URL}/api/2014/rules`);
-    const data = await response.json();
-    ruleList = data.results;
-  } catch (error) {
-    console.error("Error fetching rule list:", error);
-  }
-};
+import { createDbLookupTool } from "@/lib/db/toolFactory";
+import RuleModel from "@/lib/db/models/rule";
 
 const getRuleDetails: Tool = {
   name: "getRuleDetails",
@@ -30,45 +15,7 @@ const getRuleDetails: Tool = {
       required: true,
     },
   ],
-  execute: async (params: Record<string, unknown>) => {
-    await fetchRuleList();
-    const ruleName = params.ruleName as string;
-    const cacheKey = `rule_${ruleName.toLowerCase()}`;
-    const cached = ruleCache.get(cacheKey);
-
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      return cached.data;
-    }
-
-    try {
-      const ruleInfo = ruleList.find(
-        (r) => r.name.toLowerCase() === ruleName.toLowerCase()
-      );
-
-      if (!ruleInfo) {
-        return {
-          error: true,
-          message: `Rule "${ruleName}" not found. Please check the spelling or try a different rule name.`,
-        };
-      }
-
-      const response = await fetch(`${DND_API_BASE_URL}${ruleInfo.url}`);
-
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      ruleCache.set(cacheKey, { data, timestamp: Date.now() });
-      return data;
-    } catch (error) {
-      console.error("Error fetching rule details:", error);
-      return {
-        error: true,
-        message: `Unable to fetch information for "${ruleName}". Please try again or ask me to describe it based on my knowledge.`,
-      };
-    }
-  },
+  execute: createDbLookupTool(RuleModel, "Rule", "ruleName"),
 };
 
 toolRegistry.register(getRuleDetails);
