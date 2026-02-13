@@ -31,7 +31,7 @@ const EquipmentInput = ({
       <input
         type="text"
         placeholder={placeholder}
-        className="input input-bordered w-full bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-none"
+        className="input w-full bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-hidden"
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && handleAdd()}

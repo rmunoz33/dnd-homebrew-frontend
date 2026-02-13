@@ -21,7 +21,7 @@ const ClearableInput: React.FC<ClearableInputProps> = ({
   onBlur,
   onKeyDown,
   disabled = false,
-  className = "input input-bordered w-full bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-none",
+  className = "input w-full bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-hidden",
 }) => {
   return (
     <div className="relative">
@@ -39,7 +39,7 @@ const ClearableInput: React.FC<ClearableInputProps> = ({
       {value && (
         <button
           type="button"
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-primary/40 hover:text-primary/70 focus:outline-none"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-primary/40 hover:text-primary/70 focus:outline-hidden"
           onClick={onClear}
           disabled={disabled}
         >

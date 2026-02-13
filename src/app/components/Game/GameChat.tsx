@@ -258,8 +258,8 @@ const GameChat = () => {
           <div
             className={`p-2 sm:p-3 ${
               message.sender === "user"
-                ? "bg-primary/15 border border-primary/20 text-base-content rounded-lg rounded-br-sm"
-                : "bg-neutral border border-primary/10 text-neutral-content rounded-lg rounded-bl-sm chat-ai-glow"
+                ? "bg-primary/15 border border-primary/20 text-base-content rounded-lg rounded-br-xs"
+                : "bg-neutral border border-primary/10 text-neutral-content rounded-lg rounded-bl-xs chat-ai-glow"
             }`}
           >
             {message.sender === "ai" && !message.content ? (
@@ -329,7 +329,7 @@ const GameChat = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Type your message..."
-                className="textarea textarea-bordered flex-1 text-base md:text-base min-h-10 sm:min-h-12 bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-none disabled:text-base-content/30 disabled:bg-base-200/30 resize-none overflow-y-auto transition-none"
+                className="textarea flex-1 text-base md:text-base min-h-10 sm:min-h-12 bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-hidden disabled:text-base-content/30 disabled:bg-base-200/30 resize-none overflow-y-auto transition-none"
                 disabled={isLoading || isProcessingStateChanges}
                 rows={1}
                 onKeyDown={(e) => {

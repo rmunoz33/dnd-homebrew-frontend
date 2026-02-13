@@ -541,7 +541,7 @@ const CharacterCreationPage = () => {
   };
 
   const inputClassName =
-    "input input-bordered w-full bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-none";
+    "input w-full bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-hidden";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-login-vignette px-4 py-8">
@@ -608,7 +608,7 @@ const CharacterCreationPage = () => {
         </div>
 
         {/* Form Card */}
-        <div className="bg-base-200/30 border border-primary/10 rounded-xl p-6 md:p-8 w-full max-w-xl backdrop-blur-sm">
+        <div className="bg-base-200/30 border border-primary/10 rounded-xl p-6 md:p-8 w-full max-w-xl backdrop-blur-xs">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
             <SectionHeader title="Character Details" />
             <input
@@ -852,7 +852,7 @@ const CharacterCreationPage = () => {
             <div className="col-span-full">
               <textarea
                 placeholder="Backstory"
-                className="textarea textarea-bordered w-full h-32 bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-none"
+                className="textarea w-full h-32 bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-hidden"
                 value={character.backStory}
                 onChange={(e) =>
                   handleInputChange("backStory", e.target.value)
@@ -1123,10 +1123,10 @@ const CharacterCreationPage = () => {
               ].map((stat) => (
                 <div
                   key={stat}
-                  className="form-control bg-base-200/30 rounded-lg p-3 border border-primary/5"
+                  className="bg-base-200/30 rounded-lg p-3 border border-primary/5"
                 >
                   <label className="label">
-                    <span className="label-text text-base-content/70 capitalize">
+                    <span className="text-base-content/70 capitalize">
                       {stat}
                     </span>
                   </label>
@@ -1183,10 +1183,10 @@ const CharacterCreationPage = () => {
               ).map((currency) => (
                 <div
                   key={currency}
-                  className="form-control bg-base-200/30 rounded-lg p-3 border border-primary/5"
+                  className="bg-base-200/30 rounded-lg p-3 border border-primary/5"
                 >
                   <label className="label">
-                    <span className="label-text text-base-content/70 capitalize">
+                    <span className="text-base-content/70 capitalize">
                       {currency}
                     </span>
                   </label>

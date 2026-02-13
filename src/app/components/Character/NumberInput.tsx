@@ -17,7 +17,7 @@ const NumberInput: React.FC<NumberInputProps> = ({
   max = Infinity,
   placeholder,
   disabled = false,
-  className = "input input-bordered w-full bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-none",
+  className = "input w-full bg-base-200/50 border-primary/15 text-base-content placeholder:text-base-content/30 focus:border-primary/40 focus:outline-hidden",
 }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue =
@@ -56,7 +56,7 @@ const NumberInput: React.FC<NumberInputProps> = ({
       <div className="absolute right-0 top-0 bottom-0 flex flex-col justify-center pr-2">
         <button
           type="button"
-          className="text-primary/40 hover:text-primary/70 focus:outline-none"
+          className="text-primary/40 hover:text-primary/70 focus:outline-hidden"
           onClick={increment}
           disabled={
             disabled ||
@@ -82,7 +82,7 @@ const NumberInput: React.FC<NumberInputProps> = ({
         </button>
         <button
           type="button"
-          className="text-primary/40 hover:text-primary/70 focus:outline-none"
+          className="text-primary/40 hover:text-primary/70 focus:outline-hidden"
           onClick={decrement}
           disabled={
             disabled ||
