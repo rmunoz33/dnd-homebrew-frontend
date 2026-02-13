@@ -168,7 +168,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
               return (
                 <button
                   key={die.name}
-                  className="flex flex-col items-center focus:outline-none hover:scale-110 transition-transform"
+                  className="flex flex-col items-center focus:outline-hidden hover:scale-110 transition-transform"
                   onClick={() => addDie(die.name)}
                   aria-label={`Add ${die.name}`}
                 >
@@ -205,7 +205,7 @@ const DiceDrawer = ({ isOpen, onClose }: DiceDrawerProps) => {
                     return (
                       <div
                         key={die.name}
-                        className="flex items-center bg-base-100 rounded px-2 py-1 gap-1 shadow"
+                        className="flex items-center bg-base-100 rounded-sm px-2 py-1 gap-1 shadow-sm"
                       >
                         {iconPath ? (
                           <Icon

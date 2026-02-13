@@ -51,7 +51,7 @@ export default function RootLayout({
             unstyled: true,
             classNames: {
               toast:
-                "flex items-center gap-3 p-4 rounded-lg shadow-lg border border-primary/20 backdrop-blur-sm bg-base-200/95 text-base-content",
+                "flex items-center gap-3 p-4 rounded-lg shadow-lg border border-primary/20 backdrop-blur-xs bg-base-200/95 text-base-content",
               title: "font-semibold text-sm",
               description: "text-xs text-base-content/60",
             },

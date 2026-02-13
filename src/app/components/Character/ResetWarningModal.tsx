@@ -10,7 +10,7 @@ const ResetWarningModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-base-200 p-6 rounded-lg shadow-xl max-w-md border-2 border-error">
         <h3 className="text-xl font-bold mb-4 text-error">
           Reset Adventure?
