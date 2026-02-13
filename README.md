@@ -15,7 +15,7 @@ A solo D&D 5th Edition adventure companion powered by AI. Create a character, ge
 
 ### Prerequisites
 
-- Node.js 22.x (see `.nvmrc`)
+- Node.js 20.x (see `.nvmrc`)
 - An OpenAI API key
 - A MongoDB Atlas connection string (same database used by [dnd-homebrew-database](https://github.com/rmunoz33/dnd-homebrew-database))
 
