@@ -2,10 +2,7 @@
 
 import { Character, useDnDStore, initialCharacter } from "@/stores/useStore";
 import { medievalFont } from "@/app/components/medievalFont";
-import {
-  generateCharacterDetails,
-  generateCampaignOutline,
-} from "@/app/actions/openai";
+import { generateCharacterDetails } from "@/app/actions/ai";
 import { useState, useEffect } from "react";
 import {
   useCharacterOptions,
@@ -520,23 +517,48 @@ const CharacterCreationPage = () => {
     "Herding plot bunnies...",
   ];
   const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
+  const [campaignPreview, setCampaignPreview] = useState("");
 
   const handleSaveCharacter = async () => {
     if (!isCharacterDetailsComplete()) return;
     setIsSaving(true);
+    setCampaignPreview("");
     setLoadingMessage(
       loadingMessages[Math.floor(Math.random() * loadingMessages.length)]
     );
     try {
       if (!campaignOutline) {
-        const outline = await generateCampaignOutline(character);
-        setCampaignOutline(outline ?? "");
+        const response = await fetch("/api/campaign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ character }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Campaign generation failed: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response body");
+
+        const decoder = new TextDecoder();
+        let accumulated = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          accumulated += decoder.decode(value, { stream: true });
+          setCampaignPreview(accumulated);
+        }
+
+        setCampaignOutline(accumulated);
       }
       setIsCharacterCreated(true);
     } catch (error) {
       console.error("Error saving character:", error);
     } finally {
       setIsSaving(false);
+      setCampaignPreview("");
     }
   };
 
@@ -1223,6 +1245,20 @@ const CharacterCreationPage = () => {
                 )}
               </button>
             </div>
+
+            {/* Campaign generation streaming preview */}
+            {isSaving && campaignPreview && (
+              <div className="col-span-full mt-4">
+                <h3
+                  className={`${medievalFont.className} text-lg text-primary mb-2`}
+                >
+                  Generating Campaign...
+                </h3>
+                <div className="bg-base-200/30 border border-primary/10 rounded-lg p-4 max-h-64 overflow-y-auto text-sm text-base-content/80 whitespace-pre-wrap">
+                  {campaignPreview}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
