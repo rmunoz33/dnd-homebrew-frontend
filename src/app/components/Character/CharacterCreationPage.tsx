@@ -16,6 +16,24 @@ import { EquipmentCategorySection } from "./EquipmentSection";
 import { ResetWarningModal } from "./ResetWarningModal";
 import { SectionHeader } from "./SectionHeader";
 
+const loadingMessages = [
+  "Consulting the ancient tomes...",
+  "Rolling for plot twists...",
+  "Negotiating with goblin union reps...",
+  "Summoning the campaign spirits...",
+  "Bribing the DM with snacks...",
+  "Untangling the plot threads...",
+  "Polishing the dragon's scales...",
+  "Casting 'Outlineus Campaignus'...",
+  "Checking for traps in the story...",
+  "Convincing the NPCs to behave...",
+  "Sharpening the plot hooks...",
+  "Feeding the random encounter generator...",
+  "Making sure the villain has a monologue ready...",
+  "Rolling a natural 20 on creativity...",
+  "Herding plot bunnies...",
+];
+
 const CharacterCreationPage = () => {
   const {
     character,
@@ -499,30 +517,22 @@ const CharacterCreationPage = () => {
     setSpecialAbilityInput("");
   };
 
-  const loadingMessages = [
-    "Consulting the ancient tomes...",
-    "Rolling for plot twists...",
-    "Negotiating with goblin union reps...",
-    "Summoning the campaign spirits...",
-    "Bribing the DM with snacks...",
-    "Untangling the plot threads...",
-    "Polishing the dragon's scales...",
-    "Casting 'Outlineus Campaignus'...",
-    "Checking for traps in the story...",
-    "Convincing the NPCs to behave...",
-    "Sharpening the plot hooks...",
-    "Feeding the random encounter generator...",
-    "Making sure the villain has a monologue ready...",
-    "Rolling a natural 20 on creativity...",
-    "Herding plot bunnies...",
-  ];
   const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
-  const [campaignPreview, setCampaignPreview] = useState("");
+
+  // Rotate loading messages every 7 seconds while saving
+  useEffect(() => {
+    if (!isSaving) return;
+    const interval = setInterval(() => {
+      setLoadingMessage(
+        loadingMessages[Math.floor(Math.random() * loadingMessages.length)]
+      );
+    }, 7000);
+    return () => clearInterval(interval);
+  }, [isSaving]);
 
   const handleSaveCharacter = async () => {
     if (!isCharacterDetailsComplete()) return;
     setIsSaving(true);
-    setCampaignPreview("");
     setLoadingMessage(
       loadingMessages[Math.floor(Math.random() * loadingMessages.length)]
     );
@@ -548,7 +558,6 @@ const CharacterCreationPage = () => {
           const { done, value } = await reader.read();
           if (done) break;
           accumulated += decoder.decode(value, { stream: true });
-          setCampaignPreview(accumulated);
         }
 
         setCampaignOutline(accumulated);
@@ -558,7 +567,6 @@ const CharacterCreationPage = () => {
       console.error("Error saving character:", error);
     } finally {
       setIsSaving(false);
-      setCampaignPreview("");
     }
   };
 
@@ -1245,20 +1253,6 @@ const CharacterCreationPage = () => {
                 )}
               </button>
             </div>
-
-            {/* Campaign generation streaming preview */}
-            {isSaving && campaignPreview && (
-              <div className="col-span-full mt-4">
-                <h3
-                  className={`${medievalFont.className} text-lg text-primary mb-2`}
-                >
-                  Generating Campaign...
-                </h3>
-                <div className="bg-base-200/30 border border-primary/10 rounded-lg p-4 max-h-64 overflow-y-auto text-sm text-base-content/80 whitespace-pre-wrap">
-                  {campaignPreview}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
