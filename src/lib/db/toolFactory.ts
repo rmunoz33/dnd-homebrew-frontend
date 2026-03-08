@@ -10,6 +10,7 @@ interface CacheEntry {
 const CACHE_DURATION = 3600000 // 1 hour
 
 export function createDbLookupTool(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Model: ReturnModelType<any>,
   resourceName: string,
   paramName: string,

@@ -1,4 +1,4 @@
-export const ResourceList = (data: any[]) => {
+export const ResourceList = (data: unknown[]) => {
   return { count: data.length, results: data }
 }
 

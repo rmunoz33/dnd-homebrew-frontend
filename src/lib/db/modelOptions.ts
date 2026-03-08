@@ -11,13 +11,21 @@ export function getOrCreateModel<T extends new (...args: any[]) => any>(cl: T) {
   return mongoose.models[cl.name] || getModelForClass(cl)
 }
 
-function removeInternalFields(obj: any): any {
+interface WithToObject {
+  toObject: () => Record<string, unknown>
+}
+
+function hasToObject(obj: object): obj is WithToObject {
+  return 'toObject' in obj && typeof (obj as WithToObject).toObject === 'function'
+}
+
+function removeInternalFields(obj: unknown): unknown {
   if (Array.isArray(obj)) {
     return obj.map(removeInternalFields)
   } else if (obj !== null && typeof obj === 'object') {
-    const plainObject = typeof obj.toObject === 'function' ? obj.toObject() : obj
+    const plainObject: Record<string, unknown> = hasToObject(obj) ? obj.toObject() : obj as Record<string, unknown>
 
-    const newObj: any = {}
+    const newObj: Record<string, unknown> = {}
     for (const key in plainObject) {
       if (key !== '_id' && key !== '__v' && key !== 'id') {
         newObj[key] = removeInternalFields(plainObject[key])

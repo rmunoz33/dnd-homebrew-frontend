@@ -175,7 +175,7 @@ const GameChat = () => {
         await processStateChanges();
       }
     },
-    [input, isLoading, addMessage, setInput, streamToZustand, processStateChanges]
+    [input, isLoading, addMessage, setInput, setIsLoading, streamToZustand, processStateChanges]
   );
 
   // Auto-send initial DM greeting when chat is empty
