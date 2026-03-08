@@ -145,5 +145,5 @@ export class Equipment {
   public updated_at!: string
 }
 
-const EquipmentModel = getOrCreateModel(Equipment)
+const EquipmentModel = getOrCreateModel(Equipment, '2014-equipment')
 export default EquipmentModel

@@ -20,5 +20,5 @@ export class DamageType {
   public updated_at!: string
 }
 
-const DamageTypeModel = getOrCreateModel(DamageType)
+const DamageTypeModel = getOrCreateModel(DamageType, '2014-damage-types')
 export default DamageTypeModel

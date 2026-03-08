@@ -48,5 +48,5 @@ export class Background2024 {
   public updated_at!: string
 }
 
-const Background2024Model = getOrCreateModel(Background2024)
+const Background2024Model = getOrCreateModel(Background2024, '2024-backgrounds')
 export default Background2024Model

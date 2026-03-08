@@ -1,6 +1,11 @@
 import { toolRegistry } from "./index";
 import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
+
+/** Strip markdown code fences (```json ... ```) that Claude wraps around JSON */
+function stripCodeFences(text: string): string {
+  return text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+}
 
 interface ToolExecutionResult {
   toolUsed: boolean;
@@ -227,14 +232,14 @@ export async function executeToolsFromResponse(
 ): Promise<ToolExecutionResult> {
   const toolSchema = generateToolSchemaPrompt();
 
-  const systemPrompt = `You are an expert D&D assistant. Given the following user input and AI response, decide if any tools should be used. Here are the available tools:\n\n${toolSchema}\n\nReturn a JSON object in this format:\n{ "tools": [{"tool": "getSpellDetails", "args": {"spellName": "Fireball"}}, {"tool": "getMonsterStats", "args": {"monsterName": "Adult Red Dragon"}}] }\nor\n{ "tools": [{"tool": "getSpellDetails", "args": {"spellName": "Fireball"}}] }\nor\n{ "tools": [] } if no tools are needed.\n\nImportant naming conventions:\n- Dragons: Use "Adult Red Dragon", "Young Blue Dragon", "Ancient Gold Dragon", etc. (not "Dragon, Red")\n- Monsters: Use exact names like "Goblin", "Owlbear", "Zombie", "Troll", "Roc"\n- Spells: Use exact names like "Fireball", "Cone of Cold", "Ice Storm", "Cure Wounds", "Mage Armor"\n\nSpell mapping examples:\n- "shoot fire" → "Fireball"\n- "shoot ice" → "Cone of Cold"\n- "heal" → "Cure Wounds"\n- "make armor" → "Mage Armor"\n- "turn invisible" → "Invisibility"`;
+  const systemPrompt = `You are an expert D&D assistant. Given the following user input and AI response, decide if any tools should be used. Here are the available tools:\n\n${toolSchema}\n\nReturn a JSON object in this format:\n{ "tools": [{"tool": "getSpellDetails", "args": {"spellName": "Fireball"}}, {"tool": "getMonsterStats", "args": {"monsterName": "Adult Red Dragon"}}] }\nor\n{ "tools": [{"tool": "getSpellDetails", "args": {"spellName": "Fireball"}}] }\nor\n{ "tools": [] } if no tools are needed.\n\nImportant naming conventions:\n- Dragons: Use "Adult Red Dragon", "Young Blue Dragon", "Ancient Gold Dragon", etc. (not "Dragon, Red")\n- Monsters: Use exact names like "Goblin", "Owlbear", "Zombie", "Troll", "Roc"\n- Spells: Use exact names like "Fireball", "Cone of Cold", "Ice Storm", "Cure Wounds", "Mage Armor"\n\nSpell mapping examples:\n- "shoot fire" → "Fireball"\n- "shoot ice" → "Cone of Cold"\n- "heal" → "Cure Wounds"\n- "make armor" → "Mage Armor"\n- "turn invisible" → "Invisibility"\n\nRespond with the raw JSON object only. Do not wrap it in markdown code fences, backticks, or any other formatting.`;
 
   const userPrompt = `User input: "${userInput}"
 AI response: "${aiResponse}"`;
 
   try {
     const { text: content } = await generateText({
-      model: openai("gpt-4.1-nano"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       system: systemPrompt,
       prompt: userPrompt,
       temperature: 0.1,
@@ -251,7 +256,7 @@ AI response: "${aiResponse}"`;
       tools: Array<{ tool: string; args?: Record<string, unknown> }>;
     };
     try {
-      parsed = JSON.parse(content);
+      parsed = JSON.parse(stripCodeFences(content));
     } catch (err) {
       console.error("Failed to parse LLM response:", err);
       return {

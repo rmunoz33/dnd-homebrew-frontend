@@ -103,5 +103,5 @@ export class Trait {
   public updated_at!: string
 }
 
-const TraitModel = getOrCreateModel(Trait)
+const TraitModel = getOrCreateModel(Trait, '2014-traits')
 export default TraitModel

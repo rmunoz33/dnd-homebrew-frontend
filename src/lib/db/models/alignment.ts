@@ -23,5 +23,5 @@ export class Alignment {
   public updated_at!: string
 }
 
-const AlignmentModel = getOrCreateModel(Alignment)
+const AlignmentModel = getOrCreateModel(Alignment, '2014-alignments')
 export default AlignmentModel

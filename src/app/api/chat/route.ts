@@ -1,5 +1,5 @@
 import { streamText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { Character } from "@/stores/useStore";
 
 export const maxDuration = 30;
@@ -15,35 +15,8 @@ interface ChatRequestBody {
   campaignOutline: string;
 }
 
-function buildSystemPrompt(character: Character, campaignOutline: string): string {
-  const proficiencyBonus = Math.floor((character.level - 1) / 4) + 2;
-
-  return `You are an immersive Dungeon Master running a solo D&D 5e adventure.
-
-<character>
-Name: ${character.name}
-Level: ${character.level} (Proficiency Bonus: +${proficiencyBonus})
-Class: ${character.classes.join("/")}${character.subClass ? ` (${character.subClass})` : ""}
-Species: ${character.species}${character.subspecies ? ` (${character.subspecies})` : ""}
-Background: ${character.background}
-HP: ${character.hitPoints}/${character.maxHitPoints}
-AC: ${character.armorClass}
-
-Ability Scores & Modifiers:
-- STR: ${character.attributes.strength.value} (${character.attributes.strength.bonus >= 0 ? "+" : ""}${character.attributes.strength.bonus})
-- DEX: ${character.attributes.dexterity.value} (${character.attributes.dexterity.bonus >= 0 ? "+" : ""}${character.attributes.dexterity.bonus})
-- CON: ${character.attributes.constitution.value} (${character.attributes.constitution.bonus >= 0 ? "+" : ""}${character.attributes.constitution.bonus})
-- INT: ${character.attributes.intelligence.value} (${character.attributes.intelligence.bonus >= 0 ? "+" : ""}${character.attributes.intelligence.bonus})
-- WIS: ${character.attributes.wisdom.value} (${character.attributes.wisdom.bonus >= 0 ? "+" : ""}${character.attributes.wisdom.bonus})
-- CHA: ${character.attributes.charisma.value} (${character.attributes.charisma.bonus >= 0 ? "+" : ""}${character.attributes.charisma.bonus})
-
-Equipment: ${[...character.equipment.weapons, ...character.equipment.armor, ...character.equipment.tools, ...character.equipment.magicItems, ...character.equipment.items].join(", ") || "None"}
-Gold: ${character.money.gold} gp
-</character>
-
-<campaign>
-${campaignOutline || "No campaign outline available. Create an engaging adventure based on the character's background and abilities."}
-</campaign>
+/** Static rules that never change between requests — cached by Anthropic */
+const STATIC_RULES = `You are an immersive Dungeon Master running a solo D&D 5e adventure.
 
 <rules>
 RESPONSE LENGTH:
@@ -52,9 +25,8 @@ RESPONSE LENGTH:
 - Exceeding these limits breaks pacing. Be concise.
 
 DICE ROLLS:
-- When a check is needed, tell the player their modifier: "Roll Perception. Your modifier is +${character.attributes.wisdom.bonus}."
-- NEVER reveal the DC or possible outcomes before the roll
-- NEVER list what different roll results would reveal
+- When a check is needed, tell the player their modifier
+- Keep DCs and roll outcomes hidden until after the player rolls
 - After they roll, narrate the outcome without explaining the DC
 - You may offer to roll for them
 
@@ -79,12 +51,12 @@ PLAYER GUIDANCE:
 </rules>
 
 <immersion>
-NEVER DO THESE:
-- Reveal information the character hasn't discovered
-- Mention stat updates or game mechanics processing
-- Reveal DCs or possible roll outcomes before the player rolls
-- Use bullet points or numbered lists in narrative responses
-- Generate player dialogue or actions — never write what the player says or does next
+MAINTAIN IMMERSION:
+- Share only information the character has personally discovered or witnessed
+- Keep all stat tracking and game mechanics invisible to the narrative
+- Keep DCs and roll outcomes hidden until after the player rolls
+- Write in flowing prose paragraphs — weave information into the narrative naturally
+- Describe the world and its reactions; let the player speak and decide for themselves
 
 DESCRIBING THE PLAYER'S EXPERIENCE:
 ✓ DO describe physical sensations: "A chill runs down your spine."
@@ -100,21 +72,20 @@ The player decides what they think and choose. You describe the world and how it
 READ THE PLAYER'S ENERGY:
 - Short/confused responses ("okay", "uh", "and now?") = they need guidance, not more prose
 - When confused, respond with a direct question or clear choice, not more atmosphere
-- Match response length to player engagement — don't overwhelm a hesitant player
+- Match response length to player engagement
 
-OFFERING CHOICES IS GOOD:
-- Don't use numbered lists, but DO weave 2-3 clear options into your response
+OFFERING CHOICES:
+- Weave 2-3 clear options into your prose
 - Example: "The letter names two contacts: Professor Voss at the university, or Seraphine in the undercity. The tunnels wait beneath the cathedral."
 - This gives direction while preserving agency
 
-ASKING QUESTIONS IS GOOD:
+ASKING QUESTIONS:
 - "Do you open the seal?" / "Do you go alone, or seek an ally first?"
 - Direct questions prompt action and help uncertain players engage
-- Avoid vague "What do you do?" — be specific about the immediate choice
+- Ask about the specific immediate choice rather than vague "What do you do?"
 
 WHEN THE PLAYER IS STUCK:
-- Don't repeat the scene description
-- Offer a concrete next step: "The courier mentioned Professor Voss knows the old tunnels. Her office is a short walk from here."
+- Move the scene forward with a concrete next step: "The courier mentioned Professor Voss knows the old tunnels. Her office is a short walk from here."
 - NPCs can prompt action: A servant asks, "Shall I summon your carriage, my lord?"
 </player_engagement>
 
@@ -145,21 +116,60 @@ Clarity before poetry. The player needs to understand WHERE they are, WHO they a
 When the player asks a direct question ("Where am I?", "Who is that?", "What's happening?"):
 - Answer directly FIRST in plain language
 - THEN add brief flavor if appropriate
-- Don't bury the answer in atmosphere
 
 ✗ WRONG: "The library sighs with ancient whispers, corridors shifting like dreams..."
 ✓ RIGHT: "You're in the Nexus Library, a magical archive. It's a maze of floating bookshelves. You work here as a researcher."
 </answering_questions>`;
+
+function buildDynamicContext(character: Character, campaignOutline: string): string {
+  const proficiencyBonus = Math.floor((character.level - 1) / 4) + 2;
+
+  return `<character>
+Name: ${character.name}
+Level: ${character.level} (Proficiency Bonus: +${proficiencyBonus})
+Class: ${character.classes.join("/")}${character.subClass ? ` (${character.subClass})` : ""}
+Species: ${character.species}${character.subspecies ? ` (${character.subspecies})` : ""}
+Background: ${character.background}
+HP: ${character.hitPoints}/${character.maxHitPoints}
+AC: ${character.armorClass}
+
+Ability Scores & Modifiers:
+- STR: ${character.attributes.strength.value} (${character.attributes.strength.bonus >= 0 ? "+" : ""}${character.attributes.strength.bonus})
+- DEX: ${character.attributes.dexterity.value} (${character.attributes.dexterity.bonus >= 0 ? "+" : ""}${character.attributes.dexterity.bonus})
+- CON: ${character.attributes.constitution.value} (${character.attributes.constitution.bonus >= 0 ? "+" : ""}${character.attributes.constitution.bonus})
+- INT: ${character.attributes.intelligence.value} (${character.attributes.intelligence.bonus >= 0 ? "+" : ""}${character.attributes.intelligence.bonus})
+- WIS: ${character.attributes.wisdom.value} (${character.attributes.wisdom.bonus >= 0 ? "+" : ""}${character.attributes.wisdom.bonus})
+- CHA: ${character.attributes.charisma.value} (${character.attributes.charisma.bonus >= 0 ? "+" : ""}${character.attributes.charisma.bonus})
+
+Equipment: ${[...character.equipment.weapons, ...character.equipment.armor, ...character.equipment.tools, ...character.equipment.magicItems, ...character.equipment.items].join(", ") || "None"}
+Gold: ${character.money.gold} gp
+</character>
+
+<campaign>
+${campaignOutline || "No campaign outline available. Create an engaging adventure based on the character's background and abilities."}
+</campaign>`;
 }
 
 export async function POST(req: Request) {
   const { messages, character, campaignOutline }: ChatRequestBody = await req.json();
 
-  const systemPrompt = buildSystemPrompt(character, campaignOutline);
+  const dynamicContext = buildDynamicContext(character, campaignOutline);
 
   const result = streamText({
-    model: openai("gpt-4.1-mini"),
-    system: systemPrompt,
+    model: anthropic("claude-haiku-4-5-20251001"),
+    system: [
+      {
+        role: "system" as const,
+        content: STATIC_RULES,
+        providerOptions: {
+          anthropic: { cacheControl: { type: "ephemeral" } },
+        },
+      },
+      {
+        role: "system" as const,
+        content: dynamicContext,
+      },
+    ],
     messages,
     temperature: 0.7,
   });

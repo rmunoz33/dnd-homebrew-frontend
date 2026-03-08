@@ -38,5 +38,5 @@ export class Subrace {
   public updated_at!: string
 }
 
-const SubraceModel = getOrCreateModel(Subrace)
+const SubraceModel = getOrCreateModel(Subrace, '2014-subraces')
 export default SubraceModel

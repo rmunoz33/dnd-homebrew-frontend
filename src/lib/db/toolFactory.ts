@@ -10,6 +10,7 @@ interface CacheEntry {
 const CACHE_DURATION = 3600000 // 1 hour
 
 export function createDbLookupTool(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Model: ReturnModelType<any>,
   resourceName: string,
   paramName: string,
@@ -53,8 +54,11 @@ export function createDbLookupTool(
         }
       }
 
-      cache.set(cacheKey, { data, timestamp: Date.now() })
-      return data
+      // Serialize to strip non-plain objects (e.g. ObjectId buffers) so
+      // results can safely pass from Server Components to Client Components
+      const plainData = JSON.parse(JSON.stringify(data))
+      cache.set(cacheKey, { data: plainData, timestamp: Date.now() })
+      return plainData
     } catch (error) {
       console.error(`Error fetching ${resourceName} details:`, error)
       return {

@@ -1,10 +1,16 @@
 "use server";
 
 import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
+
+/** Strip markdown code fences (```json ... ```) that Claude wraps around JSON */
+function stripCodeFences(text: string): string {
+  return text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+}
 import { Character, Message } from "@/stores/useStore";
 import { toolRegistry } from "@/app/api/tools/server";
 import { connectDB } from "@/lib/db/connection";
+import { buildCampaignPrompt } from "@/lib/campaignPrompt";
 import RaceModel from "@/lib/db/models/race";
 import ClassModel from "@/lib/db/models/class";
 import AlignmentModel from "@/lib/db/models/alignment";
@@ -106,11 +112,13 @@ Do NOT return tool calls with amount 0.
 
 # Final Instructions
 
-Report all changes from the latest exchange, including reasonable inferences. But NEVER duplicate changes from earlier exchanges. When unsure if something is a new change or a continuation of an old one, err on the side of not reporting it.`;
+Report all changes from the latest exchange, including reasonable inferences. But NEVER duplicate changes from earlier exchanges. When unsure if something is a new change or a continuation of an old one, err on the side of not reporting it.
+
+Respond with the raw JSON object only. Do not wrap it in markdown code fences, backticks, or any other formatting.`;
 
   try {
     const { text } = await generateText({
-      model: openai("gpt-4.1-mini"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       system: systemPrompt,
       prompt: "Analyze the latest DM response and report any character state changes as JSON.",
       temperature: 0.1,
@@ -118,7 +126,7 @@ Report all changes from the latest exchange, including reasonable inferences. Bu
 
     let parsed;
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(stripCodeFences(text));
     } catch (parseError) {
       console.error("Failed to parse state changes JSON. Raw text:", text, parseError);
       return [];
@@ -207,11 +215,13 @@ Return ONLY a JSON object with these creative fields. Example:
     "charisma": { "value": 8 }
   },
   "money": { "gold": 15 }
-}`;
+}
+
+Respond with the raw JSON object only. Do not wrap it in markdown code fences, backticks, or any other formatting.`;
 
   try {
     const { text } = await generateText({
-      model: openai("gpt-4.1-nano"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       system: "You are a D&D character creation expert. Generate creative character elements that fit the provided canonical data.",
       prompt: creativePrompt,
       temperature: 0.7,
@@ -219,7 +229,7 @@ Return ONLY a JSON object with these creative fields. Example:
 
     let parsed;
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(stripCodeFences(text));
     } catch (parseError) {
       console.error("Failed to parse creative fields JSON. Raw text:", text, parseError);
       return {};
@@ -232,119 +242,20 @@ Return ONLY a JSON object with these creative fields. Example:
 }
 
 /**
- * Generates a campaign outline for a character.
+ * Generates a campaign outline for a character (non-streaming fallback).
  */
 export async function generateCampaignOutline(
   character: Character
 ): Promise<string> {
-  const toolDescriptions = toolRegistry.generateToolDescriptions();
-  const toolSchema = toolRegistry.generateToolSchemaPrompt();
-  const toolCount = toolRegistry.getToolCount();
-  const startingLevel = character.level || 1;
-
-  const prompt = `As a D&D campaign designer, create a detailed campaign outline for a solo adventure featuring this character:
-
-${JSON.stringify(character, null, 2)}
-
-AVAILABLE D&D TOOLS (${toolCount} tools):
-${toolDescriptions}
-
-TOOL SCHEMA FOR REFERENCE:
-${toolSchema}
-
-Use these tools to get accurate information when creating NPCs, enemies, equipment, and campaign elements. You have access to:
-- Monster stat blocks and abilities
-- Spell details and effects
-- Equipment and magic item properties
-- Class features and abilities
-- Racial traits and features
-- Background details and features
-- Feat descriptions and prerequisites
-- Subclass specializations
-- Game rules and mechanics
-- Damage types and effects
-- Languages and cultural information
-
-Follow this structure:
-
-1. Campaign Overview
-- Main plot hook and central conflict
-- Setting and atmosphere
-- Major themes and tone
-- Expected character arc
-- Starting level: ${startingLevel}
-
-2. Three-Act Structure (adjust acts and challenges to the starting level)
-Act 1 (Starting Level to Midpoint):
-- Inciting incident
-- Initial challenges and discoveries
-- Key NPCs and locations
-- First major decision point
-
-Act 2 (Midpoint to Pre-Climax):
-- Rising action and complications
-- Character development opportunities
-- Mid-campaign twist
-- Second major decision point
-
-Act 3 (Climax and Resolution):
-- Climax and resolution
-- Final challenges and revelations
-- Character's ultimate test
-- Multiple possible endings
-
-3. Key NPCs and Enemies
-- Allies and mentors
-- Rivals and antagonists
-- Their motivations and relationships to the character
-- How they can help or hinder the character's goals
-
-4. The Final Confrontation: The Big Baddie
-- The main antagonist of the campaign
-- Their backstory, motivations, and ultimate goal
-- Description of their lair or stronghold
-- A detailed D&D 5e-style stat block for the final boss battle
-
-5. Stat Blocks
-- For each major NPC and enemy, provide a D&D 5e-style stat block (level-appropriate, including AC, HP, abilities, attacks, and special traits)
-- Use the available tools to get accurate monster information when needed
-- Consider the character's class and abilities when designing challenges
-
-6. Major Locations
-- Important settings and their significance
-- Key landmarks and points of interest
-- How they connect to the character's journey
-
-7. Side Quests and Optional Content
-- Potential side adventures
-- Character development opportunities
-- Additional rewards and challenges
-
-8. Character Integration
-- How the character's background ties into the main plot
-- Personal stakes and motivations
-- Opportunities for character growth
-- Ways to incorporate the character's class and abilities
-
-9. Pacing and Progression
-- Expected level progression
-- Key milestones and achievements
-- Balance of combat, exploration, and social interaction
-- Opportunities for character development
-
-10. Campaign Conclusion & Epilogue
-- A clear description of what happens after the Big Baddie is defeated.
-- A concluding narrative that lets the player know the main adventure is over.
-- Suggestions for what the character might do in the future, post-campaign.
-
-Format the response as a detailed markdown document that can be used as a campaign guide.`;
+  const prompt = buildCampaignPrompt(character);
 
   try {
     const { text } = await generateText({
-      model: openai("gpt-4.1-nano"),
-      system: "You are an expert D&D campaign designer who creates engaging, character-driven adventures. You have access to comprehensive D&D data through the available tools.",
+      model: anthropic("claude-haiku-4-5-20251001"),
+      system: "You are an expert D&D campaign designer who creates engaging, character-driven solo adventures.",
       prompt,
       temperature: 0.7,
+      maxOutputTokens: 3000,
     });
 
     return text;

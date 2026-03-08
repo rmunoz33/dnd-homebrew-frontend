@@ -24,5 +24,5 @@ export class Skill {
   public updated_at!: string
 }
 
-const SkillModel = getOrCreateModel(Skill)
+const SkillModel = getOrCreateModel(Skill, '2014-skills')
 export default SkillModel

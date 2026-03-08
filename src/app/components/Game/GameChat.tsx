@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, ArrowDown } from "lucide-react";
 import { useDnDStore, Message } from "@/stores/useStore";
-import { extractStateChanges } from "@/app/actions/openai";
+import { extractStateChanges } from "@/app/actions/ai";
 import { toolRegistry } from "@/app/api/tools";
 import MessageContent from "./MessageContent";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
@@ -175,7 +175,7 @@ const GameChat = () => {
         await processStateChanges();
       }
     },
-    [input, isLoading, addMessage, setInput, streamToZustand, processStateChanges]
+    [input, isLoading, addMessage, setInput, setIsLoading, streamToZustand, processStateChanges]
   );
 
   // Auto-send initial DM greeting when chat is empty

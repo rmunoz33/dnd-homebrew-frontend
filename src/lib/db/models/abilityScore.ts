@@ -27,5 +27,5 @@ export class AbilityScore {
   public updated_at!: string
 }
 
-const AbilityScoreModel = getOrCreateModel(AbilityScore)
+const AbilityScoreModel = getOrCreateModel(AbilityScore, '2014-ability-scores')
 export default AbilityScoreModel

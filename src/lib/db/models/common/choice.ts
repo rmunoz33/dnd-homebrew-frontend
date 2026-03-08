@@ -155,6 +155,6 @@ export class MoneyOption extends Option {
   public unit!: string
 }
 
-export const OptionSetModel = getOrCreateModel(OptionSet)
-export const OptionModel = getOrCreateModel(Option)
-export const ChoiceModel = getOrCreateModel(Choice)
+export const OptionSetModel = getOrCreateModel(OptionSet, 'optionsets')
+export const OptionModel = getOrCreateModel(Option, 'options')
+export const ChoiceModel = getOrCreateModel(Choice, 'choices')

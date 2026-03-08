@@ -389,5 +389,5 @@ export class Monster {
   public updated_at!: string
 }
 
-const MonsterModel = getOrCreateModel(Monster)
+const MonsterModel = getOrCreateModel(Monster, '2014-monsters')
 export default MonsterModel

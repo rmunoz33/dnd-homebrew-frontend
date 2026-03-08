@@ -2,10 +2,7 @@
 
 import { Character, useDnDStore, initialCharacter } from "@/stores/useStore";
 import { medievalFont } from "@/app/components/medievalFont";
-import {
-  generateCharacterDetails,
-  generateCampaignOutline,
-} from "@/app/actions/openai";
+import { generateCharacterDetails } from "@/app/actions/ai";
 import { useState, useEffect } from "react";
 import {
   useCharacterOptions,
@@ -18,6 +15,24 @@ import { ClearableInput } from "./ClearableInput";
 import { EquipmentCategorySection } from "./EquipmentSection";
 import { ResetWarningModal } from "./ResetWarningModal";
 import { SectionHeader } from "./SectionHeader";
+
+const loadingMessages = [
+  "Consulting the ancient tomes...",
+  "Rolling for plot twists...",
+  "Negotiating with goblin union reps...",
+  "Summoning the campaign spirits...",
+  "Bribing the DM with snacks...",
+  "Untangling the plot threads...",
+  "Polishing the dragon's scales...",
+  "Casting 'Outlineus Campaignus'...",
+  "Checking for traps in the story...",
+  "Convincing the NPCs to behave...",
+  "Sharpening the plot hooks...",
+  "Feeding the random encounter generator...",
+  "Making sure the villain has a monologue ready...",
+  "Rolling a natural 20 on creativity...",
+  "Herding plot bunnies...",
+];
 
 const CharacterCreationPage = () => {
   const {
@@ -502,24 +517,18 @@ const CharacterCreationPage = () => {
     setSpecialAbilityInput("");
   };
 
-  const loadingMessages = [
-    "Consulting the ancient tomes...",
-    "Rolling for plot twists...",
-    "Negotiating with goblin union reps...",
-    "Summoning the campaign spirits...",
-    "Bribing the DM with snacks...",
-    "Untangling the plot threads...",
-    "Polishing the dragon's scales...",
-    "Casting 'Outlineus Campaignus'...",
-    "Checking for traps in the story...",
-    "Convincing the NPCs to behave...",
-    "Sharpening the plot hooks...",
-    "Feeding the random encounter generator...",
-    "Making sure the villain has a monologue ready...",
-    "Rolling a natural 20 on creativity...",
-    "Herding plot bunnies...",
-  ];
   const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
+
+  // Rotate loading messages every 7 seconds while saving
+  useEffect(() => {
+    if (!isSaving) return;
+    const interval = setInterval(() => {
+      setLoadingMessage(
+        loadingMessages[Math.floor(Math.random() * loadingMessages.length)]
+      );
+    }, 7000);
+    return () => clearInterval(interval);
+  }, [isSaving]);
 
   const handleSaveCharacter = async () => {
     if (!isCharacterDetailsComplete()) return;
@@ -529,8 +538,29 @@ const CharacterCreationPage = () => {
     );
     try {
       if (!campaignOutline) {
-        const outline = await generateCampaignOutline(character);
-        setCampaignOutline(outline ?? "");
+        const response = await fetch("/api/campaign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ character }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Campaign generation failed: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response body");
+
+        const decoder = new TextDecoder();
+        let accumulated = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          accumulated += decoder.decode(value, { stream: true });
+        }
+
+        setCampaignOutline(accumulated);
       }
       setIsCharacterCreated(true);
     } catch (error) {

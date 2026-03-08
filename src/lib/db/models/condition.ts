@@ -20,5 +20,5 @@ export class Condition {
   public updated_at!: string
 }
 
-const ConditionModel = getOrCreateModel(Condition)
+const ConditionModel = getOrCreateModel(Condition, '2014-conditions')
 export default ConditionModel
