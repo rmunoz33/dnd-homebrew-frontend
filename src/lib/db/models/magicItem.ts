@@ -41,5 +41,5 @@ export class MagicItem {
   public updated_at!: string
 }
 
-const MagicItemModel = getOrCreateModel(MagicItem)
+const MagicItemModel = getOrCreateModel(MagicItem, '2014-magic-items')
 export default MagicItemModel

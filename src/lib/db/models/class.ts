@@ -101,5 +101,5 @@ export class Class {
   public updated_at!: string
 }
 
-const ClassModel = getOrCreateModel(Class)
+const ClassModel = getOrCreateModel(Class, '2014-classes')
 export default ClassModel

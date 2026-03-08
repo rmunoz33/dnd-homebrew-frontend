@@ -65,7 +65,7 @@ All 15 D&D reference tools are created via `createDbLookupTool()` in `src/lib/db
 ### Database Layer (`src/lib/db/`)
 
 - `connection.ts` — MongoDB singleton using `globalThis.mongooseCache` (HMR-safe, pool size 10)
-- `modelOptions.ts` — `srdModelOptions()` decorator strips `_id`/`__v`, plus `getOrCreateModel()` helper that checks if model already exists (required for HMR)
+- `modelOptions.ts` — `srdModelOptions()` decorator strips `_id`/`__v`, plus `getOrCreateModel(cl, collectionName)` helper (HMR-safe). **The collection name must be passed explicitly** — Next.js/Turbopack minifies class names in server bundles, so `cl.name` returns mangled values and different models collide in `mongoose.models`. The collection name is used as the mongoose model key via `customName`.
 - `models/` — 17 TypeGoose models ported from [5e-srd-api](https://github.com/5e-bits/5e-srd-api). Uses `@prop()` decorators only (stripped `@Field()`/`@ObjectType()` from upstream's type-graphql)
 - Collections are edition-prefixed: `2014-races`, `2014-spells`, etc. (mapped from JSON files like `5e-SRD-Spells.json` → `2014-spells`)
 

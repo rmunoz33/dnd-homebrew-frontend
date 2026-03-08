@@ -63,5 +63,5 @@ export class Race {
   public updated_at!: string
 }
 
-const RaceModel = getOrCreateModel(Race)
+const RaceModel = getOrCreateModel(Race, '2014-races')
 export default RaceModel

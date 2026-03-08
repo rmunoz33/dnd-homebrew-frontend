@@ -24,5 +24,5 @@ export class Rule {
   public updated_at!: string
 }
 
-const RuleModel = getOrCreateModel(Rule)
+const RuleModel = getOrCreateModel(Rule, '2014-rules')
 export default RuleModel

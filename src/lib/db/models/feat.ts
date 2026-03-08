@@ -32,5 +32,5 @@ export class Feat {
   public updated_at!: string
 }
 
-const FeatModel = getOrCreateModel(Feat)
+const FeatModel = getOrCreateModel(Feat, '2014-feats')
 export default FeatModel

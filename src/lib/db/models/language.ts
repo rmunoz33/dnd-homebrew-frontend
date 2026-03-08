@@ -29,5 +29,5 @@ export class Language {
   public updated_at!: string
 }
 
-const LanguageModel = getOrCreateModel(Language)
+const LanguageModel = getOrCreateModel(Language, '2014-languages')
 export default LanguageModel

@@ -30,5 +30,5 @@ export class Proficiency2024 {
   public updated_at!: string
 }
 
-const Proficiency2024Model = getOrCreateModel(Proficiency2024)
+const Proficiency2024Model = getOrCreateModel(Proficiency2024, '2024-proficiencies')
 export default Proficiency2024Model

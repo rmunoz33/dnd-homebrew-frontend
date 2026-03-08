@@ -96,5 +96,5 @@ export class Spell {
   public updated_at!: string
 }
 
-const SpellModel = getOrCreateModel(Spell)
+const SpellModel = getOrCreateModel(Spell, '2014-spells')
 export default SpellModel

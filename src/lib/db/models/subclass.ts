@@ -55,5 +55,5 @@ export class Subclass {
   public updated_at!: string
 }
 
-const SubclassModel = getOrCreateModel(Subclass)
+const SubclassModel = getOrCreateModel(Subclass, '2014-subclasses')
 export default SubclassModel
